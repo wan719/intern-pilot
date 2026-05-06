@@ -197,6 +197,7 @@ AI 匹配分析
 - [AI 分析模块](docs/14-ai-analysis-design.md)
 - [投递记录模块](docs/15-application-record-design.md)
 - [工程化增强](docs/16-engineering-enhancement.md)
+- [API 接口测试指南](docs/17-api-test-guide.md)
 
 ## 项目亮点
 
