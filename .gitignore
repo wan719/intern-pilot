@@ -3,6 +3,9 @@ hs_err_pid*.log
 replay_pid*.log
 *.log
 uploads/
+node_modules/
+dist/
+*.tsbuildinfo
 *.pdf
 *.docx
 .env

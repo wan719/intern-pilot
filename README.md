@@ -127,6 +127,22 @@ cd backend/intern-pilot-backend
 .\gradlew.bat bootRun
 ```
 
+### 本地启动前端
+
+```powershell
+cd frontend/intern-pilot-frontend
+npm install
+npm run dev
+```
+
+默认访问：
+
+```text
+http://localhost:5173
+```
+
+前端开发服务器会将 `/api` 请求代理到 `http://localhost:8080`。
+
 ### Docker Compose 启动
 
 ```powershell
