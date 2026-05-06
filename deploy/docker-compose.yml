@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: internpilot-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: intern_pilot
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - internpilot-mysql-data:/var/lib/mysql
+      - ../backend/intern-pilot-backend/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7.2
+    container_name: internpilot-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - internpilot-redis-data:/data
+
+  backend:
+    build:
+      context: ../backend/intern-pilot-backend
+      dockerfile: Dockerfile
+    container_name: internpilot-backend
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: intern_pilot
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: root
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: intern-pilot-docker-secret-key-change-this-to-a-long-random-string
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_PROVIDER: deepseek
+      AI_BASE_URL: https://api.deepseek.com
+      AI_MODEL: deepseek-chat
+    volumes:
+      - internpilot-uploads:/app/uploads
+
+volumes:
+  internpilot-mysql-data:
+  internpilot-redis-data:
+  internpilot-uploads:

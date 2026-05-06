@@ -1,3 +1,13 @@
 .vscode/
 hs_err_pid*.log
 replay_pid*.log
+*.log
+uploads/
+*.pdf
+*.docx
+.env
+.env.*
+application-local.yml
+application-prod.yml
+*.key
+*.pem
