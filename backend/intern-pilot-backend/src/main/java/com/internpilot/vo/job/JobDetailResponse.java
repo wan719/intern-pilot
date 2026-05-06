@@ -1,0 +1,53 @@
+package com.internpilot.vo.job;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Schema(description = "岗位详情响应")
+public class JobDetailResponse {
+
+    @Schema(description = "岗位ID")
+    private Long jobId;
+
+    @Schema(description = "公司名称")
+    private String companyName;
+
+    @Schema(description = "岗位名称")
+    private String jobTitle;
+
+    @Schema(description = "岗位类型")
+    private String jobType;
+
+    @Schema(description = "工作地点")
+    private String location;
+
+    @Schema(description = "来源平台")
+    private String sourcePlatform;
+
+    @Schema(description = "岗位链接")
+    private String jobUrl;
+
+    @Schema(description = "岗位 JD 原文")
+    private String jdContent;
+
+    @Schema(description = "技能要求")
+    private String skillRequirements;
+
+    @Schema(description = "薪资范围")
+    private String salaryRange;
+
+    @Schema(description = "每周工作天数")
+    private String workDaysPerWeek;
+
+    @Schema(description = "实习周期")
+    private String internshipDuration;
+
+    @Schema(description = "创建时间")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "更新时间")
+    private LocalDateTime updatedAt;
+}
