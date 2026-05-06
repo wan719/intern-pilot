@@ -127,8 +127,7 @@ public class JobServiceImpl implements JobService {
     public Boolean delete(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         JobDescription job = getUserJobOrThrow(id, currentUserId);
-        job.setDeleted(1);
-        jobDescriptionMapper.updateById(job);
+        jobDescriptionMapper.deleteById(job.getId());
         return true;
     }
 

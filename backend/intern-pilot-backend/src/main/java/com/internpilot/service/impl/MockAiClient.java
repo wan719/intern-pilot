@@ -15,28 +15,28 @@ public class MockAiClient implements AiClient {
                   "matchScore": 82,
                   "matchLevel": "MEDIUM_HIGH",
                   "strengths": [
-                    "具备 Spring Boot 项目经验",
-                    "熟悉 JWT 鉴权和权限控制",
-                    "有 MySQL 和 Redis 使用经验"
+                    "Has Spring Boot project experience",
+                    "Understands JWT authentication and authorization",
+                    "Has MySQL and Redis usage experience"
                   ],
                   "weaknesses": [
-                    "缺少真实企业实习经历",
-                    "项目中高并发和部署经验体现不足"
+                    "Lacks real enterprise internship experience",
+                    "High concurrency and deployment experience can be improved"
                   ],
                   "missingSkills": [
                     "Docker",
-                    "Linux 部署",
-                    "消息队列"
+                    "Linux deployment",
+                    "Message queue"
                   ],
                   "suggestions": [
-                    "在项目描述中补充 Redis 缓存使用场景",
-                    "增加 Docker Compose 部署说明",
-                    "补充接口文档和测试说明"
+                    "Add Redis cache scenarios to the project description",
+                    "Add Docker Compose deployment notes",
+                    "Improve API documentation and test guide"
                   ],
                   "interviewTips": [
-                    "准备 Spring Security 过滤链执行流程",
-                    "准备 JWT 登录流程",
-                    "准备 Redis 缓存穿透、击穿、雪崩问题"
+                    "Prepare the Spring Security filter chain flow",
+                    "Prepare the JWT login flow",
+                    "Prepare Redis cache penetration, breakdown, and avalanche questions"
                   ]
                 }
                 """;

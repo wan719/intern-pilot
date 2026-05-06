@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,7 +47,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
         try {
             Files.createDirectories(userDir);
             Path targetPath = userDir.resolve(storedFileName).normalize();
-            file.transferTo(targetPath.toFile());
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
             return new StoredFileInfo(
                     originalFileName,

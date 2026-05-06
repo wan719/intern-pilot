@@ -172,8 +172,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         ApplicationRecord record = getUserApplicationOrThrow(id, currentUserId);
 
-        record.setDeleted(1);
-        applicationRecordMapper.updateById(record);
+        applicationRecordMapper.deleteById(record.getId());
         return true;
     }
 

@@ -1,5 +1,6 @@
 package com.internpilot.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
@@ -44,6 +45,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final AiClient aiClient;
     private final AiProperties aiProperties;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -66,6 +68,12 @@ public class AnalysisServiceImpl implements AnalysisService {
         if (!forceRefresh) {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached instanceof AnalysisResultResponse cachedResponse) {
+                AnalysisResultResponse copy = copyResultResponse(cachedResponse);
+                copy.setCacheHit(true);
+                return copy;
+            }
+            if (cached != null) {
+                AnalysisResultResponse cachedResponse = objectMapper.convertValue(cached, AnalysisResultResponse.class);
                 AnalysisResultResponse copy = copyResultResponse(cachedResponse);
                 copy.setCacheHit(true);
                 return copy;

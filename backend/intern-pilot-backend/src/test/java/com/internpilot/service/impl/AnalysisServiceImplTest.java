@@ -2,6 +2,7 @@ package com.internpilot.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.config.AiProperties;
 import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.entity.AnalysisReport;
@@ -77,7 +78,8 @@ class AnalysisServiceImplTest {
                 analysisReportMapper,
                 aiClient,
                 aiProperties,
-                redisTemplate
+                redisTemplate,
+                new ObjectMapper()
         );
     }
 

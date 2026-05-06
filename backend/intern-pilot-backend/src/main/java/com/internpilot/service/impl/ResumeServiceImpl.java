@@ -105,9 +105,9 @@ public class ResumeServiceImpl implements ResumeService {
     public Boolean delete(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Resume resume = getUserResumeOrThrow(id, currentUserId);
-        resume.setDeleted(1);
         resume.setIsDefault(0);
         resumeMapper.updateById(resume);
+        resumeMapper.deleteById(resume.getId());
         return true;
     }
 

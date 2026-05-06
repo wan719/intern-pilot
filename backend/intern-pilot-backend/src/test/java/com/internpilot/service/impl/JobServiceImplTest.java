@@ -152,8 +152,7 @@ class JobServiceImplTest {
         Boolean result = jobService.delete(7L);
 
         assertTrue(result);
-        assertEquals(1, job.getDeleted());
-        verify(jobDescriptionMapper).updateById(job);
+        verify(jobDescriptionMapper).deleteById(7L);
     }
 
     @Test
