@@ -12,7 +12,7 @@ spring:
       database: 0
 
 jwt:
-  secret: your_jwt_secret
+  secret: your_jwt_secret_at_least_32_characters_long
   expiration: 86400000
 
 file:

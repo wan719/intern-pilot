@@ -19,6 +19,8 @@ logs/
 ### OS ###
 .DS_Store
 Thumbs.db
+bin/
+HELP.md
 
 ### Upload files ###
 uploads/
