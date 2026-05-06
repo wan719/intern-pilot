@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/intern_pilot?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: your_mysql_username
+    password: your_mysql_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+
+jwt:
+  secret: your_jwt_secret
+  expiration: 86400000
+
+file:
+  upload-dir: uploads/resumes
+
+ai:
+  provider: deepseek
+  api-key: ${AI_API_KEY}
+  base-url: https://api.deepseek.com
+  model: deepseek-chat
+  timeout: 60000
