@@ -9,7 +9,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("resume")
+@TableName("resume")//这个注解指定了实体类对应的数据库表名为resume
 public class Resume {
 
     @TableId(type = IdType.AUTO)

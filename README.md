@@ -231,7 +231,6 @@ InternPilot：AI 实习投递与简历优化平台
 - [API 接口测试指南](docs/17-api-test-guide.md)
 - [面试总结与简历包装](docs/18-interview-summary.md)
 - [前端设计](docs/19-frontend-design.md)
-- [面试与简历精简包](docs/20-interview-resume-package.md)
 
 ## 后续规划
 

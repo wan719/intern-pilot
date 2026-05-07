@@ -2,6 +2,7 @@ package com.internpilot.service.impl;
 
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
+import com.internpilot.mapper.PermissionMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.service.UserService;
 import com.internpilot.util.SecurityUtils;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final PermissionMapper permissionMapper;
 
     @Override
     public AuthUserResponse getCurrentUserInfo() {
@@ -31,6 +33,8 @@ public class UserServiceImpl implements UserService {
         response.setMajor(user.getMajor());
         response.setGrade(user.getGrade());
         response.setRole(user.getRole());
+        response.setRoles(permissionMapper.selectRoleCodesByUserId(user.getId()));
+        response.setPermissions(permissionMapper.selectPermissionCodesByUserId(user.getId()));
         return response;
     }
 }

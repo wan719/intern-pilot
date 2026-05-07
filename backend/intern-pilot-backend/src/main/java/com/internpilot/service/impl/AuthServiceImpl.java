@@ -3,10 +3,15 @@ package com.internpilot.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.dto.auth.LoginRequest;
 import com.internpilot.dto.auth.RegisterRequest;
+import com.internpilot.entity.Role;
 import com.internpilot.entity.User;
+import com.internpilot.entity.UserRole;
 import com.internpilot.enums.UserRoleEnum;
 import com.internpilot.exception.BusinessException;
+import com.internpilot.mapper.RoleMapper;
+import com.internpilot.mapper.PermissionMapper;
 import com.internpilot.mapper.UserMapper;
+import com.internpilot.mapper.UserRoleMapper;
 import com.internpilot.security.JwtTokenProvider;
 import com.internpilot.service.AuthService;
 import com.internpilot.vo.auth.AuthUserResponse;
@@ -14,8 +19,10 @@ import com.internpilot.vo.auth.LoginResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +31,12 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RoleMapper roleMapper;
+    private final PermissionMapper permissionMapper;
+    private final UserRoleMapper userRoleMapper;
 
     @Override
+    @Transactional
     public AuthUserResponse register(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new BusinessException("两次密码输入不一致");
@@ -34,8 +45,7 @@ public class AuthServiceImpl implements AuthService {
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<User>()
                         .eq(User::getUsername, request.getUsername())
-                        .eq(User::getDeleted, 0)
-        );
+                        .eq(User::getDeleted, 0));
         if (count != null && count > 0) {
             throw new BusinessException("用户名已存在");
         }
@@ -51,6 +61,20 @@ public class AuthServiceImpl implements AuthService {
         user.setEnabled(1);
 
         userMapper.insert(user);
+        Role userRole = roleMapper.selectOne(
+                new LambdaQueryWrapper<Role>()
+                        .eq(Role::getRoleCode, UserRoleEnum.USER.getCode())
+                        .eq(Role::getDeleted, 0)
+                        .last("LIMIT 1"));
+
+        if (userRole == null) {
+            throw new BusinessException("系统默认角色不存在");
+        }
+
+        UserRole relation = new UserRole();
+        relation.setUserId(user.getId());
+        relation.setRoleId(userRole.getId());
+        userRoleMapper.insert(relation);
         return toAuthUserResponse(user);
     }
 
@@ -60,8 +84,7 @@ public class AuthServiceImpl implements AuthService {
                 new LambdaQueryWrapper<User>()
                         .eq(User::getUsername, request.getUsername())
                         .eq(User::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (user == null) {
             throw new BusinessException("用户名或密码错误");
@@ -84,6 +107,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthUserResponse toAuthUserResponse(User user) {
+        List<String> roles = permissionMapper.selectRoleCodesByUserId(user.getId());
+        List<String> permissions = permissionMapper.selectPermissionCodesByUserId(user.getId());
+
         AuthUserResponse response = new AuthUserResponse();
         response.setUserId(user.getId());
         response.setUsername(user.getUsername());
@@ -92,6 +118,8 @@ public class AuthServiceImpl implements AuthService {
         response.setMajor(user.getMajor());
         response.setGrade(user.getGrade());
         response.setRole(user.getRole());
+        response.setRoles(roles);
+        response.setPermissions(permissions);
         return response;
     }
 }

@@ -1,5 +1,7 @@
 package com.internpilot.vo.auth;
 
+import java.util.List;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -27,4 +29,8 @@ public class AuthUserResponse {
 
     @Schema(description = "角色", example = "USER")
     private String role;
+    @Schema(description = "权限列表", example = "[\"internship:read\", \"internship:write\"]")
+    private List<String> roles;
+    @Schema(description = "权限列表", example = "[\"internship:read\", \"internship:write\"]")
+    private List<String> permissions;
 }

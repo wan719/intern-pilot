@@ -53,6 +53,10 @@ public class JwtTokenProvider {
         }
     }
 
+    public String getUsername(String token) {
+        return parseClaims(token).getSubject();
+    }
+
     public Long getExpirationSeconds() {
         return jwtProperties.getExpiration() / 1000;
     }
