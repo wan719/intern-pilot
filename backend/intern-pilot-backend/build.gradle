@@ -14,6 +14,8 @@ java {
 }
 
 dependencies {
+	//websocket
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	// Spring Security
@@ -49,7 +51,8 @@ dependencies {
 }
 
 tasks.named('test') {
-	maxHeapSize = '256m'
+	// Keep test worker memory conservative on Windows when pagefile is tight.
+	maxHeapSize = '128m'
 	useJUnitPlatform()
 }
 

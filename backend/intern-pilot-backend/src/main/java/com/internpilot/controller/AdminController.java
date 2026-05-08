@@ -11,6 +11,9 @@ import com.internpilot.service.AdminPermissionService;
 import com.internpilot.vo.admin.PermissionResponse;
 import com.internpilot.vo.admin.RoleResponse;
 import com.internpilot.vo.auth.AuthUserResponse;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@Tag(name = "管理员 操作接口")
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -31,7 +35,7 @@ public class AdminController {
     private final AdminPermissionService adminPermissionService;
     private final UserMapper userMapper;
     private final PermissionMapper permissionMapper;
-
+    @Operation(summary = "",description = "")
     @GetMapping("/ping")
     public Result<String> ping() {
         return Result.success("admin ok");
@@ -41,9 +45,9 @@ public class AdminController {
     @GetMapping("/users")
     public Result<List<AuthUserResponse>> listUsers() {
         List<AuthUserResponse> users = userMapper.selectList(
-                        new LambdaQueryWrapper<User>()
-                                .eq(User::getDeleted, 0)
-                                .orderByDesc(User::getCreatedAt))
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getDeleted, 0)
+                        .orderByDesc(User::getCreatedAt))
                 .stream()
                 .map(this::toAuthUserResponse)
                 .toList();

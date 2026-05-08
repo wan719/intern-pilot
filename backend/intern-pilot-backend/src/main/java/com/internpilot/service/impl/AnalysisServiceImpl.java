@@ -1,8 +1,8 @@
 package com.internpilot.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.common.PageResult;
 import com.internpilot.config.AiProperties;
 import com.internpilot.dto.analysis.AiAnalysisResult;
@@ -50,10 +50,14 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     @Transactional
     public AnalysisResultResponse match(AnalysisMatchRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+        return matchForUser(request, SecurityUtils.getCurrentUserId());
+    }
 
-        Resume resume = getUserResumeOrThrow(request.getResumeId(), currentUserId);
-        JobDescription job = getUserJobOrThrow(request.getJobId(), currentUserId);
+    @Override
+    @Transactional
+    public AnalysisResultResponse matchForUser(AnalysisMatchRequest request, Long userId) {
+        Resume resume = getUserResumeOrThrow(request.getResumeId(), userId);
+        JobDescription job = getUserJobOrThrow(request.getJobId(), userId);
 
         if (!StringUtils.hasText(resume.getParsedText())) {
             throw new BusinessException("简历解析文本为空");
@@ -62,7 +66,7 @@ public class AnalysisServiceImpl implements AnalysisService {
             throw new BusinessException("岗位 JD 不能为空");
         }
 
-        String cacheKey = buildCacheKey(currentUserId, resume.getId(), job.getId());
+        String cacheKey = buildCacheKey(userId, resume.getId(), job.getId());
         boolean forceRefresh = Boolean.TRUE.equals(request.getForceRefresh());
 
         if (!forceRefresh) {
@@ -86,7 +90,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         normalizeAiResult(aiResult);
 
         AnalysisReport report = new AnalysisReport();
-        report.setUserId(currentUserId);
+        report.setUserId(userId);
         report.setResumeId(resume.getId());
         report.setJobId(job.getId());
         report.setMatchScore(aiResult.getMatchScore());

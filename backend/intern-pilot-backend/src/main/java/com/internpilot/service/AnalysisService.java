@@ -10,6 +10,8 @@ public interface AnalysisService {
 
     AnalysisResultResponse match(AnalysisMatchRequest request);
 
+    AnalysisResultResponse matchForUser(AnalysisMatchRequest request, Long userId);
+
     PageResult<AnalysisReportListResponse> listReports(
             Long resumeId,
             Long jobId,

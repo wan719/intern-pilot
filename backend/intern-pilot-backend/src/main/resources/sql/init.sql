@@ -214,6 +214,31 @@ CREATE TABLE IF NOT EXISTS analysis_report (
     KEY idx_report_score (match_score)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS analysis_task (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    task_no VARCHAR(64) NOT NULL,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    report_id BIGINT DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    progress INT NOT NULL DEFAULT 0,
+    message VARCHAR(500) DEFAULT NULL,
+    force_refresh TINYINT NOT NULL DEFAULT 0,
+    error_message TEXT DEFAULT NULL,
+    started_at DATETIME DEFAULT NULL,
+    finished_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_analysis_task_no (task_no),
+    KEY idx_analysis_task_user_id (user_id),
+    KEY idx_analysis_task_resume_id (resume_id),
+    KEY idx_analysis_task_job_id (job_id),
+    KEY idx_analysis_task_status (status),
+    KEY idx_analysis_task_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS application_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,

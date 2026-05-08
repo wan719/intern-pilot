@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <PageContainer title="岗位管理" description="维护目标岗位 JD，后续用于 AI 匹配分析。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
@@ -37,7 +37,12 @@
           <el-form-item label="岗位"><el-input v-model="form.jobTitle" /></el-form-item>
         </div>
         <div class="form-grid three">
-          <el-form-item label="类型"><el-input v-model="form.jobType" /></el-form-item>
+          <el-form-item label="类型">
+            <el-input
+              v-model="form.jobType"
+              placeholder="例如：后端开发 / 前端开发 / 测试 / 产品 / 算法"
+            />
+          </el-form-item>
           <el-form-item label="地点"><el-input v-model="form.location" /></el-form-item>
           <el-form-item label="来源"><el-input v-model="form.sourcePlatform" /></el-form-item>
         </div>
@@ -46,7 +51,15 @@
           <el-form-item label="实习周期"><el-input v-model="form.internshipDuration" /></el-form-item>
         </div>
         <el-form-item label="岗位链接"><el-input v-model="form.jobUrl" /></el-form-item>
-        <el-form-item label="技能要求"><el-input v-model="form.skillRequirements" /></el-form-item>
+        <el-form-item label="技能要求">
+          <el-input
+            v-model="form.skillRequirements"
+            type="textarea"
+            :rows="3"
+            resize="vertical"
+            placeholder="可换行输入，例如：\n1. 熟悉 Java/Spring\n2. 了解 MySQL 与 Redis\n3. 具备良好沟通能力"
+          />
+        </el-form-item>
         <el-form-item label="JD 内容">
           <el-input v-model="form.jdContent" type="textarea" :rows="8" />
         </el-form-item>
