@@ -14,6 +14,8 @@ const routes = [
       { path: 'jobs', component: () => import('@/views/job/JobList.vue'), meta: { title: '岗位管理' } },
       { path: 'analysis/match', component: () => import('@/views/analysis/AnalysisMatch.vue'), meta: { title: 'AI 匹配分析' } },
       { path: 'analysis/reports', component: () => import('@/views/analysis/AnalysisReportList.vue'), meta: { title: '分析报告' } },
+      { path: 'interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题' } },
+      { path: 'interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情' } },
       { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录' } }
     ]
   }

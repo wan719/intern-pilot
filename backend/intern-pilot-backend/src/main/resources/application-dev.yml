@@ -5,6 +5,11 @@ spring:
     password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/init.sql
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

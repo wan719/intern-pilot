@@ -91,7 +91,7 @@ import router from '@/router'
 import { createAnalysisTaskApi, getAnalysisTaskDetailApi } from '@/api/analysisTask'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
-import { createAnalysisSocket, type AnalysisProgressMessage } from '@/utils/analysisSocket'
+import type { AnalysisProgressMessage } from '@/utils/analysisSocket'
 
 const resumes = ref<any[]>([])
 const jobs = ref<any[]>([])
@@ -164,13 +164,19 @@ async function startTask() {
 }
 
 function connectSocket(taskNo: string) {
-  stompClient = createAnalysisSocket(
-    taskNo,
-    (message) => applyTaskMessage(message),
-    () => {
-      ElMessage.warning('WebSocket 连接异常，已使用轮询兜底')
-    }
-  )
+  import('@/utils/analysisSocket')
+    .then(({ createAnalysisSocket }) => {
+      stompClient = createAnalysisSocket(
+        taskNo,
+        (message) => applyTaskMessage(message),
+        () => {
+          ElMessage.warning('WebSocket 连接异常，已使用轮询兜底')
+        }
+      )
+    })
+    .catch(() => {
+      ElMessage.warning('WebSocket 初始化失败，已使用轮询兜底')
+    })
 }
 
 function startPolling(taskNo: string) {

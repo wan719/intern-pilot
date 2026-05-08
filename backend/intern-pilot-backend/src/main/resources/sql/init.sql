@@ -239,6 +239,48 @@ CREATE TABLE IF NOT EXISTS analysis_task (
     KEY idx_analysis_task_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS interview_question_report (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    analysis_report_id BIGINT DEFAULT NULL,
+    title VARCHAR(200) DEFAULT NULL,
+    question_count INT NOT NULL DEFAULT 0,
+    ai_provider VARCHAR(50) DEFAULT NULL,
+    ai_model VARCHAR(100) DEFAULT NULL,
+    raw_ai_response LONGTEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    KEY idx_iqr_user_id (user_id),
+    KEY idx_iqr_resume_id (resume_id),
+    KEY idx_iqr_job_id (job_id),
+    KEY idx_iqr_analysis_report_id (analysis_report_id),
+    KEY idx_iqr_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS interview_question (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    report_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    question_type VARCHAR(50) NOT NULL,
+    difficulty VARCHAR(30) NOT NULL DEFAULT 'MEDIUM',
+    question TEXT NOT NULL,
+    answer TEXT DEFAULT NULL,
+    answer_points TEXT DEFAULT NULL,
+    related_skills VARCHAR(500) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    KEY idx_iq_report_id (report_id),
+    KEY idx_iq_user_id (user_id),
+    KEY idx_iq_question_type (question_type),
+    KEY idx_iq_difficulty (difficulty),
+    KEY idx_iq_sort_order (sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS application_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,

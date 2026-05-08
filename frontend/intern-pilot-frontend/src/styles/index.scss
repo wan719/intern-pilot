@@ -14,7 +14,7 @@
 
 body {
   margin: 0;
-  min-width: 1180px;
+  min-width: 0;
   background: #f4f7fb;
 }
 
@@ -368,4 +368,35 @@ a {
 .el-dialog,
 .el-drawer {
   --el-border-radius-small: 8px;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .page-heading,
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar {
+    .el-input,
+    .el-select {
+      max-width: none;
+    }
+  }
+
+  .dashboard-grid,
+  .stat-grid,
+  .form-grid.two,
+  .form-grid.three {
+    grid-template-columns: 1fr;
+  }
 }
