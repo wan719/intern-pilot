@@ -102,6 +102,7 @@ VALUES
 ('admin:permission:read', '查看权限管理', 'ADMIN_PERMISSION', 'Read permissions', 1),
 ('admin:permission:write', '编辑权限管理', 'ADMIN_PERMISSION', 'Update permissions', 1),
 ('system:log:read', '查看系统日志', 'SYSTEM_LOG', 'Read system logs', 1),
+('system:log:delete', '删除系统日志', 'SYSTEM_LOG', 'Delete system logs', 1),
 ('dashboard:admin:read', '查看管理看板', 'DASHBOARD', 'Read admin dashboard', 1);
 
 INSERT IGNORE INTO role_permission (role_id, permission_id)
@@ -302,4 +303,29 @@ CREATE TABLE IF NOT EXISTS application_record (
     KEY idx_app_status (status),
     KEY idx_app_apply_date (apply_date),
     KEY idx_app_user_job (user_id, job_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    operator_id BIGINT DEFAULT NULL,
+    operator_username VARCHAR(100) DEFAULT NULL,
+    module VARCHAR(100) NOT NULL,
+    operation VARCHAR(100) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    request_uri VARCHAR(255) DEFAULT NULL,
+    request_method VARCHAR(20) DEFAULT NULL,
+    request_params TEXT DEFAULT NULL,
+    ip_address VARCHAR(100) DEFAULT NULL,
+    user_agent VARCHAR(500) DEFAULT NULL,
+    success TINYINT NOT NULL DEFAULT 1,
+    error_message TEXT DEFAULT NULL,
+    cost_time BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    KEY idx_sol_operator_id (operator_id),
+    KEY idx_sol_operator_username (operator_username),
+    KEY idx_sol_module (module),
+    KEY idx_sol_operation_type (operation_type),
+    KEY idx_sol_success (success),
+    KEY idx_sol_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

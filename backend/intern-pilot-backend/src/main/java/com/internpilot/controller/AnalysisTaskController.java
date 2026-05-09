@@ -1,7 +1,9 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.dto.analysis.AnalysisTaskCreateRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.AnalysisTaskService;
 import com.internpilot.vo.analysis.AnalysisTaskCreateResponse;
 import com.internpilot.vo.analysis.AnalysisTaskDetailResponse;
@@ -26,6 +28,7 @@ public class AnalysisTaskController {
     private final AnalysisTaskService analysisTaskService;
 
     @Operation(summary = "创建 AI 分析任务", description = "创建异步 AI 分析任务，并通过 WebSocket 推送进度")
+    @OperationLog(module = "AI分析", operation = "创建AI分析任务", type = OperationTypeEnum.AI, recordParams = false)
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping
     public Result<AnalysisTaskCreateResponse> createTask(

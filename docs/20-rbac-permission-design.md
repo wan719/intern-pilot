@@ -18,6 +18,8 @@ Role-Based Access Control
 用户绑定角色
 角色绑定权限
 用户通过角色间接获得权限
+```
+
 2. 当前权限系统存在的问题
 
 当前项目第一阶段权限设计较简单：
@@ -143,12 +145,13 @@ admin:user:read
 admin:user:write
 system:log:read
 5.2 操作类型
-操作	含义
-read	查询
-write	新增 / 修改
-delete	删除
-manage	管理
-export	导出
+| 操作 | 含义 |
+|------|------|
+| read | 查询 |
+| write | 新增 / 修改 |
+| delete | 删除 |
+| manage | 管理 |
+| export | 导出 |
 5.3 推荐权限清单
 用户普通权限
 resume:read

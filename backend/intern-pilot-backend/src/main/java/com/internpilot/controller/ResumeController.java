@@ -1,7 +1,9 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.ResumeService;
 import com.internpilot.vo.resume.ResumeDetailResponse;
 import com.internpilot.vo.resume.ResumeListResponse;
@@ -29,6 +31,7 @@ public class ResumeController {
     private final ResumeService resumeService;
 
     @Operation(summary = "上传简历", description = "上传 PDF 或 DOCX 简历，并解析文本内容")
+    @OperationLog(module = "简历管理", operation = "上传简历", type = OperationTypeEnum.UPLOAD, recordParams = false)
     @PreAuthorize("hasAuthority('resume:write')")
     @PostMapping("/upload")
     public Result<ResumeUploadResponse> upload(
@@ -54,6 +57,7 @@ public class ResumeController {
     }
 
     @Operation(summary = "删除简历", description = "逻辑删除当前用户的简历")
+    @OperationLog(module = "简历管理", operation = "删除简历", type = OperationTypeEnum.DELETE)
     @PreAuthorize("hasAuthority('resume:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
@@ -61,6 +65,7 @@ public class ResumeController {
     }
 
     @Operation(summary = "设置默认简历", description = "将当前用户某份简历设置为默认简历")
+    @OperationLog(module = "简历管理", operation = "设置默认简历", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('resume:write')")
     @PutMapping("/{id}/default")
     public Result<Boolean> setDefault(@PathVariable Long id) {

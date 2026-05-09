@@ -1,8 +1,10 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.dto.auth.LoginRequest;
 import com.internpilot.dto.auth.RegisterRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.AuthService;
 import com.internpilot.vo.auth.AuthUserResponse;
 import com.internpilot.vo.auth.LoginResponse;
@@ -24,12 +26,14 @@ public class AuthController {
     private final AuthService authService;
 
     @Operation(summary = "用户注册", description = "用户通过用户名、密码、邮箱等信息注册账号")
+    @OperationLog(module = "用户认证", operation = "用户注册", type = OperationTypeEnum.CREATE, recordParams = false)
     @PostMapping("/register")
     public Result<AuthUserResponse> register(@RequestBody @Valid RegisterRequest request) {
         return Result.success(authService.register(request));
     }
 
     @Operation(summary = "用户登录", description = "用户通过用户名和密码登录系统，登录成功后返回 JWT Token")
+    @OperationLog(module = "用户认证", operation = "用户登录", type = OperationTypeEnum.LOGIN, recordParams = false)
     @PostMapping("/login")
     public Result<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
         return Result.success(authService.login(request));

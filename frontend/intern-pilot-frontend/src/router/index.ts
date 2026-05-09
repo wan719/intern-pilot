@@ -16,7 +16,8 @@ const routes = [
       { path: 'analysis/reports', component: () => import('@/views/analysis/AnalysisReportList.vue'), meta: { title: '分析报告' } },
       { path: 'interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题' } },
       { path: 'interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情' } },
-      { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录' } }
+      { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录' } },
+      { path: 'admin/operation-logs', component: () => import('@/views/admin/OperationLogList.vue'), meta: { title: '操作日志' } }
     ]
   }
 ]

@@ -1,8 +1,10 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.dto.analysis.AnalysisMatchRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.AnalysisService;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
@@ -29,6 +31,7 @@ public class AnalysisController {
     private final AnalysisService analysisService;
 
     @Operation(summary = "简历岗位匹配分析", description = "根据用户简历和岗位 JD 生成 AI 匹配分析报告")
+    @OperationLog(module = "AI分析", operation = "发起简历岗位匹配分析", type = OperationTypeEnum.AI, recordParams = false)
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/match")
     public Result<AnalysisResultResponse> match(@RequestBody @Valid AnalysisMatchRequest request) {

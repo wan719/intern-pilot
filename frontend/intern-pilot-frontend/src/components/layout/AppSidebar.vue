@@ -51,21 +51,50 @@
         <el-icon><List /></el-icon>
         <span>投递记录</span>
       </el-menu-item>
+
+      <el-sub-menu v-if="hasPermission('system:log:read')" index="admin-group">
+        <template #title>
+          <div class="analysis-title">
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </div>
+        </template>
+        <el-menu-item index="/admin/operation-logs" @click="go('/admin/operation-logs')">
+          <el-icon><Memo /></el-icon>
+          <span>操作日志</span>
+        </el-menu-item>
+      </el-sub-menu>
     </el-menu>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { Briefcase, DataBoard, Document, List, MagicStick, QuestionFilled, Tickets } from '@element-plus/icons-vue'
+import {
+  Briefcase,
+  DataBoard,
+  Document,
+  List,
+  MagicStick,
+  Memo,
+  QuestionFilled,
+  Setting,
+  Tickets
+} from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 function go(path: string) {
   if (route.path !== path) {
     router.push(path)
   }
+}
+
+function hasPermission(permission: string) {
+  return auth.user?.permissions?.includes(permission)
 }
 </script>
 

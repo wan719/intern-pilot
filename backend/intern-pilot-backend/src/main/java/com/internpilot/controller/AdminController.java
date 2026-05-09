@@ -1,10 +1,12 @@
 package com.internpilot.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.dto.admin.RolePermissionUpdateRequest;
 import com.internpilot.dto.admin.UserRoleUpdateRequest;
 import com.internpilot.entity.User;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.mapper.PermissionMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.service.AdminPermissionService;
@@ -67,6 +69,7 @@ public class AdminController {
     }
 
     @PreAuthorize("hasAuthority('admin:user:write')")
+    @OperationLog(module = "管理员", operation = "修改用户角色", type = OperationTypeEnum.GRANT)
     @PutMapping("/users/{id}/roles")
     public Result<Boolean> updateUserRoles(
             @PathVariable Long id,
@@ -75,6 +78,7 @@ public class AdminController {
     }
 
     @PreAuthorize("hasAuthority('admin:role:write')")
+    @OperationLog(module = "管理员", operation = "修改角色权限", type = OperationTypeEnum.GRANT)
     @PutMapping("/roles/{id}/permissions")
     public Result<Boolean> updateRolePermissions(
             @PathVariable Long id,

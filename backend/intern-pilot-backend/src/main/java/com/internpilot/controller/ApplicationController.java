@@ -1,10 +1,12 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.dto.application.ApplicationCreateRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.ApplicationService;
 import com.internpilot.vo.application.ApplicationCreateResponse;
 import com.internpilot.vo.application.ApplicationDetailResponse;
@@ -33,6 +35,7 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     @Operation(summary = "创建投递记录", description = "为当前用户的某个岗位创建投递记录")
+    @OperationLog(module = "投递记录", operation = "创建投递记录", type = OperationTypeEnum.CREATE)
     @PreAuthorize("hasAuthority('application:write')")
     @PostMapping
     public Result<ApplicationCreateResponse> create(@RequestBody @Valid ApplicationCreateRequest request) {
@@ -58,6 +61,7 @@ public class ApplicationController {
     }
 
     @Operation(summary = "修改投递状态", description = "修改当前用户某条投递记录的状态")
+    @OperationLog(module = "投递记录", operation = "修改投递状态", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('application:write')")
     @PutMapping("/{id}/status")
     public Result<Boolean> updateStatus(
@@ -67,6 +71,7 @@ public class ApplicationController {
     }
 
     @Operation(summary = "修改投递备注", description = "修改当前用户某条投递记录的备注、复盘和面试时间")
+    @OperationLog(module = "投递记录", operation = "修改投递备注", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('application:write')")
     @PutMapping("/{id}/note")
     public Result<Boolean> updateNote(
@@ -76,6 +81,7 @@ public class ApplicationController {
     }
 
     @Operation(summary = "删除投递记录", description = "逻辑删除当前用户某条投递记录")
+    @OperationLog(module = "投递记录", operation = "删除投递记录", type = OperationTypeEnum.DELETE)
     @PreAuthorize("hasAuthority('application:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {

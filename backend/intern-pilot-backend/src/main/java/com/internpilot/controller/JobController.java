@@ -1,9 +1,11 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.dto.job.JobCreateRequest;
 import com.internpilot.dto.job.JobUpdateRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.JobService;
 import com.internpilot.vo.job.JobCreateResponse;
 import com.internpilot.vo.job.JobDetailResponse;
@@ -32,6 +34,7 @@ public class JobController {
     private final JobService jobService;
 
     @Operation(summary = "创建岗位 JD", description = "创建目标实习岗位 JD，用于后续 AI 匹配分析")
+    @OperationLog(module = "岗位管理", operation = "创建岗位", type = OperationTypeEnum.CREATE)
     @PreAuthorize("hasAuthority('job:write')")
     @PostMapping
     public Result<JobCreateResponse> create(@RequestBody @Valid JobCreateRequest request) {
@@ -58,6 +61,7 @@ public class JobController {
     }
 
     @Operation(summary = "修改岗位 JD", description = "修改当前用户保存的岗位 JD")
+    @OperationLog(module = "岗位管理", operation = "修改岗位", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('job:write')")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody @Valid JobUpdateRequest request) {
@@ -65,6 +69,7 @@ public class JobController {
     }
 
     @Operation(summary = "删除岗位 JD", description = "逻辑删除当前用户保存的岗位 JD")
+    @OperationLog(module = "岗位管理", operation = "删除岗位", type = OperationTypeEnum.DELETE)
     @PreAuthorize("hasAuthority('job:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {

@@ -24,6 +24,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	// Spring Boot Web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	// Spring AOP for operation log annotation
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 	// MyBatis Plus
     implementation 'com.baomidou:mybatis-plus-spring-boot3-starter:3.5.9'
 	implementation 'com.baomidou:mybatis-plus-jsqlparser:3.5.9'

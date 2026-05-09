@@ -1,8 +1,10 @@
 package com.internpilot.controller;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.InterviewQuestionService;
 import com.internpilot.vo.interview.InterviewQuestionDetailResponse;
 import com.internpilot.vo.interview.InterviewQuestionGenerateResponse;
@@ -23,6 +25,7 @@ public class InterviewQuestionController {
     private final InterviewQuestionService interviewQuestionService;
 
     @Operation(summary = "生成 AI 面试题", description = "根据简历、岗位和分析报告生成岗位定制化面试题")
+    @OperationLog(module = "AI面试题", operation = "生成AI面试题", type = OperationTypeEnum.AI, recordParams = false)
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/generate")
     public Result<InterviewQuestionGenerateResponse> generate(
@@ -51,6 +54,7 @@ public class InterviewQuestionController {
     }
 
     @Operation(summary = "删除面试题报告", description = "逻辑删除某份面试题报告")
+    @OperationLog(module = "AI面试题", operation = "删除AI面试题报告", type = OperationTypeEnum.DELETE)
     @PreAuthorize("hasAuthority('analysis:delete')")
     @DeleteMapping("/{reportId}")
     public Result<Boolean> delete(@PathVariable Long reportId) {
