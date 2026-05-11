@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="投递记录" description="管理岗位投递状态、面试时间、备注和复盘。">
+  <PageContainer title="" description="管理岗位投递状态、面试时间、备注和复盘。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
     </template>

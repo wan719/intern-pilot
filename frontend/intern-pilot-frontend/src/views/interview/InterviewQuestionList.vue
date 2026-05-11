@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="AI 面试题" description="根据简历、岗位和 AI 匹配报告生成定制化面试题。">
+  <PageContainer title="" description="根据简历、岗位和 AI 匹配报告生成定制化面试题。">
     <template #actions>
       <el-button type="primary" :icon="Plus" :disabled="!canGenerate" @click="openGenerate">
         生成面试题

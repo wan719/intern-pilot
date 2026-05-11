@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="简历管理" description="上传 PDF / DOCX 简历，查看解析结果，并设置默认简历。">
+  <PageContainer title="" description="上传 PDF / DOCX 简历，查看解析结果，并设置默认简历。">
     <template #actions>
       <el-button type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
     </template>

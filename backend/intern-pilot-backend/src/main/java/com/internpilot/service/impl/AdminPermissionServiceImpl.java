@@ -16,6 +16,7 @@ import com.internpilot.vo.admin.RoleResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -41,11 +42,15 @@ public class AdminPermissionServiceImpl implements AdminPermissionService {
     }
 
     @Override
-    public List<PermissionResponse> listPermissions() {
+    public List<PermissionResponse> listPermissions(String resourceType) {
+        LambdaQueryWrapper<Permission> wrapper = new LambdaQueryWrapper<Permission>()
+                .eq(Permission::getDeleted, 0);
+        if (StringUtils.hasText(resourceType)) {
+            wrapper.eq(Permission::getResourceType, resourceType.trim());
+        }
+
         return permissionMapper.selectList(
-                        new LambdaQueryWrapper<Permission>()
-                                .eq(Permission::getDeleted, 0)
-                                .orderByAsc(Permission::getResourceType)
+                        wrapper.orderByAsc(Permission::getResourceType)
                                 .orderByAsc(Permission::getId))
                 .stream()
                 .map(this::toPermissionResponse)
@@ -113,6 +118,7 @@ public class AdminPermissionServiceImpl implements AdminPermissionService {
         response.setRoleName(role.getRoleName());
         response.setDescription(role.getDescription());
         response.setEnabled(Integer.valueOf(1).equals(role.getEnabled()));
+        response.setPermissions(permissionMapper.selectPermissionCodesByRoleId(role.getId()));
         return response;
     }
 

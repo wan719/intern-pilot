@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class RoleResponse {
+public class AdminRoleResponse {
 
     private Long roleId;
 
@@ -15,7 +15,7 @@ public class RoleResponse {
 
     private String description;
 
-    private Boolean enabled;
+    private Integer enabled;
 
     private List<String> permissions;
 }

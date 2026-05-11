@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="分析报告" description="查看历史 AI 匹配报告，按最低分筛选。">
+  <PageContainer title="" description="查看历史 AI 匹配报告，按最低分筛选。">
     <section class="panel toolbar">
       <el-input-number v-model="query.minScore" :min="0" :max="100" placeholder="最低分" />
       <el-button type="primary" @click="loadReports">筛选</el-button>

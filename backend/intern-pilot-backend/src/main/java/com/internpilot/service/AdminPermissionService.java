@@ -9,7 +9,7 @@ public interface AdminPermissionService {
 
     List<RoleResponse> listRoles();
 
-    List<PermissionResponse> listPermissions();
+    List<PermissionResponse> listPermissions(String resourceType);
 
     Boolean updateUserRoles(Long userId, List<Long> roleIds);
 

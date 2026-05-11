@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <aside class="app-sidebar">
     <div class="brand">
       <div class="brand-mark">IP</div>
@@ -10,7 +10,7 @@
 
     <el-menu
       :default-active="route.path"
-      :default-openeds="['analysis-group']"
+      :default-openeds="['analysis-group', 'admin-group']"
       class="sidebar-menu"
     >
       <el-menu-item index="/dashboard" @click="go('/dashboard')">
@@ -52,14 +52,30 @@
         <span>投递记录</span>
       </el-menu-item>
 
-      <el-sub-menu v-if="hasPermission('system:log:read')" index="admin-group">
+      <el-sub-menu v-if="showAdminGroup" index="admin-group">
         <template #title>
           <div class="analysis-title">
             <el-icon><Setting /></el-icon>
-            <span>系统管理</span>
+            <span>管理员后台</span>
           </div>
         </template>
-        <el-menu-item index="/admin/operation-logs" @click="go('/admin/operation-logs')">
+        <el-menu-item v-if="hasPermission('dashboard:admin:read')" index="/admin/dashboard" @click="go('/admin/dashboard')">
+          <el-icon><DataBoard /></el-icon>
+          <span>后台看板</span>
+        </el-menu-item>
+        <el-menu-item v-if="hasPermission('admin:user:read')" index="/admin/users" @click="go('/admin/users')">
+          <el-icon><User /></el-icon>
+          <span>用户管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="hasPermission('admin:role:read')" index="/admin/roles" @click="go('/admin/roles')">
+          <el-icon><Avatar /></el-icon>
+          <span>角色管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="hasPermission('admin:permission:read')" index="/admin/permissions" @click="go('/admin/permissions')">
+          <el-icon><Lock /></el-icon>
+          <span>权限管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="hasPermission('system:log:read')" index="/admin/operation-logs" @click="go('/admin/operation-logs')">
           <el-icon><Memo /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
@@ -69,17 +85,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  Avatar,
   Briefcase,
   DataBoard,
   Document,
   List,
+  Lock,
   MagicStick,
   Memo,
   QuestionFilled,
   Setting,
-  Tickets
+  Tickets,
+  User
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -96,6 +116,11 @@ function go(path: string) {
 function hasPermission(permission: string) {
   return auth.user?.permissions?.includes(permission)
 }
+
+const showAdminGroup = computed(() => {
+  const keys = ['dashboard:admin:read', 'admin:user:read', 'admin:role:read', 'admin:permission:read', 'system:log:read']
+  return keys.some((key) => hasPermission(key))
+})
 </script>
 
 <style scoped>

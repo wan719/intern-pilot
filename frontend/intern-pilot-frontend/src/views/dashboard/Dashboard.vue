@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="数据看板" description="基于现有列表接口汇总简历、岗位、分析报告和投递进度。">
+  <PageContainer title="" description="基于现有列表接口汇总简历、岗位、分析报告和投递进度。">
     <div class="stat-grid">
       <StatCard label="简历数量" :value="summary.resumes" :icon="Document" />
       <StatCard label="岗位数量" :value="summary.jobs" :icon="Briefcase" />

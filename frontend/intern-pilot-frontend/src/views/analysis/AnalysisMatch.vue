@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="AI 匹配分析" description="选择简历和岗位，创建异步分析任务并实时查看执行进度。">
+  <PageContainer title="" description="选择简历和岗位，创建异步分析任务并实时查看执行进度。">
     <div class="analysis-grid">
       <section class="panel">
         <div class="panel-header">

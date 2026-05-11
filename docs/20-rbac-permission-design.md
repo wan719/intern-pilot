@@ -153,39 +153,34 @@ system:log:read
 | manage | 管理 |
 | export | 导出 |
 5.3 推荐权限清单
-用户普通权限
-resume:read
-resume:write
-resume:delete
+**用户普通权限**
+- resume:read
+- resume:write
+- resume:delete
+- job:read
+- job:write
+- job:delete
+- analysis:read
+- analysis:write
+- analysis:delete
+- application:read
+- application:write
+- application:delete
 
-job:read
-job:write
-job:delete
-
-analysis:read
-analysis:write
-analysis:delete
-
-application:read
-application:write
-application:delete
-管理员权限
-admin:user:read
-admin:user:write
-admin:user:disable
-
-admin:role:read
-admin:role:write
-
-admin:permission:read
-admin:permission:write
-
-system:log:read
-system:log:delete
-
-dashboard:admin:read
+**管理员权限**
+- admin:user:read
+- admin:user:write
+- admin:user:disable
+- admin:role:read
+- admin:role:write
+- admin:permission:read
+- admin:permission:write
+- system:log:read
+- system:log:delete
+- dashboard:admin:read
 6. 数据库设计
 6.1 role 表
+```sql
 CREATE TABLE IF NOT EXISTS role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '角色ID',
     role_code VARCHAR(50) NOT NULL COMMENT '角色编码，如 USER / ADMIN',
@@ -198,7 +193,9 @@ CREATE TABLE IF NOT EXISTS role (
     UNIQUE KEY uk_role_code (role_code),
     KEY idx_role_enabled (enabled)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
+```
 6.2 permission 表
+```sql
 CREATE TABLE IF NOT EXISTS permission (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '权限ID',
     permission_code VARCHAR(100) NOT NULL COMMENT '权限编码，如 resume:read',
@@ -213,7 +210,9 @@ CREATE TABLE IF NOT EXISTS permission (
     KEY idx_permission_resource_type (resource_type),
     KEY idx_permission_enabled (enabled)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='权限表';
+```
 6.3 user_role 表
+```sql
 CREATE TABLE IF NOT EXISTS user_role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     user_id BIGINT NOT NULL COMMENT '用户ID',
@@ -224,7 +223,9 @@ CREATE TABLE IF NOT EXISTS user_role (
     KEY idx_user_role_user_id (user_id),
     KEY idx_user_role_role_id (role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
+```
 6.4 role_permission 表
+```sql
 CREATE TABLE IF NOT EXISTS role_permission (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     role_id BIGINT NOT NULL COMMENT '角色ID',
@@ -235,6 +236,7 @@ CREATE TABLE IF NOT EXISTS role_permission (
     KEY idx_role_permission_role_id (role_id),
     KEY idx_role_permission_permission_id (permission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表';
+```
 6.5 user 表是否保留 role 字段
 
 当前 user 表中可能已有：
@@ -289,11 +291,14 @@ user_role 用于真正权限控制
 
 7. 初始化数据设计
 7.1 初始化角色
+```sql
 INSERT INTO role (role_code, role_name, description, enabled)
 VALUES
 ('USER', '普通用户', '普通注册用户', 1),
 ('ADMIN', '系统管理员', '系统管理员，拥有后台管理权限', 1);
+```
 7.2 初始化权限
+```sql
 INSERT INTO permission (permission_code, permission_name, resource_type, description, enabled)
 VALUES
 ('resume:read', '查看简历', 'RESUME', '查看自己的简历', 1),
@@ -324,7 +329,9 @@ VALUES
 
 ('system:log:read', '查看系统日志', 'SYSTEM_LOG', '查看系统操作日志', 1),
 ('dashboard:admin:read', '查看管理员看板', 'DASHBOARD', '查看管理员统计数据', 1);
+```
 7.3 给 USER 分配权限
+```sql
 INSERT INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -344,13 +351,17 @@ WHERE r.role_code = 'USER'
       'application:write',
       'application:delete'
   );
+```
 7.4 给 ADMIN 分配全部权限
+```sql
 INSERT INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
 JOIN permission p
 WHERE r.role_code = 'ADMIN';
+```
 7.5 给已有用户分配 USER 角色
+```sql
 INSERT INTO user_role (user_id, role_id)
 SELECT u.id, r.id
 FROM user u
@@ -363,7 +374,9 @@ WHERE u.role = 'USER'
         AND ur.role_id = r.id
         AND ur.deleted = 0
   );
+```
 7.6 给已有管理员分配 ADMIN 角色
+```sql
 INSERT INTO user_role (user_id, role_id)
 SELECT u.id, r.id
 FROM user u
@@ -376,12 +389,14 @@ WHERE u.role = 'ADMIN'
         AND ur.role_id = r.id
         AND ur.deleted = 0
   );
+```
 8. Entity 设计
 8.1 Role Entity
 
 路径：
 
-src/main/java/com/internpilot/entity/Role.java
+`src/main/java/com/internpilot/entity/Role.java`
+```java
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
@@ -411,11 +426,13 @@ public class Role {
     @TableLogic
     private Integer deleted;
 }
+```
 8.2 Permission Entity
 
 路径：
 
-src/main/java/com/internpilot/entity/Permission.java
+`src/main/java/com/internpilot/entity/Permission.java`
+```java
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
@@ -447,11 +464,13 @@ public class Permission {
     @TableLogic
     private Integer deleted;
 }
+```
 8.3 UserRole Entity
 
 路径：
 
-src/main/java/com/internpilot/entity/UserRole.java
+`src/main/java/com/internpilot/entity/UserRole.java`
+```java
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
@@ -475,11 +494,13 @@ public class UserRole {
     @TableLogic
     private Integer deleted;
 }
+```
 8.4 RolePermission Entity
 
 路径：
 
-src/main/java/com/internpilot/entity/RolePermission.java
+`src/main/java/com/internpilot/entity/RolePermission.java`
+```java
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
@@ -503,12 +524,14 @@ public class RolePermission {
     @TableLogic
     private Integer deleted;
 }
+```
 9. Mapper 设计
 9.1 RoleMapper
 
 路径：
 
-src/main/java/com/internpilot/mapper/RoleMapper.java
+`src/main/java/com/internpilot/mapper/RoleMapper.java`
+```java
 package com.internpilot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -517,12 +540,13 @@ import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface RoleMapper extends BaseMapper<Role> {
-}
+```
 9.2 PermissionMapper
 
 路径：
 
-src/main/java/com/internpilot/mapper/PermissionMapper.java
+`src/main/java/com/internpilot/mapper/PermissionMapper.java`
+```java
 package com.internpilot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -532,11 +556,13 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface PermissionMapper extends BaseMapper<Permission> {
 }
+```
 9.3 UserRoleMapper
 
 路径：
 
-src/main/java/com/internpilot/mapper/UserRoleMapper.java
+`src/main/java/com/internpilot/mapper/UserRoleMapper.java`
+```java
 package com.internpilot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -546,11 +572,13 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface UserRoleMapper extends BaseMapper<UserRole> {
 }
+```
 9.4 RolePermissionMapper
 
 路径：
 
-src/main/java/com/internpilot/mapper/RolePermissionMapper.java
+`src/main/java/com/internpilot/mapper/RolePermissionMapper.java`
+```java
 package com.internpilot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -560,6 +588,7 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface RolePermissionMapper extends BaseMapper<RolePermission> {
 }
+```
 10. 权限查询 Mapper 设计
 10.1 为什么需要自定义查询
 
@@ -573,6 +602,7 @@ Spring Security 加载用户权限时，需要一次性查出：
 推荐在 PermissionMapper 中增加自定义 SQL。
 
 10.2 PermissionMapper 增加方法
+```java
 package com.internpilot.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -612,6 +642,7 @@ public interface PermissionMapper extends BaseMapper<Permission> {
             """)
     List<String> selectRoleCodesByUserId(Long userId);
 }
+```
 11. CustomUserDetails 改造
 11.1 当前问题
 
@@ -635,7 +666,8 @@ authorities
 
 路径：
 
-src/main/java/com/internpilot/security/CustomUserDetails.java
+`src/main/java/com/internpilot/security/CustomUserDetails.java`
+```java
 package com.internpilot.security;
 
 import com.internpilot.entity.User;
@@ -732,6 +764,7 @@ public class CustomUserDetails implements UserDetails {
         return Boolean.TRUE.equals(enabled);
     }
 }
+```
 12. CustomUserDetailsService 改造
 12.1 改造目标
 
@@ -745,7 +778,8 @@ public class CustomUserDetails implements UserDetails {
 
 路径：
 
-src/main/java/com/internpilot/security/CustomUserDetailsService.java
+`src/main/java/com/internpilot/security/CustomUserDetailsService.java`
+```java
 package com.internpilot.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -791,6 +825,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new CustomUserDetails(user, roles, permissions);
     }
 }
+```
 13. JWT Token 设计调整
 13.1 是否在 JWT 中保存权限
 
@@ -845,10 +880,10 @@ new CustomUserDetails(userId, username, role)
 
 路径：
 
-src/main/java/com/internpilot/security/JwtAuthenticationFilter.java
+`src/main/java/com/internpilot/security/JwtAuthenticationFilter.java`
 
 核心逻辑：
-
+```java
 package com.internpilot.security;
 
 import jakarta.servlet.FilterChain;
@@ -921,6 +956,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
+```
 15. AuthService 注册逻辑改造
 15.1 注册时需要分配默认角色
 
@@ -998,6 +1034,7 @@ RBAC 后建议返回：
   }
 }
 16.2 AuthUserResponse 改造
+```java
 package com.internpilot.vo.auth;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -1027,6 +1064,7 @@ public class AuthUserResponse {
 
     private List<String> permissions;
 }
+```
 17. SecurityConfig 改造
 17.1 开启方法级权限
 
@@ -1035,27 +1073,29 @@ public class AuthUserResponse {
 @EnableMethodSecurity
 
 示例：
-
+```java
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 }
+```
 17.2 接口权限配置
 
 SecurityConfig 中可以保留基础路径控制：
-
+```java
 .authorizeHttpRequests(auth -> auth
         .requestMatchers(WHITE_LIST).permitAll()
         .requestMatchers("/api/admin/**").hasRole("ADMIN")
         .anyRequest().authenticated()
 )
-
+```
 具体业务权限建议交给方法注解。
 
 18. Controller 权限注解设计
 18.1 简历模块
+```java
 @PreAuthorize("hasAuthority('resume:write')")
 @PostMapping("/upload")
 public Result<ResumeUploadResponse> upload(...) {
@@ -1073,7 +1113,9 @@ public Result<PageResult<ResumeListResponse>> list(...) {
 public Result<Boolean> delete(@PathVariable Long id) {
     return Result.success(resumeService.delete(id));
 }
+```
 18.2 岗位模块
+```java
 @PreAuthorize("hasAuthority('job:write')")
 @PostMapping
 public Result<JobCreateResponse> create(@RequestBody @Valid JobCreateRequest request) {
@@ -1091,7 +1133,9 @@ public Result<PageResult<JobListResponse>> list(...) {
 public Result<Boolean> delete(@PathVariable Long id) {
     return Result.success(jobService.delete(id));
 }
+```
 18.3 AI 分析模块
+```java
 @PreAuthorize("hasAuthority('analysis:write')")
 @PostMapping("/match")
 public Result<AnalysisResultResponse> match(@RequestBody @Valid AnalysisMatchRequest request) {
@@ -1103,7 +1147,9 @@ public Result<AnalysisResultResponse> match(@RequestBody @Valid AnalysisMatchReq
 public Result<PageResult<AnalysisReportListResponse>> listReports(...) {
     return Result.success(analysisService.listReports(resumeId, jobId, minScore, pageNum, pageSize));
 }
+```
 18.4 投递记录模块
+```java
 @PreAuthorize("hasAuthority('application:write')")
 @PostMapping
 public Result<ApplicationCreateResponse> create(@RequestBody @Valid ApplicationCreateRequest request) {
@@ -1121,6 +1167,7 @@ public Result<PageResult<ApplicationListResponse>> list(...) {
 public Result<Boolean> delete(@PathVariable Long id) {
     return Result.success(applicationService.delete(id));
 }
+```
 19. 管理员接口设计
 
 RBAC 系统需要为后续管理员后台预留接口。
@@ -1159,6 +1206,7 @@ GET /api/admin/permissions
 @PreAuthorize("hasAuthority('admin:permission:read')")
 20. DTO / VO 设计
 20.1 RoleResponse
+```java
 package com.internpilot.vo.admin;
 
 import lombok.Data;
@@ -1176,7 +1224,9 @@ public class RoleResponse {
 
     private Boolean enabled;
 }
+```
 20.2 PermissionResponse
+```java
 package com.internpilot.vo.admin;
 
 import lombok.Data;
@@ -1196,7 +1246,9 @@ public class PermissionResponse {
 
     private Boolean enabled;
 }
+```
 20.3 UserRoleUpdateRequest
+```java
 package com.internpilot.dto.admin;
 
 import jakarta.validation.constraints.NotEmpty;
@@ -1210,7 +1262,9 @@ public class UserRoleUpdateRequest {
     @NotEmpty(message = "角色ID列表不能为空")
     private List<Long> roleIds;
 }
+```
 20.4 RolePermissionUpdateRequest
+```java
 package com.internpilot.dto.admin;
 
 import jakarta.validation.constraints.NotEmpty;
@@ -1224,8 +1278,10 @@ public class RolePermissionUpdateRequest {
     @NotEmpty(message = "权限ID列表不能为空")
     private List<Long> permissionIds;
 }
+```
 21. AdminPermissionService 设计
 21.1 Service 接口
+```java
 package com.internpilot.service;
 
 import com.internpilot.vo.admin.PermissionResponse;
@@ -1243,6 +1299,7 @@ public interface AdminPermissionService {
 
     Boolean updateRolePermissions(Long roleId, List<Long> permissionIds);
 }
+```
 21.2 实现思路
 updateUserRoles
 校验当前用户有 admin:user:write
@@ -1306,14 +1363,16 @@ roles
 permissions
 
 Pinia 中：
-
+```typescript
 state: () => ({
   token: '',
   user: null,
   roles: [],
   permissions: []
 })
+```
 23.2 前端权限判断工具
+```typescript
 export function hasPermission(permission: string) {
   const authStore = useAuthStore()
   return authStore.permissions.includes(permission)
@@ -1323,29 +1382,32 @@ export function hasRole(role: string) {
   const authStore = useAuthStore()
   return authStore.roles.includes(role)
 }
+```
 23.3 菜单权限控制
 
 例如管理员菜单：
-
+```json
 {
-  title: '用户管理',
-  path: '/admin/users',
-  permission: 'admin:user:read'
+  "title": "用户管理",
+  "path": "/admin/users",
+  "permission": "admin:user:read"
 }
-
+```
 渲染时过滤：
-
+```typescript
 menus.filter(menu => !menu.permission || hasPermission(menu.permission))
+```
 23.4 按钮权限控制
 
 例如删除简历按钮：
-
+```vue
 <el-button
   v-if="hasPermission('resume:delete')"
   type="danger"
 >
   删除
 </el-button>
+```
 24. 测试流程
 24.1 初始化数据测试
 
@@ -1431,6 +1493,7 @@ DELETE /api/resumes/{id}
 403 Forbidden
 25. PowerShell 测试示例
 25.1 登录
+```powershell
 $body = @{
   username = "wan"
   password = "123456"
@@ -1447,16 +1510,21 @@ $headers = @{ Authorization = "Bearer $token" }
 
 $response.data.user.roles
 $response.data.user.permissions
+```
 25.2 访问普通接口
+```powershell
 Invoke-RestMethod `
   -Uri "http://localhost:8080/api/resumes" `
   -Method Get `
   -Headers $headers
+```
 25.3 访问管理员接口
+```powershell
 Invoke-RestMethod `
   -Uri "http://localhost:8080/api/admin/users" `
   -Method Get `
   -Headers $headers
+```
 
 普通用户期望返回：
 

@@ -1,5 +1,5 @@
 ﻿<template>
-  <PageContainer title="岗位管理" description="维护目标岗位 JD，后续用于 AI 匹配分析。">
+  <PageContainer title="" description="维护目标岗位 JD，后续用于 AI 匹配分析。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
     </template>

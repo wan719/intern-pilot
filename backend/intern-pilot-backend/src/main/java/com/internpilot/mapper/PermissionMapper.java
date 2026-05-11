@@ -37,4 +37,18 @@ public interface PermissionMapper extends BaseMapper<Permission> {
               AND r.enabled = 1
             """)
     List<String> selectRoleCodesByUserId(@Param("userId") Long userId);
+
+    @Select("""
+            SELECT DISTINCT p.permission_code
+            FROM permission p
+            JOIN role_permission rp ON p.id = rp.permission_id
+            JOIN role r ON rp.role_id = r.id
+            WHERE r.id = #{roleId}
+              AND r.deleted = 0
+              AND rp.deleted = 0
+              AND p.deleted = 0
+              AND p.enabled = 1
+            ORDER BY p.permission_code
+            """)
+    List<String> selectPermissionCodesByRoleId(@Param("roleId") Long roleId);
 }

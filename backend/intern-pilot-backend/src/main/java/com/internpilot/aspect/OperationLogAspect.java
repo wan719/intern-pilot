@@ -14,6 +14,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.*;
 
+import java.lang.reflect.Method;
+
 @Aspect
 @Component
 @RequiredArgsConstructor
@@ -35,7 +37,7 @@ public class OperationLogAspect {
         long startTime = System.currentTimeMillis();
 
         SystemOperationLog log = new SystemOperationLog();
-        fillBasicInfo(log, operationLog);
+        fillBasicInfo(log, operationLog, joinPoint.getArgs());
 
         Object result;
         try {
@@ -57,30 +59,53 @@ public class OperationLogAspect {
         }
     }
 
-    private void fillBasicInfo(SystemOperationLog log, OperationLog operationLog) {
+    private void fillBasicInfo(SystemOperationLog log, OperationLog operationLog, Object[] args) {
         log.setModule(operationLog.module());
         log.setOperation(operationLog.operation());
         log.setOperationType(operationLog.type().getCode());
 
-        fillUserInfo(log);
+        fillUserInfo(log, args);
         fillRequestInfo(log, operationLog.recordParams());
     }
 
-    private void fillUserInfo(SystemOperationLog log) {
+    private void fillUserInfo(SystemOperationLog log, Object[] args) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null || authentication.getPrincipal() == null) {
-            return;
-        }
-
-        Object principal = authentication.getPrincipal();
+        Object principal = authentication == null ? null : authentication.getPrincipal();
 
         if (principal instanceof CustomUserDetails userDetails) {
             log.setOperatorId(userDetails.getUserId());
             log.setOperatorUsername(userDetails.getUsername());
         } else if (principal instanceof String username) {
-            log.setOperatorUsername(username);
+            if (!"anonymousUser".equals(username)) {
+                log.setOperatorUsername(username);
+            }
         }
+
+        if (log.getOperatorUsername() == null) {
+            log.setOperatorUsername(inferUsernameFromArgs(args));
+        }
+    }
+
+    private String inferUsernameFromArgs(Object[] args) {
+        if (args == null) {
+            return null;
+        }
+        for (Object arg : args) {
+            if (arg == null) {
+                continue;
+            }
+            try {
+                Method getUsername = arg.getClass().getMethod("getUsername");
+                Object value = getUsername.invoke(arg);
+                if (value instanceof String username && !username.isBlank()) {
+                    return username;
+                }
+            } catch (ReflectiveOperationException ignored) {
+                // Request objects without username are expected for most endpoints.
+            }
+        }
+        return null;
     }
 
     private void fillRequestInfo(SystemOperationLog log, boolean recordParams) {
