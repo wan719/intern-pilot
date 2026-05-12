@@ -145,4 +145,42 @@ public class PromptUtils {
         %s
         """.formatted(resumeText, jobDescription, analysisReport);
   }
+
+  public static String buildResumeOptimizePrompt(
+      String resumeContent,
+      String jobDescription,
+      String analysisReport,
+      String extraRequirement) {
+    return """
+        你是一个资深 Java 后端简历优化导师和技术面试官。
+
+        请根据下面的【原始简历内容】、【目标岗位 JD】和【AI 匹配分析报告】，生成一份更适合该岗位投递的简历优化版本。
+
+        要求：
+        1. 不要编造用户没有的经历；
+        2. 可以优化表达方式，让项目经历更贴合岗位；
+        3. 突出和岗位相关的技术栈；
+        4. 对缺失技能只能建议补充，不能假装用户已经掌握；
+        5. 保持大学生实习简历风格；
+        6. 输出完整简历文本；
+        7. 不要返回 Markdown 代码块；
+        8. 不要添加解释，只返回优化后的简历内容。
+
+        【原始简历内容】
+        %s
+
+        【目标岗位 JD】
+        %s
+
+        【AI 匹配分析报告】
+        %s
+
+        【用户额外优化要求】
+        %s
+        """.formatted(
+        resumeContent,
+        jobDescription,
+        analysisReport,
+        extraRequirement == null ? "无" : extraRequirement);
+  }
 }

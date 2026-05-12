@@ -165,6 +165,51 @@ CREATE TABLE IF NOT EXISTS resume (
     KEY idx_resume_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS resume_version (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    version_name VARCHAR(200) NOT NULL,
+    version_type VARCHAR(50) NOT NULL DEFAULT 'MANUAL',
+    content LONGTEXT NOT NULL,
+    content_summary VARCHAR(500) DEFAULT NULL,
+    target_job_id BIGINT DEFAULT NULL,
+    source_version_id BIGINT DEFAULT NULL,
+    ai_report_id BIGINT DEFAULT NULL,
+    optimize_prompt LONGTEXT DEFAULT NULL,
+    ai_raw_response LONGTEXT DEFAULT NULL,
+    is_current TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    KEY idx_rv_user_id (user_id),
+    KEY idx_rv_resume_id (resume_id),
+    KEY idx_rv_target_job_id (target_job_id),
+    KEY idx_rv_source_version_id (source_version_id),
+    KEY idx_rv_ai_report_id (ai_report_id),
+    KEY idx_rv_version_type (version_type),
+    KEY idx_rv_is_current (is_current),
+    KEY idx_rv_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO resume_version (user_id, resume_id, version_name, version_type, content, content_summary, is_current)
+SELECT r.user_id,
+       r.id,
+       '原始版本',
+       'ORIGINAL',
+       COALESCE(r.parsed_text, ''),
+       LEFT(REPLACE(REPLACE(COALESCE(r.parsed_text, ''), '\r', ' '), '\n', ' '), 160),
+       1
+FROM resume r
+WHERE r.deleted = 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM resume_version rv
+      WHERE rv.resume_id = r.id
+        AND rv.user_id = r.user_id
+        AND rv.deleted = 0
+  );
+
 CREATE TABLE IF NOT EXISTS job_description (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
@@ -193,6 +238,7 @@ CREATE TABLE IF NOT EXISTS analysis_report (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
     job_id BIGINT NOT NULL,
     match_score INT DEFAULT NULL,
     match_level VARCHAR(30) DEFAULT NULL,
@@ -210,6 +256,7 @@ CREATE TABLE IF NOT EXISTS analysis_report (
     deleted TINYINT NOT NULL DEFAULT 0,
     KEY idx_report_user_id (user_id),
     KEY idx_report_resume_id (resume_id),
+    KEY idx_report_resume_version_id (resume_version_id),
     KEY idx_report_job_id (job_id),
     KEY idx_report_user_resume_job (user_id, resume_id, job_id),
     KEY idx_report_score (match_score)
@@ -220,6 +267,7 @@ CREATE TABLE IF NOT EXISTS analysis_task (
     task_no VARCHAR(64) NOT NULL,
     user_id BIGINT NOT NULL,
     resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
     job_id BIGINT NOT NULL,
     report_id BIGINT DEFAULT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
@@ -235,6 +283,7 @@ CREATE TABLE IF NOT EXISTS analysis_task (
     UNIQUE KEY uk_analysis_task_no (task_no),
     KEY idx_analysis_task_user_id (user_id),
     KEY idx_analysis_task_resume_id (resume_id),
+    KEY idx_analysis_task_resume_version_id (resume_version_id),
     KEY idx_analysis_task_job_id (job_id),
     KEY idx_analysis_task_status (status),
     KEY idx_analysis_task_created_at (created_at)
@@ -244,6 +293,7 @@ CREATE TABLE IF NOT EXISTS interview_question_report (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
     job_id BIGINT NOT NULL,
     analysis_report_id BIGINT DEFAULT NULL,
     title VARCHAR(200) DEFAULT NULL,
@@ -256,6 +306,7 @@ CREATE TABLE IF NOT EXISTS interview_question_report (
     deleted TINYINT NOT NULL DEFAULT 0,
     KEY idx_iqr_user_id (user_id),
     KEY idx_iqr_resume_id (resume_id),
+    KEY idx_iqr_resume_version_id (resume_version_id),
     KEY idx_iqr_job_id (job_id),
     KEY idx_iqr_analysis_report_id (analysis_report_id),
     KEY idx_iqr_created_at (created_at)

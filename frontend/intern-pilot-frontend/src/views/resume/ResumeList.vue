@@ -22,9 +22,10 @@
         <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.resumeId)">详情</el-button>
+            <el-button link type="primary" @click="goVersions(row.resumeId)">版本管理</el-button>
             <el-button link type="primary" @click="setDefault(row.resumeId)">设默认</el-button>
             <el-button link type="danger" @click="removeResume(row.resumeId)">删除</el-button>
           </template>
@@ -69,6 +70,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { Upload, UploadFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import router from '@/router'
 import { deleteResumeApi, getResumeDetailApi, getResumeListApi, setDefaultResumeApi, uploadResumeApi } from '@/api/resume'
 import { formatDateTime } from '@/utils/format'
 
@@ -123,6 +125,10 @@ async function submitUpload() {
 async function openDetail(id: number) {
   detail.value = await getResumeDetailApi(id)
   detailVisible.value = true
+}
+
+function goVersions(id: number) {
+  router.push(`/resumes/${id}/versions`)
 }
 
 async function setDefault(id: number) {

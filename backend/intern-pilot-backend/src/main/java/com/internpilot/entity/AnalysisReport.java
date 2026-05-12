@@ -19,6 +19,8 @@ public class AnalysisReport {
 
     private Long resumeId;
 
+    private Long resumeVersionId;
+
     private Long jobId;
 
     private Integer matchScore;

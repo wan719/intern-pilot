@@ -16,6 +16,9 @@ public class InterviewQuestionGenerateRequest {
     @NotNull(message = "岗位ID不能为空")
     private Long jobId;
 
+    @Schema(description = "简历版本ID，不传则使用当前版本")
+    private Long resumeVersionId;
+
     @Schema(description = "AI分析报告ID", example = "1")
     private Long analysisReportId;
 

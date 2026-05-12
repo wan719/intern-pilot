@@ -16,6 +16,8 @@ public class InterviewQuestionReport {
 
     private Long resumeId;
 
+    private Long resumeVersionId;
+
     private Long jobId;
 
     private Long analysisReportId;

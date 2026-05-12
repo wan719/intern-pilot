@@ -29,6 +29,17 @@
             </el-select>
           </el-form-item>
 
+          <el-form-item label="简历版本">
+            <el-select v-model="form.resumeVersionId" placeholder="默认使用当前版本" clearable filterable :disabled="!form.resumeId">
+              <el-option
+                v-for="item in versions"
+                :key="item.versionId"
+                :label="`${item.versionName}${item.isCurrent === 1 ? '（当前）' : ''}`"
+                :value="item.versionId"
+              />
+            </el-select>
+          </el-form-item>
+
           <el-form-item label="强制重新分析">
             <el-switch v-model="form.forceRefresh" />
           </el-form-item>
@@ -82,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { MagicStick } from '@element-plus/icons-vue'
 import type { Client } from '@stomp/stompjs'
@@ -91,9 +102,11 @@ import router from '@/router'
 import { createAnalysisTaskApi, getAnalysisTaskDetailApi } from '@/api/analysisTask'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
+import { getResumeVersionListApi } from '@/api/resumeVersion'
 import type { AnalysisProgressMessage } from '@/utils/analysisSocket'
 
 const resumes = ref<any[]>([])
+const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
 const running = ref(false)
 let stompClient: Client | null = null
@@ -101,6 +114,7 @@ let pollingTimer: number | undefined
 
 const form = reactive({
   resumeId: undefined as number | undefined,
+  resumeVersionId: undefined as number | undefined,
   jobId: undefined as number | undefined,
   forceRefresh: false
 })
@@ -141,6 +155,18 @@ async function loadOptions() {
   ])
   resumes.value = resumeRes.records || []
   jobs.value = jobRes.records || []
+}
+
+async function loadVersions() {
+  if (!form.resumeId) {
+    versions.value = []
+    form.resumeVersionId = undefined
+    return
+  }
+  const res: any = await getResumeVersionListApi(form.resumeId)
+  versions.value = res || []
+  const current = versions.value.find((item) => item.isCurrent === 1)
+  form.resumeVersionId = current?.versionId
 }
 
 async function startTask() {
@@ -221,6 +247,8 @@ function cleanupTaskWatchers() {
 function goReports() {
   router.push('/analysis/reports')
 }
+
+watch(() => form.resumeId, loadVersions)
 
 onMounted(loadOptions)
 onBeforeUnmount(cleanupTaskWatchers)

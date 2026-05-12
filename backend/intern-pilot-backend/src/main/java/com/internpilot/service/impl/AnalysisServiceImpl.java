@@ -10,11 +10,13 @@ import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
+import com.internpilot.entity.ResumeVersion;
 import com.internpilot.enums.MatchLevelEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.AnalysisService;
 import com.internpilot.util.JsonUtils;
@@ -40,6 +42,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     private static final long CACHE_TTL_HOURS = 24;
 
     private final ResumeMapper resumeMapper;
+    private final ResumeVersionMapper resumeVersionMapper;
     private final JobDescriptionMapper jobDescriptionMapper;
     private final AnalysisReportMapper analysisReportMapper;
     private final AiClient aiClient;
@@ -58,15 +61,18 @@ public class AnalysisServiceImpl implements AnalysisService {
     public AnalysisResultResponse matchForUser(AnalysisMatchRequest request, Long userId) {
         Resume resume = getUserResumeOrThrow(request.getResumeId(), userId);
         JobDescription job = getUserJobOrThrow(request.getJobId(), userId);
+        ResumeVersion version = resolveResumeVersion(resume, request.getResumeVersionId(), userId);
+        String resumeText = version == null ? resume.getParsedText() : version.getContent();
 
-        if (!StringUtils.hasText(resume.getParsedText())) {
+        if (!StringUtils.hasText(resumeText)) {
             throw new BusinessException("简历解析文本为空");
         }
         if (!StringUtils.hasText(job.getJdContent())) {
             throw new BusinessException("岗位 JD 不能为空");
         }
 
-        String cacheKey = buildCacheKey(userId, resume.getId(), job.getId());
+        Long resumeVersionId = version == null ? null : version.getId();
+        String cacheKey = buildCacheKey(userId, resume.getId(), resumeVersionId, job.getId());
         boolean forceRefresh = Boolean.TRUE.equals(request.getForceRefresh());
 
         if (!forceRefresh) {
@@ -84,7 +90,7 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
         }
 
-        String prompt = PromptUtils.buildResumeJobMatchPrompt(resume.getParsedText(), job.getJdContent());
+        String prompt = PromptUtils.buildResumeJobMatchPrompt(resumeText, job.getJdContent());
         String rawResponse = aiClient.chat(prompt);
         AiAnalysisResult aiResult = JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
         normalizeAiResult(aiResult);
@@ -92,6 +98,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         AnalysisReport report = new AnalysisReport();
         report.setUserId(userId);
         report.setResumeId(resume.getId());
+        report.setResumeVersionId(resumeVersionId);
         report.setJobId(job.getId());
         report.setMatchScore(aiResult.getMatchScore());
         report.setMatchLevel(aiResult.getMatchLevel());
@@ -208,8 +215,40 @@ public class AnalysisServiceImpl implements AnalysisService {
         return report;
     }
 
-    private String buildCacheKey(Long userId, Long resumeId, Long jobId) {
-        return "internpilot:analysis:%d:%d:%d".formatted(userId, resumeId, jobId);
+    private String buildCacheKey(Long userId, Long resumeId, Long resumeVersionId, Long jobId) {
+        return "internpilot:analysis:%d:%d:%d:%d".formatted(userId, resumeId, resumeVersionId == null ? 0 : resumeVersionId, jobId);
+    }
+
+    private ResumeVersion resolveResumeVersion(Resume resume, Long versionId, Long userId) {
+        if (versionId != null) {
+            return getUserResumeVersionOrThrow(resume.getId(), versionId, userId);
+        }
+
+        ResumeVersion current = resumeVersionMapper.selectOne(new LambdaQueryWrapper<ResumeVersion>()
+                .eq(ResumeVersion::getResumeId, resume.getId())
+                .eq(ResumeVersion::getUserId, userId)
+                .eq(ResumeVersion::getIsCurrent, 1)
+                .eq(ResumeVersion::getDeleted, 0)
+                .orderByDesc(ResumeVersion::getUpdatedAt)
+                .last("LIMIT 1"));
+
+        if (current != null) {
+            return current;
+        }
+        return null;
+    }
+
+    private ResumeVersion getUserResumeVersionOrThrow(Long resumeId, Long versionId, Long userId) {
+        ResumeVersion version = resumeVersionMapper.selectOne(new LambdaQueryWrapper<ResumeVersion>()
+                .eq(ResumeVersion::getId, versionId)
+                .eq(ResumeVersion::getResumeId, resumeId)
+                .eq(ResumeVersion::getUserId, userId)
+                .eq(ResumeVersion::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (version == null) {
+            throw new BusinessException("简历版本不存在或无权限访问");
+        }
+        return version;
     }
 
     private void normalizeAiResult(AiAnalysisResult result) {
@@ -235,6 +274,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         AnalysisResultResponse response = new AnalysisResultResponse();
         response.setReportId(report.getId());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setMatchScore(report.getMatchScore());
         response.setMatchLevel(report.getMatchLevel());
@@ -252,6 +292,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         AnalysisResultResponse copy = new AnalysisResultResponse();
         copy.setReportId(source.getReportId());
         copy.setResumeId(source.getResumeId());
+        copy.setResumeVersionId(source.getResumeVersionId());
         copy.setJobId(source.getJobId());
         copy.setMatchScore(source.getMatchScore());
         copy.setMatchLevel(source.getMatchLevel());
@@ -269,6 +310,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         AnalysisReportListResponse response = new AnalysisReportListResponse();
         response.setReportId(report.getId());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setMatchScore(report.getMatchScore());
         response.setMatchLevel(report.getMatchLevel());
@@ -287,6 +329,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         AnalysisReportDetailResponse response = new AnalysisReportDetailResponse();
         response.setReportId(report.getId());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setMatchScore(report.getMatchScore());
         response.setMatchLevel(report.getMatchLevel());

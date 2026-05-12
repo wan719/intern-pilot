@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.entity.Resume;
+import com.internpilot.entity.ResumeVersion;
 import com.internpilot.enums.ParseStatusEnum;
+import com.internpilot.enums.ResumeVersionTypeEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.FileStorageService;
 import com.internpilot.service.ResumeParseService;
 import com.internpilot.service.ResumeService;
@@ -30,6 +33,7 @@ import java.util.List;
 public class ResumeServiceImpl implements ResumeService {
 
     private final ResumeMapper resumeMapper;
+    private final ResumeVersionMapper resumeVersionMapper;
     private final FileStorageService fileStorageService;
     private final ResumeParseService resumeParseService;
 
@@ -60,6 +64,7 @@ public class ResumeServiceImpl implements ResumeService {
             resume.setIsDefault(isFirstResume ? 1 : 0);
 
             resumeMapper.insert(resume);
+            createOriginalVersion(resume, parsedText);
             return toUploadResponse(resume);
         } catch (RuntimeException e) {
             deleteStoredFileQuietly(fileInfo.getFilePath());
@@ -198,6 +203,18 @@ public class ResumeServiceImpl implements ResumeService {
         }
         int maxLength = 100;
         return text.length() <= maxLength ? text : text.substring(0, maxLength) + "...";
+    }
+
+    private void createOriginalVersion(Resume resume, String parsedText) {
+        ResumeVersion version = new ResumeVersion();
+        version.setUserId(resume.getUserId());
+        version.setResumeId(resume.getId());
+        version.setVersionName("原始版本");
+        version.setVersionType(ResumeVersionTypeEnum.ORIGINAL.getCode());
+        version.setContent(parsedText == null ? "" : parsedText);
+        version.setContentSummary(buildPreview(parsedText));
+        version.setIsCurrent(1);
+        resumeVersionMapper.insert(version);
     }
 
     private void deleteStoredFileQuietly(String filePath) {

@@ -18,6 +18,8 @@ public class AnalysisTask {
 
     private Long resumeId;
 
+    private Long resumeVersionId;
+
     private Long jobId;
 
     private Long reportId;

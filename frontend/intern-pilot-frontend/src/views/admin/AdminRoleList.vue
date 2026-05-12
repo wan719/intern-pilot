@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="角色管理" description="查看角色并分配权限。">
+  <PageContainer title="" description="查看角色并分配权限。">
     <section class="panel">
       <el-table v-loading="loading" :data="roles">
         <el-table-column prop="roleId" label="ID" width="80" />

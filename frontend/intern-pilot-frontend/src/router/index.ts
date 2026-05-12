@@ -13,6 +13,7 @@ const routes = [
     children: [
       { path: 'dashboard', component: () => import('@/views/dashboard/Dashboard.vue'), meta: { title: '数据看板' } },
       { path: 'resumes', component: () => import('@/views/resume/ResumeList.vue'), meta: { title: '简历管理' } },
+      { path: 'resumes/:resumeId/versions', component: () => import('@/views/resume/ResumeVersionList.vue'), meta: { title: '简历版本管理', permission: 'resume:read' } },
       { path: 'jobs', component: () => import('@/views/job/JobList.vue'), meta: { title: '岗位管理' } },
       { path: 'analysis/match', component: () => import('@/views/analysis/AnalysisMatch.vue'), meta: { title: 'AI 匹配分析' } },
       { path: 'analysis/reports', component: () => import('@/views/analysis/AnalysisReportList.vue'), meta: { title: '分析报告' } },
@@ -44,6 +45,7 @@ const routes = [
         component: () => import('@/views/admin/OperationLogList.vue'),
         meta: { title: '操作日志', permission: 'system:log:read' }
       }
+      
     ]
   }
 ]

@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="权限管理" description="只读查看权限列表。">
+  <PageContainer title="" description="只读查看权限列表。">
     <section class="panel toolbar">
       <el-select v-model="resourceType" placeholder="资源类型" clearable filterable>
         <el-option v-for="item in resourceTypes" :key="item" :label="item" :value="item" />

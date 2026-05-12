@@ -11,6 +11,7 @@ import com.internpilot.entity.Resume;
 import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.service.AiClient;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
@@ -47,6 +48,9 @@ class AnalysisServiceImplTest {
     private ResumeMapper resumeMapper;
 
     @Mock
+    private ResumeVersionMapper resumeVersionMapper;
+
+    @Mock
     private JobDescriptionMapper jobDescriptionMapper;
 
     @Mock
@@ -74,6 +78,7 @@ class AnalysisServiceImplTest {
     void setUp() {
         analysisService = new AnalysisServiceImpl(
                 resumeMapper,
+                resumeVersionMapper,
                 jobDescriptionMapper,
                 analysisReportMapper,
                 aiClient,

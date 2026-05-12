@@ -42,6 +42,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
         task.setTaskNo(generateTaskNo());
         task.setUserId(currentUserId);
         task.setResumeId(request.getResumeId());
+        task.setResumeVersionId(request.getResumeVersionId());
         task.setJobId(request.getJobId());
         task.setStatus(AnalysisTaskStatusEnum.PENDING.getCode());
         task.setProgress(0);
@@ -98,6 +99,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
             AnalysisMatchRequest matchRequest = new AnalysisMatchRequest();
             matchRequest.setResumeId(task.getResumeId());
+            matchRequest.setResumeVersionId(task.getResumeVersionId());
             matchRequest.setJobId(task.getJobId());
             matchRequest.setForceRefresh(task.getForceRefresh() != null && task.getForceRefresh() == 1);
 
@@ -179,6 +181,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
         response.setTaskId(task.getId());
         response.setTaskNo(task.getTaskNo());
         response.setResumeId(task.getResumeId());
+        response.setResumeVersionId(task.getResumeVersionId());
         response.setJobId(task.getJobId());
         response.setReportId(task.getReportId());
         response.setStatus(task.getStatus());

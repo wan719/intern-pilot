@@ -11,6 +11,7 @@ import com.internpilot.entity.InterviewQuestion;
 import com.internpilot.entity.InterviewQuestionReport;
 import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
+import com.internpilot.entity.ResumeVersion;
 import com.internpilot.enums.InterviewQuestionTypeEnum;
 import com.internpilot.enums.QuestionDifficultyEnum;
 import com.internpilot.exception.BusinessException;
@@ -19,6 +20,7 @@ import com.internpilot.mapper.InterviewQuestionMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.InterviewQuestionService;
 import com.internpilot.util.JsonUtils;
@@ -42,6 +44,7 @@ import java.util.Objects;
 public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
     private final ResumeMapper resumeMapper;
+    private final ResumeVersionMapper resumeVersionMapper;
 
     private final JobDescriptionMapper jobDescriptionMapper;
 
@@ -61,18 +64,21 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         Resume resume = getUserResumeOrThrow(request.getResumeId(), currentUserId);
+        ResumeVersion resumeVersion = resolveResumeVersion(resume, request.getResumeVersionId(), currentUserId);
+        String resumeText = resumeVersion == null ? resume.getParsedText() : resumeVersion.getContent();
         JobDescription job = getUserJobOrThrow(request.getJobId(), currentUserId);
 
         AnalysisReport analysisReport = null;
         if (request.getAnalysisReportId() != null) {
             analysisReport = getUserAnalysisReportOrThrow(request.getAnalysisReportId(), currentUserId);
-            validateAnalysisReportScope(analysisReport, request.getResumeId(), request.getJobId());
+            validateAnalysisReportScope(analysisReport, request.getResumeId(), request.getResumeVersionId(), request.getJobId());
         }
 
         if (!Boolean.TRUE.equals(request.getForceRefresh())) {
             InterviewQuestionReport existing = findExistingReport(
                     currentUserId,
                     request.getResumeId(),
+                    resumeVersion == null ? null : resumeVersion.getId(),
                     request.getJobId(),
                     request.getAnalysisReportId()
             );
@@ -82,7 +88,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             }
         }
 
-        if (!StringUtils.hasText(resume.getParsedText())) {
+        if (!StringUtils.hasText(resumeText)) {
             throw new BusinessException("简历解析文本为空，无法生成面试题");
         }
 
@@ -93,7 +99,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         String analysisReportText = buildAnalysisReportText(analysisReport);
 
         String prompt = PromptUtils.buildInterviewQuestionPrompt(
-                resume.getParsedText(),
+                resumeText,
                 job.getJdContent(),
                 analysisReportText
         );
@@ -116,6 +122,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         InterviewQuestionReport report = new InterviewQuestionReport();
         report.setUserId(currentUserId);
         report.setResumeId(resume.getId());
+        report.setResumeVersionId(resumeVersion == null ? null : resumeVersion.getId());
         report.setJobId(job.getId());
         report.setAnalysisReportId(request.getAnalysisReportId());
         report.setTitle(title);
@@ -275,9 +282,13 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         return report;
     }
 
-    private void validateAnalysisReportScope(AnalysisReport report, Long resumeId, Long jobId) {
+    private void validateAnalysisReportScope(AnalysisReport report, Long resumeId, Long resumeVersionId, Long jobId) {
         if (!Objects.equals(report.getResumeId(), resumeId) || !Objects.equals(report.getJobId(), jobId)) {
             throw new BusinessException("分析报告与所选简历或岗位不匹配");
+        }
+        if (resumeVersionId != null && report.getResumeVersionId() != null
+                && !Objects.equals(report.getResumeVersionId(), resumeVersionId)) {
+            throw new BusinessException("分析报告与所选简历版本不匹配");
         }
     }
 
@@ -300,6 +311,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
     private InterviewQuestionReport findExistingReport(
             Long userId,
             Long resumeId,
+            Long resumeVersionId,
             Long jobId,
             Long analysisReportId
     ) {
@@ -308,6 +320,12 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 .eq(InterviewQuestionReport::getResumeId, resumeId)
                 .eq(InterviewQuestionReport::getJobId, jobId)
                 .eq(InterviewQuestionReport::getDeleted, 0);
+
+        if (resumeVersionId != null) {
+            wrapper.eq(InterviewQuestionReport::getResumeVersionId, resumeVersionId);
+        } else {
+            wrapper.isNull(InterviewQuestionReport::getResumeVersionId);
+        }
 
         if (analysisReportId != null) {
             wrapper.eq(InterviewQuestionReport::getAnalysisReportId, analysisReportId);
@@ -368,6 +386,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         response.setReportId(report.getId());
         response.setTitle(report.getTitle());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setAnalysisReportId(report.getAnalysisReportId());
         response.setQuestionCount(report.getQuestionCount());
@@ -381,6 +400,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         response.setReportId(report.getId());
         response.setTitle(report.getTitle());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setQuestionCount(report.getQuestionCount());
         response.setCreatedAt(report.getCreatedAt());
@@ -402,6 +422,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         response.setReportId(report.getId());
         response.setTitle(report.getTitle());
         response.setResumeId(report.getResumeId());
+        response.setResumeVersionId(report.getResumeVersionId());
         response.setJobId(report.getJobId());
         response.setAnalysisReportId(report.getAnalysisReportId());
         response.setQuestionCount(report.getQuestionCount());
@@ -434,5 +455,37 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         response.setRelatedSkills(JsonUtils.fromJsonString(question.getRelatedSkills(), List.class));
         response.setSortOrder(question.getSortOrder());
         return response;
+    }
+
+    private ResumeVersion resolveResumeVersion(Resume resume, Long versionId, Long userId) {
+        if (versionId != null) {
+            return getUserResumeVersionOrThrow(resume.getId(), versionId, userId);
+        }
+
+        return resumeVersionMapper.selectOne(
+                new LambdaQueryWrapper<ResumeVersion>()
+                        .eq(ResumeVersion::getResumeId, resume.getId())
+                        .eq(ResumeVersion::getUserId, userId)
+                        .eq(ResumeVersion::getIsCurrent, 1)
+                        .eq(ResumeVersion::getDeleted, 0)
+                        .orderByDesc(ResumeVersion::getUpdatedAt)
+                        .last("LIMIT 1")
+        );
+    }
+
+    private ResumeVersion getUserResumeVersionOrThrow(Long resumeId, Long versionId, Long userId) {
+        ResumeVersion version = resumeVersionMapper.selectOne(
+                new LambdaQueryWrapper<ResumeVersion>()
+                        .eq(ResumeVersion::getId, versionId)
+                        .eq(ResumeVersion::getResumeId, resumeId)
+                        .eq(ResumeVersion::getUserId, userId)
+                        .eq(ResumeVersion::getDeleted, 0)
+                        .last("LIMIT 1")
+        );
+
+        if (version == null) {
+            throw new BusinessException("简历版本不存在或无权限访问");
+        }
+        return version;
     }
 }

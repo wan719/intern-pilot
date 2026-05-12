@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="操作日志" description="查看系统关键操作、执行结果、请求来源和耗时。">
+  <PageContainer title="" description="查看系统关键操作、执行结果、请求来源和耗时。">
     <section class="panel toolbar">
       <el-input v-model="query.module" placeholder="模块" clearable />
       <el-select v-model="query.operationType" placeholder="操作类型" clearable>

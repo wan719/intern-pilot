@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="后台看板" description="管理员视角下的系统统计信息。">
+  <PageContainer title="" description="管理员视角下的系统统计信息。">
     <div class="stat-grid">
       <StatCard label="用户总数" :value="summary.userCount || 0" :icon="User" />
       <StatCard label="今日新增用户" :value="summary.todayNewUserCount || 0" :icon="Plus" />

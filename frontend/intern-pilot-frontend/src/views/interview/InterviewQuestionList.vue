@@ -120,6 +120,17 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="简历版本">
+          <el-select v-model="form.resumeVersionId" placeholder="默认使用当前版本" clearable filterable :disabled="!form.resumeId">
+            <el-option
+              v-for="item in versions"
+              :key="item.versionId"
+              :label="`${item.versionName}${item.isCurrent === 1 ? '（当前）' : ''}`"
+              :value="item.versionId"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="AI 匹配分析报告">
           <el-select
             v-model="form.analysisReportId"
@@ -170,11 +181,13 @@ import {
 } from '@/api/interviewQuestion'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
+import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
 
 const reports = ref<any[]>([])
 const resumes = ref<any[]>([])
 const jobs = ref<any[]>([])
+const versions = ref<any[]>([])
 const analysisReports = ref<any[]>([])
 const loading = ref(false)
 const loadingOptions = ref(false)
@@ -185,6 +198,7 @@ const total = ref(0)
 
 const query = reactive<{
   resumeId?: number
+  resumeVersionId?: number
   jobId?: number
   pageNum: number
   pageSize: number
@@ -195,6 +209,7 @@ const query = reactive<{
 
 const form = reactive<{
   resumeId?: number
+  resumeVersionId?: number
   jobId?: number
   analysisReportId?: number
   forceRefresh: boolean
@@ -219,6 +234,21 @@ watch(
     if (!filteredAnalysisReports.value.some((item) => item.reportId === form.analysisReportId)) {
       form.analysisReportId = undefined
     }
+  }
+)
+
+watch(
+  () => form.resumeId,
+  async () => {
+    if (!form.resumeId) {
+      versions.value = []
+      form.resumeVersionId = undefined
+      return
+    }
+    const res: any = await getResumeVersionListApi(form.resumeId)
+    versions.value = res || []
+    const current = versions.value.find((item) => item.isCurrent === 1)
+    form.resumeVersionId = current?.versionId
   }
 )
 

@@ -16,6 +16,9 @@ public class AnalysisResultResponse {
     @Schema(description = "简历ID")
     private Long resumeId;
 
+    @Schema(description = "简历版本ID")
+    private Long resumeVersionId;
+
     @Schema(description = "岗位ID")
     private Long jobId;
 

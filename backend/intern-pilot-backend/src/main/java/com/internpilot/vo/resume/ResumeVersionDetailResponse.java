@@ -1,0 +1,46 @@
+package com.internpilot.vo.resume;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Schema(description = "简历版本详情响应")
+public class ResumeVersionDetailResponse {
+    @Schema(description = "版本ID")
+    private Long versionId;
+    @Schema(description = "简历ID")
+    private Long resumeId;
+
+    @Schema(description = "版本名称")
+    private String versionName;
+
+    @Schema(description = "版本类型")
+    private String versionType;
+
+    @Schema(description = "内容")
+    private String content;
+    @Schema(description = "内容摘要")
+    private String contentSummary;
+    @Schema(description = "目标岗位ID")
+    private Long targetJobId;
+
+    @Schema(description = "目标公司名称")
+    private String targetCompanyName;
+
+    @Schema(description = "目标岗位标题")
+    private String targetJobTitle;
+
+    @Schema(description = "源版本ID")
+    private Long sourceVersionId;
+
+    @Schema(description = "AI报告ID")
+    private Long aiReportId;
+    @Schema(description = "是否为当前版本")
+    private Integer isCurrent;
+    @Schema(description = "创建时间")
+    private LocalDateTime createdAt;
+    @Schema(description = "更新时间")
+    private LocalDateTime updatedAt;
+}

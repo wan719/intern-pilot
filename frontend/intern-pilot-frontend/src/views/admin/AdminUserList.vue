@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="用户管理" description="查询用户、启用禁用和角色分配。">
+  <PageContainer title="" description="查询用户、启用禁用和角色分配。">
     <section class="panel toolbar">
       <el-input v-model="query.keyword" placeholder="用户名/邮箱" clearable />
       <el-input v-model="query.roleCode" placeholder="角色编码(如 ADMIN)" clearable />

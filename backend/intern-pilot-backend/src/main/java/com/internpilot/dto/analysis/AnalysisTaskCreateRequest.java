@@ -16,6 +16,9 @@ public class AnalysisTaskCreateRequest {
     @NotNull(message = "岗位ID不能为空")
     private Long jobId;
 
+    @Schema(description = "简历版本ID，不传则使用当前版本")
+    private Long resumeVersionId;
+
     @Schema(description = "是否强制重新分析", example = "false")
     private Boolean forceRefresh = false;
 }
