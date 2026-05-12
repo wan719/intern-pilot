@@ -183,4 +183,39 @@ public class PromptUtils {
         analysisReport,
         extraRequirement == null ? "无" : extraRequirement);
   }
+
+  public static String buildAnalysisPrompt(
+      String resumeText,
+      String jobDescription,
+      String ragContext) {
+    return """
+        你是一个资深 Java 后端面试官和实习招聘导师。
+
+        请根据【学生简历】、【目标岗位JD】和【岗位知识库参考内容】，
+        分析该学生与岗位的匹配度。
+
+        要求：
+        1. 输出匹配分数；
+        2. 输出匹配等级；
+        3. 输出简历优势；
+        4. 输出简历短板；
+        5. 输出缺失技能；
+        6. 输出简历优化建议；
+        7. 输出面试准备建议；
+        8. 必须严格返回 JSON；
+        9. 不要返回 Markdown 代码块。
+
+        【岗位知识库参考内容】
+        %s
+
+        【学生简历】
+        %s
+
+        【目标岗位JD】
+        %s
+        """.formatted(
+        ragContext == null ? "暂无相关知识库内容。" : ragContext,
+        resumeText,
+        jobDescription);
+  }
 }

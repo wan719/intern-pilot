@@ -103,7 +103,10 @@ VALUES
 ('admin:permission:write', '编辑权限管理', 'ADMIN_PERMISSION', 'Update permissions', 1),
 ('system:log:read', '查看系统日志', 'SYSTEM_LOG', 'Read system logs', 1),
 ('system:log:delete', '删除系统日志', 'SYSTEM_LOG', 'Delete system logs', 1),
-('dashboard:admin:read', '查看管理看板', 'DASHBOARD', 'Read admin dashboard', 1);
+('dashboard:admin:read', '查看管理看板', 'DASHBOARD', 'Read admin dashboard', 1),
+('rag:knowledge:read', '查看RAG知识库', 'RAG', '查看RAG岗位知识库文档和检索结果', 1),
+('rag:knowledge:write', '编辑RAG知识库', 'RAG', '创建、修改、重建RAG知识库文档', 1),
+('rag:knowledge:delete', '删除RAG知识库', 'RAG', '删除RAG知识库文档', 1);
 
 INSERT IGNORE INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id
@@ -424,3 +427,69 @@ CREATE TABLE IF NOT EXISTS job_recommendation_item (
     KEY idx_jri_score (recommendation_score),
     KEY idx_jri_level (recommendation_level)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位推荐结果表';
+
+CREATE TABLE IF NOT EXISTS rag_knowledge_document (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '知识文档ID',
+    title VARCHAR(200) NOT NULL COMMENT '文档标题',
+    direction VARCHAR(100) NOT NULL COMMENT '岗位方向，如Java后端',
+    knowledge_type VARCHAR(50) NOT NULL COMMENT '知识类型',
+    content LONGTEXT NOT NULL COMMENT '原始文档内容',
+    summary VARCHAR(500) DEFAULT NULL COMMENT '文档摘要',
+    enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用：0禁用，1启用',
+    created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否逻辑删除：0未删除，1已删除',
+    KEY idx_rkd_direction (direction),
+    KEY idx_rkd_knowledge_type (knowledge_type),
+    KEY idx_rkd_enabled (enabled),
+    KEY idx_rkd_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG知识文档表';
+
+CREATE TABLE IF NOT EXISTS rag_knowledge_chunk (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '知识片段ID',
+    document_id BIGINT NOT NULL COMMENT '知识文档ID',
+    direction VARCHAR(100) NOT NULL COMMENT '岗位方向',
+    knowledge_type VARCHAR(50) NOT NULL COMMENT '知识类型',
+    chunk_index INT NOT NULL DEFAULT 0 COMMENT '片段序号',
+    content TEXT NOT NULL COMMENT '片段内容',
+    embedding LONGTEXT DEFAULT NULL COMMENT '向量JSON字符串',
+    embedding_model VARCHAR(100) DEFAULT NULL COMMENT 'Embedding模型',
+    enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用：0禁用，1启用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否逻辑删除：0未删除，1已删除',
+    KEY idx_rkc_document_id (document_id),
+    KEY idx_rkc_direction (direction),
+    KEY idx_rkc_knowledge_type (knowledge_type),
+    KEY idx_rkc_enabled (enabled),
+    KEY idx_rkc_chunk_index (chunk_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG知识片段表';
+
+INSERT INTO rag_knowledge_document (title, direction, knowledge_type, content, summary, enabled, created_by)
+SELECT 'Java后端实习岗位能力模型',
+       'Java后端',
+       'SKILL_REQUIREMENT',
+       'Java后端实习岗位通常关注 Java 基础、集合、多线程、JVM、Spring Boot、Spring Security、MyBatis、MySQL、Redis、RESTful API、接口设计、权限控制和项目工程化能力。简历中如果有登录鉴权、文件上传、缓存优化、操作日志、RBAC 权限、Swagger 文档、Docker 部署等项目经历，会更容易体现岗位匹配度。面试准备应重点复习 Spring IOC/AOP、事务传播、MyBatis 映射、索引优化、Redis 缓存穿透击穿雪崩、JWT 认证流程和接口幂等性。',
+       'Java后端实习岗位技能要求、简历亮点和面试重点。',
+       1,
+       NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM rag_knowledge_document
+    WHERE title = 'Java后端实习岗位能力模型'
+      AND deleted = 0
+);
+
+INSERT INTO rag_knowledge_document (title, direction, knowledge_type, content, summary, enabled, created_by)
+SELECT 'AI应用开发实习岗位知识',
+       'AI应用',
+       'JOB_DIRECTION',
+       'AI应用开发实习岗位强调大模型 API 调用、Prompt Engineering、结构化输出解析、RAG、Embedding、向量检索、工具调用、前后端集成和业务场景落地能力。候选人如果能说明如何设计 Prompt、如何处理模型返回异常、如何做缓存与降级、如何将知识库检索结果拼接进上下文，会比只会调用接口更有竞争力。项目经历中可以突出 AI 简历分析、岗位推荐、面试题生成、知识库增强和可解释推荐理由。',
+       'AI应用开发岗位方向、核心技能和项目包装建议。',
+       1,
+       NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM rag_knowledge_document
+    WHERE title = 'AI应用开发实习岗位知识'
+      AND deleted = 0
+);

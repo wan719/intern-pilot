@@ -7,6 +7,7 @@ import com.internpilot.common.PageResult;
 import com.internpilot.config.AiProperties;
 import com.internpilot.dto.analysis.AiAnalysisResult;
 import com.internpilot.dto.analysis.AnalysisMatchRequest;
+import com.internpilot.dto.rag.RagSearchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
@@ -19,12 +20,14 @@ import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.AnalysisService;
+import com.internpilot.service.RagKnowledgeService;
 import com.internpilot.util.JsonUtils;
 import com.internpilot.util.PromptUtils;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
+import com.internpilot.vo.rag.RagSearchResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -49,6 +52,7 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final AiProperties aiProperties;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final RagKnowledgeService ragKnowledgeService;
 
     @Override
     @Transactional
@@ -90,7 +94,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
         }
 
-        String prompt = PromptUtils.buildResumeJobMatchPrompt(resumeText, job.getJdContent());
+        String ragContext = buildRagContext(resumeText, job);
+        String prompt = PromptUtils.buildAnalysisPrompt(resumeText, job.getJdContent(), ragContext);
         String rawResponse = aiClient.chat(prompt);
         AiAnalysisResult aiResult = JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
         normalizeAiResult(aiResult);
@@ -217,6 +222,38 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     private String buildCacheKey(Long userId, Long resumeId, Long resumeVersionId, Long jobId) {
         return "internpilot:analysis:%d:%d:%d:%d".formatted(userId, resumeId, resumeVersionId == null ? 0 : resumeVersionId, jobId);
+    }
+
+    private String buildRagContext(String resumeText, JobDescription job) {
+        try {
+            RagSearchRequest request = new RagSearchRequest();
+            request.setQuery(String.join("\n", List.of(
+                    resumeText == null ? "" : resumeText,
+                    job.getJobTitle() == null ? "" : job.getJobTitle(),
+                    job.getJdContent() == null ? "" : job.getJdContent()
+            )));
+            request.setDirection(StringUtils.hasText(job.getJobType()) ? job.getJobType() : null);
+            request.setTopK(5);
+            List<RagSearchResultResponse> results = ragKnowledgeService.search(request);
+            if (results == null || results.isEmpty()) {
+                return null;
+            }
+            StringBuilder builder = new StringBuilder("以下是系统检索到的岗位知识库内容，请结合这些内容进行分析：\n");
+            int index = 1;
+            for (RagSearchResultResponse item : results) {
+                builder.append(index++)
+                        .append(". 【")
+                        .append(item.getDirection())
+                        .append(" / ")
+                        .append(item.getKnowledgeType())
+                        .append("】")
+                        .append(item.getContent())
+                        .append("\n");
+            }
+            return builder.toString();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private ResumeVersion resolveResumeVersion(Resume resume, Long versionId, Long userId) {

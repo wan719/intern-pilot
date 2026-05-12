@@ -46,6 +46,11 @@ const routes = [
         path: 'admin/operation-logs',
         component: () => import('@/views/admin/OperationLogList.vue'),
         meta: { title: '操作日志', permission: 'system:log:read' }
+      },
+      {
+        path: 'admin/rag-knowledge',
+        component: () => import('@/views/admin/AdminRagKnowledgeList.vue'),
+        meta: { title: 'RAG 知识库', permission: 'rag:knowledge:read' }
       }
       
     ]

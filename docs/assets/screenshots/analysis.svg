@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#f4f7fb"/>
+  <text x="60" y="70" font-family="Segoe UI, Microsoft YaHei" font-size="28" font-weight="700" fill="#172033">AI 匹配分析</text>
+  <text x="60" y="102" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#667085">选择简历、简历版本和目标岗位，创建异步分析任务</text>
+  <rect x="60" y="140" width="350" height="500" rx="8" fill="#fff" stroke="#dbe4f0"/>
+  <text x="90" y="186" font-family="Segoe UI, Microsoft YaHei" font-size="18" font-weight="700" fill="#172033">创建分析任务</text>
+  <rect x="90" y="230" width="290" height="46" rx="6" fill="#f8fafc" stroke="#d0d7e2"/>
+  <text x="108" y="259" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">Java 后端实习简历.pdf</text>
+  <rect x="90" y="306" width="290" height="46" rx="6" fill="#f8fafc" stroke="#d0d7e2"/>
+  <text x="108" y="335" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">后端开发实习生 - 腾讯</text>
+  <rect x="90" y="382" width="290" height="46" rx="6" fill="#f8fafc" stroke="#d0d7e2"/>
+  <text x="108" y="411" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">AI 优化版本（当前）</text>
+  <rect x="90" y="480" width="150" height="44" rx="6" fill="#2563eb"/>
+  <text x="165" y="508" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei" font-size="15" font-weight="700" fill="#fff">开始 AI 分析</text>
+  <rect x="450" y="140" width="690" height="500" rx="8" fill="#fff" stroke="#dbe4f0"/>
+  <text x="480" y="186" font-family="Segoe UI, Microsoft YaHei" font-size="18" font-weight="700" fill="#172033">任务进度</text>
+  <line x1="520" y1="270" x2="1060" y2="270" stroke="#dbe4f0" stroke-width="8" stroke-linecap="round"/>
+  <line x1="520" y1="270" x2="890" y2="270" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="520" cy="270" r="18" fill="#2563eb"/>
+  <circle cx="700" cy="270" r="18" fill="#2563eb"/>
+  <circle cx="880" cy="270" r="18" fill="#2563eb"/>
+  <circle cx="1060" cy="270" r="18" fill="#dbe4f0"/>
+  <text x="485" y="324" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">读取资料</text>
+  <text x="665" y="324" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">构建 Prompt</text>
+  <text x="852" y="324" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">RAG 增强</text>
+  <text x="1027" y="324" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#475467">生成报告</text>
+  <rect x="520" y="390" width="540" height="22" rx="11" fill="#e8f0ff"/>
+  <rect x="520" y="390" width="410" height="22" rx="11" fill="#16a34a"/>
+  <text x="520" y="456" font-family="Segoe UI, Microsoft YaHei" font-size="16" fill="#172033">正在结合岗位 JD 与知识库内容生成结构化报告...</text>
+</svg>

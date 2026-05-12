@@ -83,6 +83,10 @@
           <el-icon><Memo /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
+        <el-menu-item v-if="hasPermission('rag:knowledge:read')" index="/admin/rag-knowledge" @click="go('/admin/rag-knowledge')">
+          <el-icon><Tickets /></el-icon>
+          <span>RAG 知识库</span>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
   </aside>
@@ -122,7 +126,7 @@ function hasPermission(permission: string) {
 }
 
 const showAdminGroup = computed(() => {
-  const keys = ['dashboard:admin:read', 'admin:user:read', 'admin:role:read', 'admin:permission:read', 'system:log:read']
+  const keys = ['dashboard:admin:read', 'admin:user:read', 'admin:role:read', 'admin:permission:read', 'system:log:read', 'rag:knowledge:read']
   return keys.some((key) => hasPermission(key))
 })
 </script>

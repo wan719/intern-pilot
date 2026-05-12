@@ -6,6 +6,7 @@ import com.internpilot.common.PageResult;
 import com.internpilot.config.AiProperties;
 import com.internpilot.dto.interview.AiInterviewQuestionResult;
 import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
+import com.internpilot.dto.rag.RagSearchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.InterviewQuestion;
 import com.internpilot.entity.InterviewQuestionReport;
@@ -23,6 +24,7 @@ import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.InterviewQuestionService;
+import com.internpilot.service.RagKnowledgeService;
 import com.internpilot.util.JsonUtils;
 import com.internpilot.util.PromptUtils;
 import com.internpilot.util.SecurityUtils;
@@ -30,6 +32,7 @@ import com.internpilot.vo.interview.InterviewQuestionDetailResponse;
 import com.internpilot.vo.interview.InterviewQuestionGenerateResponse;
 import com.internpilot.vo.interview.InterviewQuestionItemResponse;
 import com.internpilot.vo.interview.InterviewQuestionListResponse;
+import com.internpilot.vo.rag.RagSearchResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +60,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
     private final AiClient aiClient;
 
     private final AiProperties aiProperties;
+    private final RagKnowledgeService ragKnowledgeService;
 
     @Override
     @Transactional
@@ -97,6 +101,10 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         }
 
         String analysisReportText = buildAnalysisReportText(analysisReport);
+        String ragContext = buildRagContext(resumeText, job);
+        if (StringUtils.hasText(ragContext)) {
+            analysisReportText = analysisReportText + "\n\n【岗位知识库参考内容】\n" + ragContext;
+        }
 
         String prompt = PromptUtils.buildInterviewQuestionPrompt(
                 resumeText,
@@ -280,6 +288,38 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         }
 
         return report;
+    }
+
+    private String buildRagContext(String resumeText, JobDescription job) {
+        try {
+            RagSearchRequest request = new RagSearchRequest();
+            request.setQuery(String.join("\n", List.of(
+                    resumeText == null ? "" : resumeText,
+                    job.getJobTitle() == null ? "" : job.getJobTitle(),
+                    job.getJdContent() == null ? "" : job.getJdContent()
+            )));
+            request.setDirection(StringUtils.hasText(job.getJobType()) ? job.getJobType() : null);
+            request.setTopK(5);
+            List<RagSearchResultResponse> results = ragKnowledgeService.search(request);
+            if (results == null || results.isEmpty()) {
+                return "";
+            }
+            StringBuilder builder = new StringBuilder();
+            int index = 1;
+            for (RagSearchResultResponse item : results) {
+                builder.append(index++)
+                        .append(". 【")
+                        .append(item.getDirection())
+                        .append(" / ")
+                        .append(item.getKnowledgeType())
+                        .append("】")
+                        .append(item.getContent())
+                        .append("\n");
+            }
+            return builder.toString();
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private void validateAnalysisReportScope(AnalysisReport report, Long resumeId, Long resumeVersionId, Long jobId) {

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#f4f7fb"/>
+  <rect width="240" height="720" fill="#ffffff"/>
+  <rect x="28" y="28" width="48" height="48" rx="8" fill="#2563eb"/>
+  <text x="52" y="59" text-anchor="middle" font-family="Segoe UI, Microsoft YaHei" font-size="18" font-weight="700" fill="#fff">IP</text>
+  <text x="92" y="49" font-family="Segoe UI, Microsoft YaHei" font-size="20" font-weight="700" fill="#172033">InternPilot</text>
+  <text x="92" y="71" font-family="Segoe UI, Microsoft YaHei" font-size="13" fill="#667085">AI 求职工作台</text>
+  <rect x="24" y="124" width="192" height="42" rx="8" fill="#e8f0ff"/>
+  <text x="58" y="151" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#2563eb">数据看板</text>
+  <text x="58" y="211" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#475467">简历管理</text>
+  <text x="58" y="263" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#475467">岗位管理</text>
+  <text x="58" y="315" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#475467">AI 分析</text>
+  <text x="58" y="367" font-family="Segoe UI, Microsoft YaHei" font-size="15" fill="#475467">RAG 知识库</text>
+  <text x="286" y="66" font-family="Segoe UI, Microsoft YaHei" font-size="24" font-weight="700" fill="#172033">数据看板</text>
+  <text x="286" y="94" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#667085">简历、岗位、分析报告与投递进度总览</text>
+  <g transform="translate(286 130)">
+    <rect width="200" height="110" rx="8" fill="#fff" stroke="#dbe4f0"/>
+    <text x="24" y="38" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#667085">简历数量</text>
+    <text x="24" y="82" font-family="Segoe UI, Microsoft YaHei" font-size="34" font-weight="700" fill="#172033">12</text>
+  </g>
+  <g transform="translate(510 130)">
+    <rect width="200" height="110" rx="8" fill="#fff" stroke="#dbe4f0"/>
+    <text x="24" y="38" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#667085">岗位 JD</text>
+    <text x="24" y="82" font-family="Segoe UI, Microsoft YaHei" font-size="34" font-weight="700" fill="#172033">28</text>
+  </g>
+  <g transform="translate(734 130)">
+    <rect width="200" height="110" rx="8" fill="#fff" stroke="#dbe4f0"/>
+    <text x="24" y="38" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#667085">AI 报告</text>
+    <text x="24" y="82" font-family="Segoe UI, Microsoft YaHei" font-size="34" font-weight="700" fill="#172033">36</text>
+  </g>
+  <g transform="translate(958 130)">
+    <rect width="200" height="110" rx="8" fill="#fff" stroke="#dbe4f0"/>
+    <text x="24" y="38" font-family="Segoe UI, Microsoft YaHei" font-size="14" fill="#667085">投递记录</text>
+    <text x="24" y="82" font-family="Segoe UI, Microsoft YaHei" font-size="34" font-weight="700" fill="#172033">19</text>
+  </g>
+  <rect x="286" y="272" width="410" height="330" rx="8" fill="#fff" stroke="#dbe4f0"/>
+  <text x="314" y="316" font-family="Segoe UI, Microsoft YaHei" font-size="18" font-weight="700" fill="#172033">匹配分趋势</text>
+  <polyline points="326,536 388,492 450,508 512,430 574,402 636,352" fill="none" stroke="#2563eb" stroke-width="6" stroke-linecap="round"/>
+  <rect x="724" y="272" width="434" height="330" rx="8" fill="#fff" stroke="#dbe4f0"/>
+  <text x="752" y="316" font-family="Segoe UI, Microsoft YaHei" font-size="18" font-weight="700" fill="#172033">投递状态</text>
+  <circle cx="930" cy="444" r="94" fill="none" stroke="#16a34a" stroke-width="34"/>
+  <path d="M930 350 A94 94 0 0 1 1018 476" fill="none" stroke="#f59e0b" stroke-width="34"/>
+  <path d="M1018 476 A94 94 0 0 1 885 526" fill="none" stroke="#ef4444" stroke-width="34"/>
+</svg>
