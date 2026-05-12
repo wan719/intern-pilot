@@ -44,6 +44,8 @@ async function handleLogin() {
     auth.setLogin(res.token, res.user)
     ElMessage.success('登录成功')
     router.push('/dashboard')
+  } catch {
+    // Error message is already shown by the request interceptor.
   } finally {
     loading.value = false
   }

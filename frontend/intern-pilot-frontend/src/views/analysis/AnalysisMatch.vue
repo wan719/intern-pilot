@@ -96,6 +96,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { MagicStick } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
 import type { Client } from '@stomp/stompjs'
 import PageContainer from '@/components/common/PageContainer.vue'
 import router from '@/router'
@@ -109,6 +110,7 @@ const resumes = ref<any[]>([])
 const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
 const running = ref(false)
+const route = useRoute()
 let stompClient: Client | null = null
 let pollingTimer: number | undefined
 
@@ -155,6 +157,23 @@ async function loadOptions() {
   ])
   resumes.value = resumeRes.records || []
   jobs.value = jobRes.records || []
+  await applyQueryDefaults()
+}
+
+async function applyQueryDefaults() {
+  const resumeId = Number(route.query.resumeId)
+  const resumeVersionId = Number(route.query.resumeVersionId)
+  const jobId = Number(route.query.jobId)
+  if (Number.isFinite(resumeId) && resumeId > 0) {
+    form.resumeId = resumeId
+    await loadVersions()
+  }
+  if (Number.isFinite(resumeVersionId) && resumeVersionId > 0) {
+    form.resumeVersionId = resumeVersionId
+  }
+  if (Number.isFinite(jobId) && jobId > 0) {
+    form.jobId = jobId
+  }
 }
 
 async function loadVersions() {

@@ -64,6 +64,8 @@ async function handleRegister() {
     await registerApi(form)
     ElMessage.success('注册成功，请登录')
     router.push('/login')
+  } catch {
+    // Error message is already shown by the request interceptor.
   } finally {
     loading.value = false
   }

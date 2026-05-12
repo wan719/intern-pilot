@@ -41,6 +41,10 @@
           <el-icon><Tickets /></el-icon>
           <span>分析报告</span>
         </el-menu-item>
+        <el-menu-item index="/job-recommendations" @click="go('/job-recommendations')">
+          <el-icon><MagicStick /></el-icon>
+          <span>岗位推荐</span>
+        </el-menu-item>
         <el-menu-item index="/interview-questions" @click="go('/interview-questions')">
           <el-icon><QuestionFilled /></el-icon>
           <span>AI 面试题</span>

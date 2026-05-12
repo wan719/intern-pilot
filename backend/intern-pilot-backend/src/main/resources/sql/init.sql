@@ -380,3 +380,47 @@ CREATE TABLE IF NOT EXISTS system_operation_log (
     KEY idx_sol_success (success),
     KEY idx_sol_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS job_recommendation_batch (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '推荐批次ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    resume_id BIGINT NOT NULL COMMENT '简历ID',
+    resume_version_id BIGINT DEFAULT NULL COMMENT '简历版本ID',
+    title VARCHAR(200) NOT NULL COMMENT '推荐批次标题',
+    job_count INT NOT NULL DEFAULT 0 COMMENT '参与推荐的岗位数量',
+    recommended_count INT NOT NULL DEFAULT 0 COMMENT '推荐结果数量',
+    strategy VARCHAR(100) NOT NULL DEFAULT 'RULE_BASED' COMMENT '推荐策略',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否逻辑删除：0未删除，1已删除',
+    KEY idx_jrb_user_id (user_id),
+    KEY idx_jrb_resume_id (resume_id),
+    KEY idx_jrb_resume_version_id (resume_version_id),
+    KEY idx_jrb_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位推荐批次表';
+
+CREATE TABLE IF NOT EXISTS job_recommendation_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '推荐项ID',
+    batch_id BIGINT NOT NULL COMMENT '推荐批次ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    job_id BIGINT NOT NULL COMMENT '岗位ID',
+    analysis_report_id BIGINT DEFAULT NULL COMMENT '关联AI分析报告ID',
+    recommendation_score INT NOT NULL DEFAULT 0 COMMENT '推荐分数',
+    recommendation_level VARCHAR(50) NOT NULL COMMENT '推荐等级',
+    skill_match_score INT DEFAULT NULL COMMENT '技能匹配分',
+    ai_match_score INT DEFAULT NULL COMMENT 'AI匹配分',
+    job_type_score INT DEFAULT NULL COMMENT '岗位类型匹配分',
+    matched_skills TEXT DEFAULT NULL COMMENT '匹配技能，JSON数组字符串',
+    missing_skills TEXT DEFAULT NULL COMMENT '缺失技能，JSON数组字符串',
+    reasons TEXT DEFAULT NULL COMMENT '推荐理由，JSON数组字符串',
+    is_applied TINYINT NOT NULL DEFAULT 0 COMMENT '是否已投递：0否，1是',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否逻辑删除：0未删除，1已删除',
+    KEY idx_jri_batch_id (batch_id),
+    KEY idx_jri_user_id (user_id),
+    KEY idx_jri_job_id (job_id),
+    KEY idx_jri_score (recommendation_score),
+    KEY idx_jri_level (recommendation_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位推荐结果表';

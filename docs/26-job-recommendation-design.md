@@ -1,12 +1,3 @@
-下面这份直接保存为：
-
-```text
-docs/26-job-recommendation-design.md
-```
-
----
-
-````markdown
 # InternPilot 岗位推荐模块设计文档
 
 ## 1. 文档说明
@@ -1986,11 +1977,3 @@ Embedding 相似度推荐
 RAG 岗位知识库推荐
 用户行为反馈推荐
 ```
-
-推荐完成本模块后，继续做：
-
-```text
-docs/27-rag-job-knowledge-base-design.md
-```
-
-也就是 RAG 岗位知识库模块。
