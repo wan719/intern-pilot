@@ -1,0 +1,292 @@
+CREATE TABLE IF NOT EXISTS `user` (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) DEFAULT NULL,
+    phone VARCHAR(20) DEFAULT NULL,
+    real_name VARCHAR(50) DEFAULT NULL,
+    school VARCHAR(100) DEFAULT NULL,
+    major VARCHAR(100) DEFAULT NULL,
+    grade VARCHAR(30) DEFAULT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    enabled TINYINT NOT NULL DEFAULT 1,
+    last_login_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_user_username UNIQUE (username)
+);
+
+CREATE TABLE IF NOT EXISTS role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_code VARCHAR(50) NOT NULL,
+    role_name VARCHAR(100) NOT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_role_code UNIQUE (role_code)
+);
+
+CREATE TABLE IF NOT EXISTS permission (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    permission_code VARCHAR(100) NOT NULL,
+    permission_name VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(50) DEFAULT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_permission_code UNIQUE (permission_code)
+);
+
+CREATE TABLE IF NOT EXISTS user_role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_user_role UNIQUE (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS role_permission (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_role_permission UNIQUE (role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS resume (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_name VARCHAR(100) DEFAULT NULL,
+    original_file_name VARCHAR(255) NOT NULL,
+    stored_file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    file_type VARCHAR(20) NOT NULL,
+    file_size BIGINT NOT NULL DEFAULT 0,
+    parsed_text CLOB DEFAULT NULL,
+    parse_status VARCHAR(30) NOT NULL DEFAULT 'SUCCESS',
+    is_default TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS resume_version (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    version_name VARCHAR(200) NOT NULL,
+    version_type VARCHAR(50) NOT NULL DEFAULT 'MANUAL',
+    content CLOB NOT NULL,
+    content_summary VARCHAR(500) DEFAULT NULL,
+    target_job_id BIGINT DEFAULT NULL,
+    source_version_id BIGINT DEFAULT NULL,
+    ai_report_id BIGINT DEFAULT NULL,
+    optimize_prompt CLOB DEFAULT NULL,
+    ai_raw_response CLOB DEFAULT NULL,
+    is_current TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS job_description (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    company_name VARCHAR(100) NOT NULL,
+    job_title VARCHAR(200) NOT NULL,
+    job_type VARCHAR(100) DEFAULT NULL,
+    location VARCHAR(100) DEFAULT NULL,
+    source_platform VARCHAR(100) DEFAULT NULL,
+    job_url VARCHAR(500) DEFAULT NULL,
+    jd_content CLOB DEFAULT NULL,
+    skill_requirements VARCHAR(500) DEFAULT NULL,
+    salary_range VARCHAR(100) DEFAULT NULL,
+    work_days_per_week VARCHAR(50) DEFAULT NULL,
+    internship_duration VARCHAR(50) DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS analysis_report (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
+    job_id BIGINT NOT NULL,
+    match_score INT DEFAULT NULL,
+    match_level VARCHAR(30) DEFAULT NULL,
+    strengths CLOB DEFAULT NULL,
+    weaknesses CLOB DEFAULT NULL,
+    missing_skills CLOB DEFAULT NULL,
+    suggestions CLOB DEFAULT NULL,
+    interview_tips CLOB DEFAULT NULL,
+    raw_ai_response CLOB DEFAULT NULL,
+    ai_provider VARCHAR(50) DEFAULT NULL,
+    ai_model VARCHAR(100) DEFAULT NULL,
+    cache_hit TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS analysis_task (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    task_no VARCHAR(64) NOT NULL,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
+    job_id BIGINT NOT NULL,
+    report_id BIGINT DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    progress INT NOT NULL DEFAULT 0,
+    message VARCHAR(500) DEFAULT NULL,
+    force_refresh TINYINT NOT NULL DEFAULT 0,
+    error_message CLOB DEFAULT NULL,
+    started_at DATETIME DEFAULT NULL,
+    finished_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_analysis_task_no UNIQUE (task_no)
+);
+
+CREATE TABLE IF NOT EXISTS application_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    resume_id BIGINT DEFAULT NULL,
+    report_id BIGINT DEFAULT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'TO_APPLY',
+    apply_date DATE DEFAULT NULL,
+    interview_date DATETIME DEFAULT NULL,
+    note CLOB DEFAULT NULL,
+    review CLOB DEFAULT NULL,
+    priority VARCHAR(30) DEFAULT 'MEDIUM',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS interview_question_report (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
+    job_id BIGINT NOT NULL,
+    analysis_report_id BIGINT DEFAULT NULL,
+    title VARCHAR(200) DEFAULT NULL,
+    question_count INT NOT NULL DEFAULT 0,
+    ai_provider VARCHAR(50) DEFAULT NULL,
+    ai_model VARCHAR(100) DEFAULT NULL,
+    raw_ai_response CLOB DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS interview_question (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    report_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    question_type VARCHAR(50) NOT NULL,
+    difficulty VARCHAR(30) NOT NULL DEFAULT 'MEDIUM',
+    question CLOB NOT NULL,
+    answer CLOB DEFAULT NULL,
+    answer_points CLOB DEFAULT NULL,
+    related_skills VARCHAR(500) DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS system_operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    operator_id BIGINT DEFAULT NULL,
+    operator_username VARCHAR(100) DEFAULT NULL,
+    module VARCHAR(100) NOT NULL,
+    operation VARCHAR(100) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    request_uri VARCHAR(255) DEFAULT NULL,
+    request_method VARCHAR(20) DEFAULT NULL,
+    request_params CLOB DEFAULT NULL,
+    ip_address VARCHAR(100) DEFAULT NULL,
+    user_agent VARCHAR(500) DEFAULT NULL,
+    success TINYINT NOT NULL DEFAULT 1,
+    error_message CLOB DEFAULT NULL,
+    cost_time BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS job_recommendation_batch (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    resume_id BIGINT NOT NULL,
+    resume_version_id BIGINT DEFAULT NULL,
+    title VARCHAR(200) NOT NULL,
+    job_count INT NOT NULL DEFAULT 0,
+    recommended_count INT NOT NULL DEFAULT 0,
+    strategy VARCHAR(100) NOT NULL DEFAULT 'RULE_BASED',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS job_recommendation_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    analysis_report_id BIGINT DEFAULT NULL,
+    recommendation_score INT NOT NULL DEFAULT 0,
+    recommendation_level VARCHAR(50) NOT NULL,
+    skill_match_score INT DEFAULT NULL,
+    ai_match_score INT DEFAULT NULL,
+    job_type_score INT DEFAULT NULL,
+    matched_skills CLOB DEFAULT NULL,
+    missing_skills CLOB DEFAULT NULL,
+    reasons CLOB DEFAULT NULL,
+    is_applied TINYINT NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS rag_knowledge_document (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(200) NOT NULL,
+    direction VARCHAR(100) NOT NULL,
+    knowledge_type VARCHAR(50) NOT NULL,
+    content CLOB NOT NULL,
+    summary VARCHAR(500) DEFAULT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    created_by BIGINT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS rag_knowledge_chunk (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    direction VARCHAR(100) NOT NULL,
+    knowledge_type VARCHAR(50) NOT NULL,
+    chunk_index INT NOT NULL DEFAULT 0,
+    content CLOB NOT NULL,
+    embedding CLOB DEFAULT NULL,
+    embedding_model VARCHAR(100) DEFAULT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT NOT NULL DEFAULT 0
+);

@@ -3,7 +3,9 @@ package com.internpilot.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.entity.Resume;
+import com.internpilot.entity.ResumeVersion;
 import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.service.FileStorageService;
 import com.internpilot.service.ResumeParseService;
@@ -41,6 +43,9 @@ class ResumeServiceImplTest {
     private ResumeMapper resumeMapper;
 
     @Mock
+    private ResumeVersionMapper resumeVersionMapper;
+
+    @Mock
     private FileStorageService fileStorageService;
 
     @Mock
@@ -76,6 +81,7 @@ class ResumeServiceImplTest {
         when(fileStorageService.store(file, 1L)).thenReturn(storedFileInfo);
         when(resumeParseService.parse(file, "PDF")).thenReturn("Java Spring Boot Redis");
         when(resumeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(resumeVersionMapper.insert(any(ResumeVersion.class))).thenReturn(1);
         doAnswer(invocation -> {
             Resume resume = invocation.getArgument(0);
             resume.setId(10L);

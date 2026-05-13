@@ -14,6 +14,7 @@ import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.service.AiClient;
+import com.internpilot.service.RagKnowledgeService;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
@@ -65,6 +66,9 @@ class AnalysisServiceImplTest {
     @Mock
     private ValueOperations<String, Object> valueOperations;
 
+    @Mock
+    private RagKnowledgeService ragKnowledgeService;
+
     private final AiProperties aiProperties = new AiProperties();
 
     private AnalysisServiceImpl analysisService;
@@ -84,7 +88,8 @@ class AnalysisServiceImplTest {
                 aiClient,
                 aiProperties,
                 redisTemplate,
-                new ObjectMapper()
+                new ObjectMapper(),
+                ragKnowledgeService
         );
     }
 
