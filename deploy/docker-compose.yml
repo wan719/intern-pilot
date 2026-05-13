@@ -26,6 +26,8 @@ services:
     image: redis:7-alpine
     container_name: internpilot-redis
     restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - internpilot-redis-data:/data
