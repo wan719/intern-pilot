@@ -10,7 +10,26 @@ dist/
 *.docx
 .env
 .env.*
+!.env.example
 application-local.yml
-application-prod.yml
 *.key
 *.pem
+# env
+.env
+*.env.local
+!.env.example
+
+# backend
+backend/intern-pilot-backend/build/
+backend/intern-pilot-backend/.gradle/
+backend/intern-pilot-backend/uploads/
+backend/intern-pilot-backend/*.log
+
+# frontend
+frontend/intern-pilot-frontend/node_modules/
+frontend/intern-pilot-frontend/dist/
+frontend/intern-pilot-frontend/.env.local
+
+# system
+.DS_Store
+Thumbs.db

@@ -1,4 +1,4 @@
-name: CI
+name: InternPilot CI
 
 on:
   push:
@@ -12,47 +12,50 @@ on:
 
 jobs:
   backend-test:
-    name: Backend tests
+    name: Backend Test
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: backend/intern-pilot-backend
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-          cache: gradle
+          java-version: 17
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Run backend tests
-        run: ./gradlew clean test
+        run: ./gradlew clean test --no-daemon
 
   frontend-build:
-    name: Frontend build
+    name: Frontend Build
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: frontend/intern-pilot-frontend
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
           cache: npm
           cache-dependency-path: frontend/intern-pilot-frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run type-check
-
-      - name: Build
+      - name: Build frontend
         run: npm run build

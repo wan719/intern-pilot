@@ -1,12 +1,3 @@
-下面这份直接保存为：
-
-```text
-docs/29-cicd-and-online-demo.md
-```
-
----
-
-````markdown
 # InternPilot CI/CD 自动化与在线演示部署文档
 
 ## 1. 文档说明
@@ -1634,5 +1625,3 @@ CI/CD
 Docker 部署
 在线演示
 ```
-
-这已经是一份比较完整、适合暑期实习投递和面试展示的 Java + AI 应用项目。

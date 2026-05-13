@@ -1,0 +1,24 @@
+name: Docker Build Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  docker-build:
+    name: Docker Compose Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare compose environment
+        run: cp deploy/.env.example deploy/.env
+
+      - name: Build Docker Compose services
+        run: docker compose --env-file deploy/.env -f deploy/docker-compose.yml build

@@ -1,16 +1,12 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.0
     container_name: internpilot-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: intern_pilot
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       TZ: Asia/Shanghai
-    ports:
-      - "3306:3306"
     volumes:
       - internpilot-mysql-data:/var/lib/mysql
       - ../backend/intern-pilot-backend/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -18,15 +14,28 @@ services:
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internpilot-network
 
   redis:
-    image: redis:7.2
+    image: redis:7-alpine
     container_name: internpilot-redis
     restart: always
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - internpilot-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internpilot-network
 
   backend:
     build:
@@ -35,28 +44,54 @@ services:
     container_name: internpilot-backend
     restart: always
     depends_on:
-      - mysql
-      - redis
-    ports:
-      - "8080:8080"
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,mock}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: intern_pilot
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USERNAME: root
-      MYSQL_PASSWORD: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: intern-pilot-docker-secret-key-change-this-to-a-long-random-string
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_PROVIDER: deepseek
-      AI_BASE_URL: https://api.deepseek.com
-      AI_MODEL: deepseek-chat
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      AI_PROVIDER: ${AI_PROVIDER}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_BASE_URL: ${AI_BASE_URL}
+      AI_MODEL: ${AI_MODEL}
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      RAG_TOP_K: ${RAG_TOP_K:-5}
+      RAG_EMBEDDING_PROVIDER: ${RAG_EMBEDDING_PROVIDER:-mock}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-mock-embedding-64}
+    ports:
+      - "8080:8080"
     volumes:
       - internpilot-uploads:/app/uploads
+    networks:
+      - internpilot-network
+
+  frontend:
+    build:
+      context: ../frontend/intern-pilot-frontend
+      dockerfile: Dockerfile
+    container_name: internpilot-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - internpilot-network
 
 volumes:
   internpilot-mysql-data:
   internpilot-redis-data:
   internpilot-uploads:
+
+networks:
+  internpilot-network:
+    driver: bridge

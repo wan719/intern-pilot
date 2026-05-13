@@ -28,7 +28,6 @@ uploads/
 ### Env files ###
 .env
 application-local.yml
-application-prod.yml
 ### Secret files ###
 *.key
 *.pem
