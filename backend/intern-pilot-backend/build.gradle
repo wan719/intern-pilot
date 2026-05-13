@@ -7,12 +7,6 @@ plugins {
 group = 'com.internpilot'
 version = '0.0.1-SNAPSHOT'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
-}
-
 dependencies {
 	//websocket
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
@@ -52,14 +46,19 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
-
-	 runtimeOnly 'com.h2database:h2'
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {
-	// Keep test worker memory conservative on Windows when pagefile is tight.
-	maxHeapSize = '128m'
+	maxHeapSize = '512m'
+	maxParallelForks = 1
+	forkEvery = 0
+	jvmArgs = ['-Dfile.encoding=UTF-8', '-Dsun.jnu.encoding=UTF-8']
 	useJUnitPlatform()
+	testLogging {
+		events "failed", "skipped"
+		exceptionFormat "full"
+	}
 }
 
 tasks.named('bootRun') {
