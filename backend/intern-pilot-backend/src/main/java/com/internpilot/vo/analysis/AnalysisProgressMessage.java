@@ -9,6 +9,8 @@ public class AnalysisProgressMessage {
 
     private String taskNo;
 
+    private Long userId;
+
     private String status;
 
     private Integer progress;
@@ -19,10 +21,11 @@ public class AnalysisProgressMessage {
 
     private String errorMessage;
 
-    private LocalDateTime time;
+    private LocalDateTime timestamp;
 
     public static AnalysisProgressMessage of(
             String taskNo,
+            Long userId,
             String status,
             Integer progress,
             String message,
@@ -31,12 +34,13 @@ public class AnalysisProgressMessage {
     ) {
         AnalysisProgressMessage progressMessage = new AnalysisProgressMessage();
         progressMessage.setTaskNo(taskNo);
+        progressMessage.setUserId(userId);
         progressMessage.setStatus(status);
         progressMessage.setProgress(progress);
         progressMessage.setMessage(message);
         progressMessage.setReportId(reportId);
         progressMessage.setErrorMessage(errorMessage);
-        progressMessage.setTime(LocalDateTime.now());
+        progressMessage.setTimestamp(LocalDateTime.now());
         return progressMessage;
     }
 }

@@ -51,7 +51,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
         analysisTaskMapper.insert(task);
 
-        progressPublisher.publish(task.getTaskNo(), task.getStatus(), task.getProgress(), task.getMessage(), null, null);
+        progressPublisher.publish(task.getTaskNo(), currentUserId, task.getStatus(), task.getProgress(), task.getMessage(), null, null);
         analysisTaskExecutor.execute(() -> executeTask(task.getTaskNo(), currentUserId));
 
         return toCreateResponse(task);
@@ -90,12 +90,12 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
         }
 
         try {
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 10, "正在校验用户权限", null, null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 20, "正在读取简历", null, null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 30, "正在读取岗位 JD", null, null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 40, "正在检查缓存", null, null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 50, "正在构建 Prompt", null, null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 70, "正在调用 AI 分析", null, null);
+            updateProgress(task, userId, AnalysisTaskStatusEnum.PARSING_RESUME.getCode(),
+                    AnalysisTaskStatusEnum.PARSING_RESUME.getDefaultProgress(), "正在解析简历内容", null, null);
+            updateProgress(task, userId, AnalysisTaskStatusEnum.BUILDING_CONTEXT.getCode(),
+                    AnalysisTaskStatusEnum.BUILDING_CONTEXT.getDefaultProgress(), "正在构建岗位与知识库上下文", null, null);
+            updateProgress(task, userId, AnalysisTaskStatusEnum.CALLING_AI.getCode(),
+                    AnalysisTaskStatusEnum.CALLING_AI.getDefaultProgress(), "正在调用 AI 模型生成分析", null, null);
 
             AnalysisMatchRequest matchRequest = new AnalysisMatchRequest();
             matchRequest.setResumeId(task.getResumeId());
@@ -105,12 +105,14 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
             AnalysisResultResponse result = analysisService.matchForUser(matchRequest, userId);
 
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 85, "正在解析 AI 返回结果", result.getReportId(), null);
-            updateProgress(task, AnalysisTaskStatusEnum.RUNNING.getCode(), 95, "正在保存分析报告", result.getReportId(), null);
-            updateProgress(task, AnalysisTaskStatusEnum.SUCCESS.getCode(), 100, "分析完成", result.getReportId(), null);
+            updateProgress(task, userId, AnalysisTaskStatusEnum.GENERATING_REPORT.getCode(),
+                    AnalysisTaskStatusEnum.GENERATING_REPORT.getDefaultProgress(), "正在生成分析报告", result.getReportId(), null);
+            updateProgress(task, userId, AnalysisTaskStatusEnum.COMPLETED.getCode(),
+                    AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress(), "分析完成", result.getReportId(), null);
         } catch (Exception e) {
             updateProgress(
                     task,
+                    userId,
                     AnalysisTaskStatusEnum.FAILED.getCode(),
                     task.getProgress() == null ? 0 : task.getProgress(),
                     "分析失败",
@@ -122,6 +124,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
     private void updateProgress(
             AnalysisTask task,
+            Long userId,
             String status,
             Integer progress,
             String message,
@@ -137,11 +140,12 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
         if (reportId != null) {
             update.setReportId(reportId);
         }
-        if (AnalysisTaskStatusEnum.RUNNING.getCode().equals(status) && task.getStartedAt() == null) {
+
+        AnalysisTaskStatusEnum statusEnum = AnalysisTaskStatusEnum.fromCode(status);
+        if (statusEnum != null && !statusEnum.isTerminal() && task.getStartedAt() == null) {
             update.setStartedAt(LocalDateTime.now());
         }
-        if (AnalysisTaskStatusEnum.SUCCESS.getCode().equals(status)
-                || AnalysisTaskStatusEnum.FAILED.getCode().equals(status)) {
+        if (statusEnum != null && statusEnum.isTerminal()) {
             update.setFinishedAt(LocalDateTime.now());
         }
         if (errorMessage != null) {
@@ -157,7 +161,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
             task.setReportId(reportId);
         }
 
-        progressPublisher.publish(task.getTaskNo(), status, progress, message, task.getReportId(), errorMessage);
+        progressPublisher.publish(task.getTaskNo(), userId, status, progress, message, task.getReportId(), errorMessage);
     }
 
     private String generateTaskNo() {
