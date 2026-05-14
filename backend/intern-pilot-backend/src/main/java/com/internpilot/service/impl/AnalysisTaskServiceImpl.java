@@ -105,10 +105,18 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
             AnalysisResultResponse result = analysisService.matchForUser(matchRequest, userId);
 
-            updateProgress(task, userId, AnalysisTaskStatusEnum.GENERATING_REPORT.getCode(),
-                    AnalysisTaskStatusEnum.GENERATING_REPORT.getDefaultProgress(), "正在生成分析报告", result.getReportId(), null);
-            updateProgress(task, userId, AnalysisTaskStatusEnum.COMPLETED.getCode(),
-                    AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress(), "分析完成", result.getReportId(), null);
+            if (Boolean.TRUE.equals(result.getCacheHit())) {
+                updateProgress(task, userId, AnalysisTaskStatusEnum.COMPLETED.getCode(),
+                        AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress(),
+                        "已命中缓存分析结果", result.getReportId(), null);
+            } else {
+                updateProgress(task, userId, AnalysisTaskStatusEnum.GENERATING_REPORT.getCode(),
+                        AnalysisTaskStatusEnum.GENERATING_REPORT.getDefaultProgress(),
+                        "正在生成分析报告", result.getReportId(), null);
+                updateProgress(task, userId, AnalysisTaskStatusEnum.COMPLETED.getCode(),
+                        AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress(),
+                        "分析完成", result.getReportId(), null);
+            }
         } catch (Exception e) {
             updateProgress(
                     task,

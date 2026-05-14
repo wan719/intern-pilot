@@ -1,11 +1,13 @@
 package com.internpilot.util;
 
 import com.internpilot.dto.analysis.AiAnalysisResult;
+import com.internpilot.exception.AiServiceException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class JsonUtilsTest {
 
@@ -36,5 +38,25 @@ class JsonUtilsTest {
     void toStringListShouldReturnTypedList() {
         List<String> list = JsonUtils.toStringList("[\"Java\",\"Redis\"]");
         assertEquals(List.of("Java", "Redis"), list);
+    }
+
+    @Test
+    void parseAiJsonShouldThrowExplicitErrorForEmptyResponse() {
+        AiServiceException exception = assertThrows(
+                AiServiceException.class,
+                () -> JsonUtils.parseAiJson("   ", AiAnalysisResult.class)
+        );
+
+        assertEquals("AI_RESPONSE_EMPTY", exception.getErrorCode());
+    }
+
+    @Test
+    void parseAiJsonShouldThrowExplicitErrorForInvalidJson() {
+        AiServiceException exception = assertThrows(
+                AiServiceException.class,
+                () -> JsonUtils.parseAiJson("{invalid-json}", AiAnalysisResult.class)
+        );
+
+        assertEquals("AI_RESPONSE_PARSE_FAILED", exception.getErrorCode());
     }
 }

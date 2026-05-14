@@ -21,6 +21,7 @@ import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.AnalysisService;
 import com.internpilot.service.RagKnowledgeService;
+import com.internpilot.util.AiAnalysisCacheKeyBuilder;
 import com.internpilot.util.JsonUtils;
 import com.internpilot.util.PromptUtils;
 import com.internpilot.util.SecurityUtils;
@@ -29,6 +30,7 @@ import com.internpilot.vo.analysis.AnalysisReportListResponse;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
 import com.internpilot.vo.rag.RagSearchResultResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,11 +40,13 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AnalysisServiceImpl implements AnalysisService {
 
-    private static final long CACHE_TTL_HOURS = 24;
+    private static final long CACHE_TTL_HOURS = 4;
+    private static final String ANALYSIS_PROMPT_VERSION = "v1";
 
     private final ResumeMapper resumeMapper;
     private final ResumeVersionMapper resumeVersionMapper;
@@ -76,7 +80,13 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
 
         Long resumeVersionId = version == null ? null : version.getId();
-        String cacheKey = buildCacheKey(userId, resume.getId(), resumeVersionId, job.getId());
+        String resumeUpdatedAt = version != null && version.getUpdatedAt() != null
+                ? version.getUpdatedAt().toString()
+                : resume.getUpdatedAt() != null ? resume.getUpdatedAt().toString() : "";
+        String jobUpdatedAt = job.getUpdatedAt() != null ? job.getUpdatedAt().toString() : "";
+        boolean ragEnabled = ragKnowledgeService != null;
+        String cacheKey = buildCacheKey(userId, resume.getId(), resumeVersionId,
+                resumeUpdatedAt, job.getId(), jobUpdatedAt, ragEnabled);
         boolean forceRefresh = Boolean.TRUE.equals(request.getForceRefresh());
 
         if (!forceRefresh) {
@@ -132,8 +142,7 @@ public class AnalysisServiceImpl implements AnalysisService {
             Long jobId,
             Integer minScore,
             Integer pageNum,
-            Integer pageSize
-    ) {
+            Integer pageSize) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         LambdaQueryWrapper<AnalysisReport> wrapper = new LambdaQueryWrapper<>();
@@ -164,8 +173,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                 resultPage.getTotal(),
                 resultPage.getCurrent(),
                 resultPage.getSize(),
-                resultPage.getPages()
-        );
+                resultPage.getPages());
     }
 
     @Override
@@ -181,8 +189,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                         .eq(Resume::getId, resumeId)
                         .eq(Resume::getUserId, userId)
                         .eq(Resume::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (resume == null) {
             throw new BusinessException("简历不存在或无权限访问");
@@ -196,8 +203,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                         .eq(JobDescription::getId, jobId)
                         .eq(JobDescription::getUserId, userId)
                         .eq(JobDescription::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (job == null) {
             throw new BusinessException("岗位不存在或无权限访问");
@@ -211,8 +217,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                         .eq(AnalysisReport::getId, reportId)
                         .eq(AnalysisReport::getUserId, userId)
                         .eq(AnalysisReport::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (report == null) {
             throw new BusinessException("分析报告不存在或无权限访问");
@@ -220,8 +225,11 @@ public class AnalysisServiceImpl implements AnalysisService {
         return report;
     }
 
-    private String buildCacheKey(Long userId, Long resumeId, Long resumeVersionId, Long jobId) {
-        return "internpilot:analysis:%d:%d:%d:%d".formatted(userId, resumeId, resumeVersionId == null ? 0 : resumeVersionId, jobId);
+    private String buildCacheKey(Long userId, Long resumeId, Long resumeVersionId,
+            String resumeUpdatedAt, Long jobId, String jobUpdatedAt, boolean ragEnabled) {
+        return AiAnalysisCacheKeyBuilder.build(
+                userId, resumeId, resumeVersionId, resumeUpdatedAt,
+                jobId, jobUpdatedAt, ragEnabled, ANALYSIS_PROMPT_VERSION);
     }
 
     private String buildRagContext(String resumeText, JobDescription job) {
@@ -230,8 +238,7 @@ public class AnalysisServiceImpl implements AnalysisService {
             request.setQuery(String.join("\n", List.of(
                     resumeText == null ? "" : resumeText,
                     job.getJobTitle() == null ? "" : job.getJobTitle(),
-                    job.getJdContent() == null ? "" : job.getJdContent()
-            )));
+                    job.getJdContent() == null ? "" : job.getJdContent())));
             request.setDirection(StringUtils.hasText(job.getJobType()) ? job.getJobType() : null);
             request.setTopK(5);
             List<RagSearchResultResponse> results = ragKnowledgeService.search(request);
@@ -251,7 +258,9 @@ public class AnalysisServiceImpl implements AnalysisService {
                         .append("\n");
             }
             return builder.toString();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("构建 RAG 上下文失败，将使用普通 AI 分析。resumeText length={}, jobId={}",
+                    resumeText != null ? resumeText.length() : 0, job.getId(), e);
             return null;
         }
     }

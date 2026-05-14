@@ -23,6 +23,12 @@ public class GlobalExceptionHandler {
         return Result.fail(e.getCode(), e.getMessage());
     }
 
+    @ExceptionHandler(AiServiceException.class)
+    public Result<Void> handleAiServiceException(AiServiceException e) {
+        log.error("AI 服务异常 [{}]: {}", e.getErrorCode(), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().isEmpty()

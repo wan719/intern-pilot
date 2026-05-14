@@ -20,7 +20,7 @@ public class JsonUtils {
             String json = extractJson(rawText);
             return OBJECT_MAPPER.readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            throw new AiServiceException("AI 返回结果解析失败");
+            throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI 返回结果解析失败");
         }
     }
 
@@ -54,7 +54,7 @@ public class JsonUtils {
 
     private static String extractJson(String rawText) {
         if (rawText == null || rawText.isBlank()) {
-            throw new AiServiceException("AI 返回内容为空");
+            throw new AiServiceException("AI_RESPONSE_EMPTY", "AI 返回内容为空");
         }
 
         String text = rawText.trim();
@@ -73,7 +73,7 @@ public class JsonUtils {
         int end = text.lastIndexOf('}');
 
         if (start < 0 || end < 0 || end <= start) {
-            throw new AiServiceException("AI 返回内容不是合法 JSON");
+            throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI 返回内容不是合法 JSON");
         }
 
         return text.substring(start, end + 1);

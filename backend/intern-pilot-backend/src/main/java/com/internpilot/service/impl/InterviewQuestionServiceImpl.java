@@ -34,6 +34,7 @@ import com.internpilot.vo.interview.InterviewQuestionItemResponse;
 import com.internpilot.vo.interview.InterviewQuestionListResponse;
 import com.internpilot.vo.rag.RagSearchResultResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InterviewQuestionServiceImpl implements InterviewQuestionService {
@@ -75,7 +77,8 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         AnalysisReport analysisReport = null;
         if (request.getAnalysisReportId() != null) {
             analysisReport = getUserAnalysisReportOrThrow(request.getAnalysisReportId(), currentUserId);
-            validateAnalysisReportScope(analysisReport, request.getResumeId(), request.getResumeVersionId(), request.getJobId());
+            validateAnalysisReportScope(analysisReport, request.getResumeId(), request.getResumeVersionId(),
+                    request.getJobId());
         }
 
         if (!Boolean.TRUE.equals(request.getForceRefresh())) {
@@ -84,8 +87,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                     request.getResumeId(),
                     resumeVersion == null ? null : resumeVersion.getId(),
                     request.getJobId(),
-                    request.getAnalysisReportId()
-            );
+                    request.getAnalysisReportId());
 
             if (existing != null) {
                 return toGenerateResponse(existing, true);
@@ -109,15 +111,13 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         String prompt = PromptUtils.buildInterviewQuestionPrompt(
                 resumeText,
                 job.getJdContent(),
-                analysisReportText
-        );
+                analysisReportText);
 
         String rawResponse = aiClient.chat(prompt);
 
         AiInterviewQuestionResult aiResult = JsonUtils.parseAiJson(
                 rawResponse,
-                AiInterviewQuestionResult.class
-        );
+                AiInterviewQuestionResult.class);
 
         if (aiResult.getQuestions() == null || aiResult.getQuestions().isEmpty()) {
             throw new BusinessException("AI 未生成有效面试题");
@@ -165,8 +165,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             Long resumeId,
             Long jobId,
             Integer pageNum,
-            Integer pageSize
-    ) {
+            Integer pageSize) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         LambdaQueryWrapper<InterviewQuestionReport> wrapper = new LambdaQueryWrapper<>();
@@ -196,8 +195,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 resultPage.getTotal(),
                 resultPage.getCurrent(),
                 resultPage.getSize(),
-                resultPage.getPages()
-        );
+                resultPage.getPages());
     }
 
     @Override
@@ -211,8 +209,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(InterviewQuestion::getReportId, report.getId())
                         .eq(InterviewQuestion::getUserId, currentUserId)
                         .eq(InterviewQuestion::getDeleted, 0)
-                        .orderByAsc(InterviewQuestion::getSortOrder)
-        );
+                        .orderByAsc(InterviewQuestion::getSortOrder));
 
         return toDetailResponse(report, questions);
     }
@@ -231,8 +228,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 new LambdaQueryWrapper<InterviewQuestion>()
                         .eq(InterviewQuestion::getReportId, report.getId())
                         .eq(InterviewQuestion::getUserId, currentUserId)
-                        .eq(InterviewQuestion::getDeleted, 0)
-        );
+                        .eq(InterviewQuestion::getDeleted, 0));
 
         for (InterviewQuestion question : questions) {
             question.setDeleted(1);
@@ -248,8 +244,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(Resume::getId, resumeId)
                         .eq(Resume::getUserId, userId)
                         .eq(Resume::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (resume == null) {
             throw new BusinessException("简历不存在或无权限访问");
@@ -264,8 +259,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(JobDescription::getId, jobId)
                         .eq(JobDescription::getUserId, userId)
                         .eq(JobDescription::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (job == null) {
             throw new BusinessException("岗位不存在或无权限访问");
@@ -280,8 +274,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(AnalysisReport::getId, reportId)
                         .eq(AnalysisReport::getUserId, userId)
                         .eq(AnalysisReport::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (report == null) {
             throw new BusinessException("分析报告不存在或无权限访问");
@@ -296,8 +289,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             request.setQuery(String.join("\n", List.of(
                     resumeText == null ? "" : resumeText,
                     job.getJobTitle() == null ? "" : job.getJobTitle(),
-                    job.getJdContent() == null ? "" : job.getJdContent()
-            )));
+                    job.getJdContent() == null ? "" : job.getJdContent())));
             request.setDirection(StringUtils.hasText(job.getJobType()) ? job.getJobType() : null);
             request.setTopK(5);
             List<RagSearchResultResponse> results = ragKnowledgeService.search(request);
@@ -317,7 +309,9 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .append("\n");
             }
             return builder.toString();
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("构建 RAG 上下文失败，将使用普通 AI 生成面试题。resumeText length={}, jobId={}",
+                    resumeText != null ? resumeText.length() : 0, job.getId(), e);
             return "";
         }
     }
@@ -338,8 +332,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(InterviewQuestionReport::getId, reportId)
                         .eq(InterviewQuestionReport::getUserId, userId)
                         .eq(InterviewQuestionReport::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (report == null) {
             throw new BusinessException("面试题报告不存在或无权限访问");
@@ -353,8 +346,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             Long resumeId,
             Long resumeVersionId,
             Long jobId,
-            Long analysisReportId
-    ) {
+            Long analysisReportId) {
         LambdaQueryWrapper<InterviewQuestionReport> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(InterviewQuestionReport::getUserId, userId)
                 .eq(InterviewQuestionReport::getResumeId, resumeId)
@@ -399,8 +391,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 report.getWeaknesses(),
                 report.getMissingSkills(),
                 report.getSuggestions(),
-                report.getInterviewTips()
-        );
+                report.getInterviewTips());
     }
 
     private String normalizeQuestionType(String type) {
@@ -456,8 +447,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
     private InterviewQuestionDetailResponse toDetailResponse(
             InterviewQuestionReport report,
-            List<InterviewQuestion> questions
-    ) {
+            List<InterviewQuestion> questions) {
         InterviewQuestionDetailResponse response = new InterviewQuestionDetailResponse();
         response.setReportId(report.getId());
         response.setTitle(report.getTitle());
@@ -509,8 +499,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(ResumeVersion::getIsCurrent, 1)
                         .eq(ResumeVersion::getDeleted, 0)
                         .orderByDesc(ResumeVersion::getUpdatedAt)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
     }
 
     private ResumeVersion getUserResumeVersionOrThrow(Long resumeId, Long versionId, Long userId) {
@@ -520,8 +509,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                         .eq(ResumeVersion::getResumeId, resumeId)
                         .eq(ResumeVersion::getUserId, userId)
                         .eq(ResumeVersion::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (version == null) {
             throw new BusinessException("简历版本不存在或无权限访问");

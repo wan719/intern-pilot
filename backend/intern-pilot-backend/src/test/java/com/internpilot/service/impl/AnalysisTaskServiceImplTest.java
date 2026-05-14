@@ -9,6 +9,7 @@ import com.internpilot.mapper.AnalysisTaskMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.service.AnalysisProgressPublisher;
 import com.internpilot.service.AnalysisService;
+import com.internpilot.vo.analysis.AnalysisResultResponse;
 import com.internpilot.vo.analysis.AnalysisTaskDetailResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -168,6 +169,56 @@ class AnalysisTaskServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> taskService.createTask(request));
         verify(analysisTaskExecutor, never()).execute(any(Runnable.class));
+    }
+
+    @Test
+    void createTaskShouldCompleteDirectlyWhenAnalysisCacheHit() {
+        mockLoginUser(1L);
+
+        AnalysisTaskCreateRequest request = new AnalysisTaskCreateRequest();
+        request.setResumeId(10L);
+        request.setJobId(20L);
+
+        doAnswer(invocation -> {
+            AnalysisTask task = invocation.getArgument(0);
+            task.setId(1L);
+            return 1;
+        }).when(analysisTaskMapper).insert(any(AnalysisTask.class));
+
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(analysisTaskExecutor).execute(any(Runnable.class));
+
+        AnalysisTask task = buildTask("TASK_001", 1L, AnalysisTaskStatusEnum.PENDING.getCode(), 0);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(task);
+
+        AnalysisResultResponse result = new AnalysisResultResponse();
+        result.setReportId(99L);
+        result.setCacheHit(true);
+        when(analysisService.matchForUser(any(), eq(1L))).thenReturn(result);
+
+        taskService.createTask(request);
+
+        ArgumentCaptor<AnalysisTask> updateCaptor = ArgumentCaptor.forClass(AnalysisTask.class);
+        verify(analysisTaskMapper, org.mockito.Mockito.atLeastOnce()).updateById(updateCaptor.capture());
+
+        assertTrue(updateCaptor.getAllValues().stream()
+                .anyMatch(update -> AnalysisTaskStatusEnum.COMPLETED.getCode().equals(update.getStatus())
+                        && Long.valueOf(99L).equals(update.getReportId())));
+        assertTrue(updateCaptor.getAllValues().stream()
+                .noneMatch(update -> AnalysisTaskStatusEnum.GENERATING_REPORT.getCode().equals(update.getStatus())));
+
+        verify(progressPublisher).publish(
+                anyString(),
+                eq(1L),
+                eq(AnalysisTaskStatusEnum.COMPLETED.getCode()),
+                eq(AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress()),
+                anyString(),
+                eq(99L),
+                eq(null)
+        );
     }
 
     private void mockLoginUser(Long userId) {
