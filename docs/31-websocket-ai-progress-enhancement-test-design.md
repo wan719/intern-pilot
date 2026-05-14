@@ -1,38 +1,3 @@
-我的建议是：
-
-> **先不要继续扩展 RBAC，下一步做 `21-websocket-ai-progress-design.md` 的后续优化，并新建 `docs/31-websocket-ai-progress-enhancement-test-design.md`。**
-
-原因很简单：
-
-```text
-RBAC 现在已经完成 P0/P1 闭环：
-登录态恢复、接口权限、按钮权限、401/403/200 测试都通过了。
-
-继续扩 RBAC 会进入 P2：
-动态菜单、权限缓存、Token 实时失效、数据权限。
-这些偏企业深水区，容易越做越散。
-
-WebSocket AI 进度优化更适合现在：
-它直接改善 AI 分析体验，也能体现你项目不是普通 CRUD。
-```
-
-分支建议：
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/websocket-ai-progress
-```
-
-下面这份可以直接作为新文档：
-
-```text
-docs/31-websocket-ai-progress-enhancement-test-design.md
-```
-
----
-
-````markdown
 # InternPilot WebSocket AI 分析进度增强与测试设计文档
 
 ## 一、文档目的
