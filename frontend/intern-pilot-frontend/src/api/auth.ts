@@ -20,3 +20,7 @@ export function loginApi(data: LoginRequest) {
 export function registerApi(data: RegisterRequest) {
   return request.post('/api/auth/register', data)
 }
+
+export function getCurrentUserApi() {
+  return request.get('/api/user/me')
+}

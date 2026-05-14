@@ -28,7 +28,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "创建RAG知识文档")
     @OperationLog(module = "RAG知识库", operation = "创建知识文档", type = OperationTypeEnum.CREATE, recordParams = false)
-    @PreAuthorize("hasAuthority('rag:knowledge:write')")
+    @PreAuthorize("hasAuthority('rag:manage')")
     @PostMapping
     public Result<Long> create(@RequestBody @Valid RagKnowledgeCreateRequest request) {
         return Result.success(ragKnowledgeService.create(request));
@@ -36,7 +36,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "修改RAG知识文档")
     @OperationLog(module = "RAG知识库", operation = "修改知识文档", type = OperationTypeEnum.UPDATE, recordParams = false)
-    @PreAuthorize("hasAuthority('rag:knowledge:write')")
+    @PreAuthorize("hasAuthority('rag:manage')")
     @PutMapping("/{documentId}")
     public Result<Boolean> update(
             @PathVariable Long documentId,
@@ -47,7 +47,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "删除RAG知识文档")
     @OperationLog(module = "RAG知识库", operation = "删除知识文档", type = OperationTypeEnum.DELETE)
-    @PreAuthorize("hasAuthority('rag:knowledge:delete')")
+    @PreAuthorize("hasAuthority('rag:manage')")
     @DeleteMapping("/{documentId}")
     public Result<Boolean> delete(@PathVariable Long documentId) {
         return Result.success(ragKnowledgeService.delete(documentId));
@@ -55,14 +55,14 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "重建知识文档切片和向量")
     @OperationLog(module = "RAG知识库", operation = "重建知识向量", type = OperationTypeEnum.UPDATE)
-    @PreAuthorize("hasAuthority('rag:knowledge:write')")
+    @PreAuthorize("hasAuthority('rag:manage')")
     @PostMapping("/{documentId}/rebuild")
     public Result<Boolean> rebuild(@PathVariable Long documentId) {
         return Result.success(ragKnowledgeService.rebuildChunks(documentId));
     }
 
     @Operation(summary = "查询RAG知识文档列表")
-    @PreAuthorize("hasAuthority('rag:knowledge:read')")
+    @PreAuthorize("hasAuthority('rag:read')")
     @GetMapping
     public Result<PageResult<RagKnowledgeListResponse>> list(
             @RequestParam(required = false) String direction,
@@ -77,14 +77,14 @@ public class AdminRagKnowledgeController {
     }
 
     @Operation(summary = "查询RAG知识文档详情")
-    @PreAuthorize("hasAuthority('rag:knowledge:read')")
+    @PreAuthorize("hasAuthority('rag:read')")
     @GetMapping("/{documentId}")
     public Result<RagKnowledgeDetailResponse> getDetail(@PathVariable Long documentId) {
         return Result.success(ragKnowledgeService.getDetail(documentId));
     }
 
     @Operation(summary = "测试RAG知识检索")
-    @PreAuthorize("hasAuthority('rag:knowledge:read')")
+    @PreAuthorize("hasAuthority('rag:read')")
     @PostMapping("/search")
     public Result<List<RagSearchResultResponse>> search(@RequestBody @Valid RagSearchRequest request) {
         return Result.success(ragKnowledgeService.search(request));

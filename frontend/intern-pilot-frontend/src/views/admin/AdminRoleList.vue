@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="" description="查看角色并分配权限。">
+  <PageContainer title="角色管理" description="查看角色并维护角色拥有的权限。">
     <section class="panel">
       <el-table v-loading="loading" :data="roles">
         <el-table-column prop="roleId" label="ID" width="80" />
@@ -16,7 +16,9 @@
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDialog(row)">分配权限</el-button>
+            <el-button v-if="hasPermission('role:update')" link type="primary" @click="openDialog(row)">
+              分配权限
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -35,7 +37,7 @@
       </div>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="submit">保存</el-button>
+        <el-button type="primary" :disabled="!hasPermission('role:update')" @click="submit">保存</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -45,9 +47,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { useAuthStore } from '@/stores/auth'
 import { getAdminRoleListApi, updateRolePermissionsApi } from '@/api/adminRole'
 import { getAdminPermissionListApi } from '@/api/adminPermission'
 
+const auth = useAuthStore()
 const loading = ref(false)
 const roles = ref<any[]>([])
 const permissions = ref<any[]>([])
@@ -90,6 +94,11 @@ async function submit() {
   await updateRolePermissionsApi(currentRole.value.roleId, { permissionIds: selectedPermissionIds.value })
   ElMessage.success('保存成功')
   visible.value = false
+  await loadData()
+}
+
+function hasPermission(permission: string) {
+  return auth.hasPermission(permission)
 }
 
 onMounted(loadData)

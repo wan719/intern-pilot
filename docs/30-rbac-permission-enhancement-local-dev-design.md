@@ -1,31 +1,3 @@
-可以，重新命名为：
-
-```text
-docs/30-rbac-permission-enhancement-local-dev-design.md
-```
-
-注意：你项目目录之前一直是 `docs/`，不是 `doc/`。所以建议用 `docs/30-...md`。
-
-另外，这一版我已经按你的情况改了：
-
-```text
-开发方式：本地开发
-后端：IDEA / ./gradlew bootRun
-前端：npm run dev
-数据库：本机 MySQL
-Redis：本机 Redis
-Docker：不参与日常开发
-```
-
-下面这份可以直接复制到：
-
-```text
-docs/30-rbac-permission-enhancement-local-dev-design.md
-```
-
----
-
-````markdown
 # InternPilot 第二阶段 RBAC 权限系统增强设计文档（本地开发版）
 
 ## 一、文档目的
@@ -1368,25 +1340,5 @@ vite build 成功
 
 ````
 
----
 
-你现在的操作顺序建议是：
 
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/rbac-permission
-````
-
-然后新建文档：
-
-```text
-docs/30-rbac-permission-enhancement-local-dev-design.md
-```
-
-再提交：
-
-```bash
-git add docs/30-rbac-permission-enhancement-local-dev-design.md
-git commit -m "新增第二阶段 RBAC 权限系统增强设计文档"
-```

@@ -1,8 +1,8 @@
 <template>
-  <PageContainer title="" description="查询用户、启用禁用和角色分配。">
+  <PageContainer title="用户管理" description="查询用户、启用禁用用户并维护用户角色。">
     <section class="panel toolbar">
-      <el-input v-model="query.keyword" placeholder="用户名/邮箱" clearable />
-      <el-input v-model="query.roleCode" placeholder="角色编码(如 ADMIN)" clearable />
+      <el-input v-model="query.keyword" placeholder="用户名 / 邮箱" clearable />
+      <el-input v-model="query.roleCode" placeholder="角色编码，如 ADMIN" clearable />
       <el-select v-model="query.enabled" placeholder="状态" clearable>
         <el-option label="启用" :value="1" />
         <el-option label="禁用" :value="0" />
@@ -24,7 +24,9 @@
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.enabled === 1 ? 'success' : 'danger'">{{ row.enabled === 1 ? '启用' : '禁用' }}</el-tag>
+            <el-tag :type="row.enabled === 1 ? 'success' : 'danger'">
+              {{ row.enabled === 1 ? '启用' : '禁用' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="注册时间" width="170">
@@ -33,9 +35,25 @@
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="showDetail(row.userId)">详情</el-button>
-            <el-button link type="warning" @click="openRoleDialog(row)">分配角色</el-button>
-            <el-button v-if="row.enabled === 1" link type="danger" @click="changeEnabled(row, false)">禁用</el-button>
-            <el-button v-else link type="success" @click="changeEnabled(row, true)">启用</el-button>
+            <el-button v-if="hasPermission('user:update')" link type="warning" @click="openRoleDialog(row)">
+              分配角色
+            </el-button>
+            <el-button
+              v-if="hasPermission('user:update') && row.enabled === 1"
+              link
+              type="danger"
+              @click="changeEnabled(row, false)"
+            >
+              禁用
+            </el-button>
+            <el-button
+              v-else-if="hasPermission('user:update')"
+              link
+              type="success"
+              @click="changeEnabled(row, true)"
+            >
+              启用
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,11 +87,13 @@
 
     <el-dialog v-model="roleDialogVisible" title="分配角色" width="420px">
       <el-checkbox-group v-model="selectedRoleIds">
-        <el-checkbox v-for="role in roles" :key="role.roleId" :label="role.roleId">{{ role.roleCode }} - {{ role.roleName }}</el-checkbox>
+        <el-checkbox v-for="role in roles" :key="role.roleId" :label="role.roleId">
+          {{ role.roleCode }} - {{ role.roleName }}
+        </el-checkbox>
       </el-checkbox-group>
       <template #footer>
         <el-button @click="roleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRoles">保存</el-button>
+        <el-button type="primary" :disabled="!hasPermission('user:update')" @click="submitRoles">保存</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -84,6 +104,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { formatDateTime } from '@/utils/format'
+import { useAuthStore } from '@/stores/auth'
 import {
   disableUserApi,
   enableUserApi,
@@ -93,6 +114,7 @@ import {
 } from '@/api/adminUser'
 import { getAdminRoleListApi } from '@/api/adminRole'
 
+const auth = useAuthStore()
 const loading = ref(false)
 const users = ref<any[]>([])
 const total = ref(0)
@@ -123,7 +145,8 @@ async function loadList() {
 }
 
 async function loadRoles() {
-  const roleRes: any = await getAdminRoleListApi(); roles.value = roleRes || []
+  const roleRes: any = await getAdminRoleListApi()
+  roles.value = roleRes || []
 }
 
 function search() {
@@ -156,7 +179,7 @@ async function showDetail(id: number) {
 }
 
 async function changeEnabled(row: any, enable: boolean) {
-  await ElMessageBox.confirm(`确认${enable ? '启用' : '禁用'}用户 ${row.username} ?`, '确认操作', { type: 'warning' })
+  await ElMessageBox.confirm(`确认${enable ? '启用' : '禁用'}用户 ${row.username}？`, '确认操作', { type: 'warning' })
   if (enable) {
     await enableUserApi(row.userId)
   } else {
@@ -183,6 +206,10 @@ async function submitRoles() {
   ElMessage.success('保存成功')
   roleDialogVisible.value = false
   loadList()
+}
+
+function hasPermission(permission: string) {
+  return auth.hasPermission(permission)
 }
 
 onMounted(async () => {
