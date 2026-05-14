@@ -58,8 +58,8 @@
 
         <template v-if="task.taskNo">
           <el-steps :active="activeStep" finish-status="success" simple>
-            <el-step title="读取资料" />
-            <el-step title="构建 Prompt" />
+            <el-step title="解析简历" />
+            <el-step title="构建上下文" />
             <el-step title="AI 分析" />
             <el-step title="生成报告" />
           </el-steps>
@@ -80,7 +80,7 @@
             show-icon
           />
 
-          <div v-if="task.status === 'SUCCESS'" class="success-actions">
+          <div v-if="task.status === 'COMPLETED'" class="success-actions">
             <el-result icon="success" title="分析完成" :sub-title="`报告 ID：${task.reportId || '-'}`" />
             <el-button type="success" @click="goReports">查看分析报告</el-button>
           </div>
@@ -111,6 +111,7 @@ const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
 const running = ref(false)
 const route = useRoute()
+const TASK_STORAGE_KEY = 'internpilot:analysis:lastTaskNo'
 let stompClient: Client | null = null
 let pollingTimer: number | undefined
 
@@ -131,23 +132,24 @@ const task = reactive({
 })
 
 const activeStep = computed(() => {
-  if (task.progress < 30) return 1
-  if (task.progress < 70) return 2
-  if (task.progress < 95) return 3
+  if (task.progress < 15) return 0
+  if (task.progress < 35) return 1
+  if (task.progress < 60) return 2
+  if (task.progress < 85) return 3
   return 4
 })
 
 const progressStatus = computed(() => {
   if (task.status === 'FAILED') return 'exception'
-  if (task.status === 'SUCCESS') return 'success'
+  if (task.status === 'COMPLETED') return 'success'
   return undefined
 })
 
 const statusTagType = computed(() => {
-  if (task.status === 'SUCCESS') return 'success'
+  if (task.status === 'COMPLETED') return 'success'
   if (task.status === 'FAILED') return 'danger'
-  if (task.status === 'RUNNING') return 'warning'
-  return 'info'
+  if (task.status === 'PENDING') return 'info'
+  return 'warning'
 })
 
 async function loadOptions() {
@@ -201,6 +203,7 @@ async function startTask() {
   try {
     const res: any = await createAnalysisTaskApi(form)
     applyTaskMessage(res)
+    localStorage.setItem(TASK_STORAGE_KEY, res.taskNo)
     connectSocket(res.taskNo)
     startPolling(res.taskNo)
   } catch {
@@ -239,17 +242,45 @@ function applyTaskMessage(message: AnalysisProgressMessage) {
   task.reportId = message.reportId
   task.errorMessage = message.errorMessage || ''
 
-  if (message.status === 'SUCCESS') {
+  if (message.taskNo) {
+    localStorage.setItem(TASK_STORAGE_KEY, message.taskNo)
+  }
+
+  if (isTerminalStatus(message.status)) {
     running.value = false
     cleanupTaskWatchers()
+  }
+
+  if (message.status === 'COMPLETED') {
     ElMessage.success('AI 分析完成')
   }
 
   if (message.status === 'FAILED') {
-    running.value = false
-    cleanupTaskWatchers()
     ElMessage.error(message.errorMessage || 'AI 分析失败')
   }
+}
+
+async function restoreLastTask() {
+  const queryTaskNo = typeof route.query.taskNo === 'string' ? route.query.taskNo : ''
+  const savedTaskNo = localStorage.getItem(TASK_STORAGE_KEY) || ''
+  const taskNo = queryTaskNo || savedTaskNo
+  if (!taskNo) return
+
+  try {
+    const detail: any = await getAnalysisTaskDetailApi(taskNo)
+    applyTaskMessage(detail)
+    if (!isTerminalStatus(detail.status)) {
+      running.value = true
+      connectSocket(detail.taskNo)
+      startPolling(detail.taskNo)
+    }
+  } catch {
+    localStorage.removeItem(TASK_STORAGE_KEY)
+  }
+}
+
+function isTerminalStatus(status: string) {
+  return status === 'COMPLETED' || status === 'FAILED'
 }
 
 function cleanupTaskWatchers() {
@@ -269,7 +300,10 @@ function goReports() {
 
 watch(() => form.resumeId, loadVersions)
 
-onMounted(loadOptions)
+onMounted(async () => {
+  await loadOptions()
+  await restoreLastTask()
+})
 onBeforeUnmount(cleanupTaskWatchers)
 </script>
 
