@@ -4,6 +4,8 @@ DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE intern_pilot;
 
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS user (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL,
@@ -107,7 +109,6 @@ VALUES
 ('rag:knowledge:read', '查看RAG知识库', 'RAG', '查看RAG岗位知识库文档和检索结果', 1),
 ('rag:knowledge:write', '编辑RAG知识库', 'RAG', '创建、修改、重建RAG知识库文档', 1),
 ('rag:knowledge:delete', '删除RAG知识库', 'RAG', '删除RAG知识库文档', 1);
-
 INSERT IGNORE INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -493,3 +494,251 @@ WHERE NOT EXISTS (
     WHERE title = 'AI应用开发实习岗位知识'
       AND deleted = 0
 );
+
+-- =========================
+-- Demo users
+-- Password: 123456
+-- Only for local demo environment
+-- =========================
+
+INSERT IGNORE INTO user (
+    username,
+    password,
+    email,
+    real_name,
+    school,
+    major,
+    grade,
+    role,
+    enabled,
+    deleted
+)
+VALUES
+(
+    'admin',
+    '$2y$10$ESsqmJNo1tZqYzKCxaSKve7VLx6xnF77vav.k/iLBQ0bCP9c5B2E2',
+    'admin@internpilot.local',
+    '系统管理员',
+    'InternPilot',
+    '软件工程',
+    '管理员',
+    'ADMIN',
+    1,
+    0
+),
+(
+    'demo',
+    '$2y$10$ESsqmJNo1tZqYzKCxaSKve7VLx6xnF77vav.k/iLBQ0bCP9c5B2E2',
+    'demo@internpilot.local',
+    '演示用户',
+    '西南大学',
+    '软件工程',
+    '大二',
+    'USER',
+    1,
+    0
+);
+
+INSERT IGNORE INTO user_role (user_id, role_id)
+SELECT u.id, r.id
+FROM user u
+JOIN role r ON r.role_code = 'ADMIN'
+WHERE u.username = 'admin'
+  AND u.deleted = 0
+  AND r.deleted = 0;
+
+INSERT IGNORE INTO user_role (user_id, role_id)
+SELECT u.id, r.id
+FROM user u
+JOIN role r ON r.role_code = 'USER'
+WHERE u.username = 'demo'
+  AND u.deleted = 0
+  AND r.deleted = 0;
+
+-- =========================
+-- Demo resume
+-- =========================
+
+INSERT INTO resume (
+    user_id,
+    resume_name,
+    original_file_name,
+    stored_file_name,
+    file_path,
+    file_type,
+    file_size,
+    parsed_text,
+    parse_status,
+    is_default,
+    deleted
+)
+SELECT
+    u.id,
+    'Java后端实习简历',
+    'demo-java-resume.txt',
+    'demo-java-resume.txt',
+    '/demo/demo-java-resume.txt',
+    'txt',
+    1024,
+    '姓名：演示用户
+学校：西南大学
+专业：软件工程
+求职方向：Java后端开发实习
+
+技术栈：
+Java、Spring Boot、Spring Security、MyBatis、MySQL、Redis、Vue、Docker、Git。
+
+项目经历：
+InternPilot：面向大学生的 AI 实习投递与简历优化平台。
+负责用户认证、JWT 鉴权、RBAC 权限系统、简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 进度推送、RAG 岗位知识库、系统操作日志和 Docker 部署。
+
+项目亮点：
+1. 使用 Spring Security + JWT 实现前后端分离认证。
+2. 使用 RBAC 模型实现用户、角色、权限管理。
+3. 使用 Redis 缓存 AI 分析结果，提高接口响应速度。
+4. 使用 WebSocket 实时展示 AI 分析进度。
+5. 使用 Docker Compose 编排 MySQL、Redis、后端和前端服务。',
+    'SUCCESS',
+    1,
+    0
+FROM user u
+WHERE u.username = 'demo'
+  AND u.deleted = 0
+  AND NOT EXISTS (
+      SELECT 1 FROM resume r
+      WHERE r.user_id = u.id
+        AND r.resume_name = 'Java后端实习简历'
+        AND r.deleted = 0
+  );
+
+INSERT INTO resume_version (
+    user_id,
+    resume_id,
+    version_name,
+    version_type,
+    content,
+    content_summary,
+    is_current,
+    deleted
+)
+SELECT
+    r.user_id,
+    r.id,
+    '原始版本',
+    'ORIGINAL',
+    r.parsed_text,
+    LEFT(REPLACE(REPLACE(r.parsed_text, '\r', ' '), '\n', ' '), 160),
+    1,
+    0
+FROM resume r
+JOIN user u ON u.id = r.user_id
+WHERE u.username = 'demo'
+  AND r.resume_name = 'Java后端实习简历'
+  AND r.deleted = 0
+  AND NOT EXISTS (
+      SELECT 1 FROM resume_version rv
+      WHERE rv.resume_id = r.id
+        AND rv.version_name = '原始版本'
+        AND rv.deleted = 0
+  );
+
+-- =========================
+-- Demo jobs
+-- =========================
+
+INSERT INTO job_description (
+    user_id,
+    company_name,
+    job_title,
+    job_type,
+    location,
+    source_platform,
+    jd_content,
+    skill_requirements,
+    salary_range,
+    work_days_per_week,
+    internship_duration,
+    deleted
+)
+SELECT
+    u.id,
+    '星云科技',
+    'Java后端开发实习生',
+    'Java后端',
+    '重庆',
+    'BOSS直聘',
+    '岗位职责：
+1. 参与公司业务系统后端接口开发；
+2. 参与用户认证、权限控制、数据管理等模块开发；
+3. 配合前端完成接口联调；
+4. 编写接口文档和单元测试。
+
+任职要求：
+1. 熟悉 Java 基础、集合、多线程；
+2. 熟悉 Spring Boot、MyBatis、MySQL；
+3. 了解 Redis、JWT、Spring Security；
+4. 有完整后端项目经验优先；
+5. 每周至少实习 3 天，实习 3 个月以上。',
+    'Java,Spring Boot,MyBatis,MySQL,Redis,Spring Security,JWT,RESTful API',
+    '200-400元/天',
+    '3天/周',
+    '3个月',
+    0
+FROM user u
+WHERE u.username = 'demo'
+  AND u.deleted = 0
+  AND NOT EXISTS (
+      SELECT 1 FROM job_description j
+      WHERE j.user_id = u.id
+        AND j.company_name = '星云科技'
+        AND j.job_title = 'Java后端开发实习生'
+        AND j.deleted = 0
+  );
+
+INSERT INTO job_description (
+    user_id,
+    company_name,
+    job_title,
+    job_type,
+    location,
+    source_platform,
+    jd_content,
+    skill_requirements,
+    salary_range,
+    work_days_per_week,
+    internship_duration,
+    deleted
+)
+SELECT
+    u.id,
+    '智启AI',
+    'AI应用开发实习生',
+    'AI应用',
+    '远程',
+    '牛客实习',
+    '岗位职责：
+1. 参与 AI 应用平台后端开发；
+2. 负责大模型 API 调用、Prompt 构造和结构化结果解析；
+3. 参与 RAG 知识库、Embedding 检索和问答功能开发；
+4. 与前端配合完成 AI 功能页面联调。
+
+任职要求：
+1. 熟悉 Java 或 Python；
+2. 熟悉 Spring Boot 基础开发；
+3. 了解大模型 API、Prompt Engineering、RAG；
+4. 有 AI 应用项目经验优先。',
+    'Java,Spring Boot,大模型API,Prompt,RAG,Embedding,向量检索,Vue',
+    '150-250元/天',
+    '4天/周',
+    '2个月',
+    0
+FROM user u
+WHERE u.username = 'demo'
+  AND u.deleted = 0
+  AND NOT EXISTS (
+      SELECT 1 FROM job_description j
+      WHERE j.user_id = u.id
+        AND j.company_name = '智启AI'
+        AND j.job_title = 'AI应用开发实习生'
+        AND j.deleted = 0
+  );
