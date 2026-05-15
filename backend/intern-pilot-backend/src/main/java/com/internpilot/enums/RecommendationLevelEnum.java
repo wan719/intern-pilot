@@ -1,10 +1,14 @@
 package com.internpilot.enums;
 
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum RecommendationLevelEnum {
+@Schema(description = "推荐级别枚举，定义系统中岗位推荐的不同级别，每个级别对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum RecommendationLevelEnum {//推荐级别枚举，定义系统中岗位推荐的不同级别，
+// 每个级别对应一个唯一的code和描述
+
     HIGH("HIGH", "强烈推荐"),
     MEDIUM_HIGH("MEDIUM_HIGH", "较推荐"),
     MEDIUM("MEDIUM", "一般推荐"),

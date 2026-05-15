@@ -294,20 +294,31 @@ class AnalysisServiceImplTest {
     }
 
     @Test
-    void matchShouldThrowWhenAiReturnsInvalidJson() {
+    void matchShouldUseFallbackWhenAiReturnsInvalidJson() {
         mockLoginUser(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
         when(aiClient.chat(anyString())).thenReturn("这不是合法的 JSON 格式");
+        doAnswer(invocation -> {
+            AnalysisReport report = invocation.getArgument(0);
+            report.setId(100L);
+            report.setCreatedAt(LocalDateTime.now());
+            return 1;
+        }).when(analysisReportMapper).insert(any(AnalysisReport.class));
 
         AnalysisMatchRequest request = new AnalysisMatchRequest();
         request.setResumeId(1L);
         request.setJobId(2L);
         request.setForceRefresh(false);
 
-        assertThrows(AiServiceException.class, () -> analysisService.match(request));
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertEquals(100L, response.getReportId());
+        assertEquals(60, response.getMatchScore());
+        assertEquals("MEDIUM", response.getMatchLevel());
+        assertTrue(response.getWeaknesses().get(0).contains("兜底解析"));
     }
 
     @Test

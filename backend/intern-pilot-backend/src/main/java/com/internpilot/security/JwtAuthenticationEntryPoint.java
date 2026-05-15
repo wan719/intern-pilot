@@ -3,6 +3,8 @@ package com.internpilot.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.common.Result;
 import com.internpilot.common.ResultCode;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @Component
+@Schema(description = "JWT认证入口点，当用户未认证或Token无效时返回401错误和统一的JSON响应")//这个注解用于Swagger API文档生成，提供了对该组件的描述信息
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

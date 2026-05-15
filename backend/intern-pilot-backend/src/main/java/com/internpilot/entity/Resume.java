@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("resume")//这个注解指定了实体类对应的数据库表名为resume
+@TableName("resume")//简历表，存储用户上传的简历信息，包括文件路径、解析状态等
+@Schema(description = "简历实体类，包含简历的详细信息和关联的用户")
 public class Resume {
 
     @TableId(type = IdType.AUTO)

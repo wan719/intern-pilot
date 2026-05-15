@@ -160,19 +160,19 @@ class InterviewQuestionServiceTest {
         report.setUserId(1L);
 
         when(interviewQuestionReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
-        when(interviewQuestionReportMapper.updateById(any(InterviewQuestionReport.class))).thenReturn(1);
+        when(interviewQuestionReportMapper.deleteById(1L)).thenReturn(1);
 
         InterviewQuestion q1 = new InterviewQuestion();
         q1.setId(1L);
         when(interviewQuestionMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(List.of(q1));
-        when(interviewQuestionMapper.updateById(any(InterviewQuestion.class))).thenReturn(1);
+        when(interviewQuestionMapper.deleteById(1L)).thenReturn(1);
 
         Boolean result = interviewQuestionService.delete(1L);
 
         assertTrue(result);
-        verify(interviewQuestionReportMapper).updateById(any(InterviewQuestionReport.class));
-        verify(interviewQuestionMapper).updateById(any(InterviewQuestion.class));
+        verify(interviewQuestionReportMapper).deleteById(1L);
+        verify(interviewQuestionMapper).deleteById(1L);
     }
 
     @Test

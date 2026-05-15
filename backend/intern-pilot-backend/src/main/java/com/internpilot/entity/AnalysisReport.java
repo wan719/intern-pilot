@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("analysis_report")
+@TableName("analysis_report")//ai分析报告表
+@Schema(description = "AI分析报告实体类，包含AI对简历和职位的分析结果")
 public class AnalysisReport {
 
     @TableId(type = IdType.AUTO)

@@ -1,6 +1,8 @@
 package com.internpilot.security;
 
 import com.internpilot.entity.User;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Getter
+@Schema(description = "自定义用户详情类，实现了Spring Security的UserDetails接口，包含用户的基本信息、角色和权限等")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class CustomUserDetails implements UserDetails {
 
     private final Long userId;

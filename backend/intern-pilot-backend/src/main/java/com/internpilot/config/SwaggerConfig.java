@@ -3,6 +3,7 @@ package com.internpilot.config;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -10,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@Schema(description = "Swagger配置类，定义了OpenAPI实例，用于生成API文档并配置安全方案")//这个注解用于Swagger API文档生成，提供了对该配置类的描述信息
 public class SwaggerConfig {
 
     private static final String SECURITY_SCHEME_NAME = "BearerAuth";

@@ -10,11 +10,12 @@ import com.internpilot.vo.recommendation.JobRecommendationBatchDetailResponse;
 import com.internpilot.vo.recommendation.JobRecommendationBatchListResponse;
 import com.internpilot.vo.recommendation.JobRecommendationGenerateResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+@Tag(name = "岗位推荐接口")
 @RestController
 @RequestMapping("/api/job-recommendations")
 @RequiredArgsConstructor

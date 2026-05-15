@@ -1,12 +1,15 @@
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("interview_question")
+@TableName("interview_question")//面试问题表
+@Schema(description = "面试问题实体类，包含面试问题的详细信息")
 public class InterviewQuestion {
 
     @TableId(type = IdType.AUTO)

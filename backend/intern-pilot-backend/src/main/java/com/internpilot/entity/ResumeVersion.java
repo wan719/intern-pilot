@@ -1,12 +1,16 @@
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("resume_version")
+@TableName("resume_version")//简历版本表，用户上传简历后会生成一个版本，
+// 用户可以基于某个版本进行优化，每个版本包含优化后的内容、摘要、关联的目标职位等信息
+@Schema(description = "简历版本实体类，包含简历版本的详细信息和关联的用户、简历、目标职位等")
 public class ResumeVersion {
 
     @TableId(type = IdType.AUTO)

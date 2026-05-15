@@ -3,6 +3,8 @@ package com.internpilot.config;
 import com.internpilot.security.JwtAccessDeniedHandler;
 import com.internpilot.security.JwtAuthenticationEntryPoint;
 import com.internpilot.security.JwtAuthenticationFilter;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,9 +20,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
+@EnableWebSecurity//这个注解启用Spring Security的Web安全功能，允许我们自定义安全配置
+@EnableMethodSecurity//这个注解启用方法级别的安全控制，允许在方法上使用@PreAuthorize等注解进行权限控制
 @RequiredArgsConstructor
+@Schema(description = "安全配置类，定义了Spring Security的相关配置，包括JWT认证过滤器、异常处理器等")//这个注解用于Swagger API文档生成，提供了对该配置类的描述信息
 public class SecurityConfig {
 
     private static final String[] WHITE_LIST = {
@@ -41,6 +44,7 @@ public class SecurityConfig {
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Bean
+    @Schema(description = "获取安全过滤链，定义了HTTP安全配置")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> {})
@@ -63,11 +67,13 @@ public class SecurityConfig {
     }
 
     @Bean
+    @Schema(description = "获取密码编码器，用于密码的加密和验证")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
+    @Schema(description = "获取认证管理器，用于处理用户认证逻辑")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }

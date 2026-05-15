@@ -1,9 +1,12 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum OperationTypeEnum {
+@Schema(description = "操作类型枚举，定义系统中不同的操作类型，每个类型对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum OperationTypeEnum {//操作类型枚举，定义系统中不同的操作类型，
+// 每个类型对应一个唯一的code和描述
 
     CREATE("CREATE", "新增"),
     UPDATE("UPDATE", "修改"),

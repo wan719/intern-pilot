@@ -1,10 +1,13 @@
 package com.internpilot.util;
 
 import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import org.springframework.util.StringUtils;
 
 import java.util.List;
-
+@Schema(description = "面试问题提示词构建器，根据学生简历文本、目标岗位JD、AI匹配分析报告和生成请求参数构建适合AI模型的面试问题生成提示词")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class InterviewQuestionPromptBuilder {
 
     private static final int DEFAULT_QUESTION_COUNT = 8;
@@ -49,7 +52,9 @@ public class InterviewQuestionPromptBuilder {
         prompt.append("10. 除技术名词外，不要输出英文解释；\n");
         prompt.append("11. 必须严格返回 JSON；\n");
         prompt.append("12. 不要返回 Markdown；\n");
-        prompt.append("13. 不要使用 ```json 代码块包裹。\n\n");
+        prompt.append("13. 不要使用 ```json 代码块包裹；\n");
+        prompt.append("14. question、answer、answerPoints、followUps、source 必须是中文句子，不能生成英文题干或英文答案；\n");
+        prompt.append("15. 字段名必须使用示例中的英文键名，字段值除 Java、Spring Boot、Redis、MySQL、JWT 等技术名词外必须是中文。\n\n");
 
         prompt.append("请生成 ").append(questionCount).append(" 道题，题目类型包含：\n");
         for (String category : categories) {

@@ -12,13 +12,14 @@ import com.internpilot.vo.rag.RagKnowledgeDetailResponse;
 import com.internpilot.vo.rag.RagKnowledgeListResponse;
 import com.internpilot.vo.rag.RagSearchResultResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+@Tag(name = "管理员-RAG知识库接口")
 @RestController
 @RequestMapping("/api/admin/rag/knowledge")
 @RequiredArgsConstructor

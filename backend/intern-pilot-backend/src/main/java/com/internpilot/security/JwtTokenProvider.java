@@ -4,6 +4,7 @@ import com.internpilot.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
+@Schema(description = "JWT令牌提供者，负责生成和验证JWT Token，并从Token中提取用户信息等")//这个注解用于Swagger API文档生成，提供了对该组件的描述信息
 public class JwtTokenProvider {
 
     private final JwtProperties jwtProperties;

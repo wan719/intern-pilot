@@ -13,6 +13,7 @@ import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
 import com.internpilot.entity.ResumeVersion;
 import com.internpilot.enums.MatchLevelEnum;
+import com.internpilot.exception.AiServiceException;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
@@ -136,7 +137,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
                         + "cacheHit=false, cacheKey={}, promptHash={}, responseHash={}, responseLength={}",
                 aiProperties.getProvider(), aiProperties.getModel(), cacheKey, promptHash, responseHash, rawResponse.length());
-        AiAnalysisResult aiResult = JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
+        AiAnalysisResult aiResult = parseAnalysisResult(rawResponse);
         normalizeAiResult(aiResult);
 
         AnalysisReport report = new AnalysisReport();
@@ -347,6 +348,36 @@ public class AnalysisServiceImpl implements AnalysisService {
         if (!StringUtils.hasText(result.getMatchLevel())) {
             result.setMatchLevel(MatchLevelEnum.fromScore(result.getMatchScore()));
         }
+    }
+
+    private AiAnalysisResult parseAnalysisResult(String rawResponse) {
+        try {
+            return JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
+        } catch (AiServiceException e) {
+            if (!"AI_RESPONSE_PARSE_FAILED".equals(e.getErrorCode())) {
+                throw e;
+            }
+            log.warn("AI analysis JSON parse failed, using fallback report. rawLength={}, rawPreview={}",
+                    rawResponse == null ? 0 : rawResponse.length(), preview(rawResponse));
+
+            AiAnalysisResult fallback = new AiAnalysisResult();
+            fallback.setMatchScore(60);
+            fallback.setMatchLevel(MatchLevelEnum.MEDIUM.getCode());
+            fallback.setStrengths(List.of("AI 已完成分析，但返回格式不完全符合系统 JSON 规范。"));
+            fallback.setWeaknesses(List.of("本次报告使用兜底解析结果，建议稍后重新生成以获得更完整的结构化分析。"));
+            fallback.setMissingSkills(Collections.emptyList());
+            fallback.setSuggestions(List.of("检查当前简历与岗位 JD 的关键词匹配度，并补充岗位要求中的核心技术经验。"));
+            fallback.setInterviewTips(List.of("围绕岗位 JD 中的核心技术栈准备项目讲解、常见八股题和实习场景追问。"));
+            return fallback;
+        }
+    }
+
+    private String preview(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        String normalized = text.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 180 ? normalized : normalized.substring(0, 180);
     }
 
     private List<String> nullToEmpty(List<String> list) {

@@ -1,9 +1,11 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum QuestionDifficultyEnum {
+@Schema(description = "面试题难度枚举，定义面试题的不同难度级别，每个级别对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum QuestionDifficultyEnum {//面试题难度枚举，定义面试题的不同难度级别，
 
     EASY("EASY", "简单"),
     MEDIUM("MEDIUM", "中等"),

@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.exception.AiServiceException;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Collections;
 import java.util.List;
-
+@Schema(description = "JSON工具类，提供了将AI生成的原始文本解析成JSON对象、将对象序列化成JSON字符串以及将JSON字符串反序列化成对象等功能，并包含针对AI响应内容的特殊处理逻辑")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class JsonUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

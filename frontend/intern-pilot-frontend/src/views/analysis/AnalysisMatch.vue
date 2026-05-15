@@ -268,12 +268,14 @@ async function restoreLastTask() {
 
   try {
     const detail: any = await getAnalysisTaskDetailApi(taskNo)
-    applyTaskMessage(detail)
-    if (!isTerminalStatus(detail.status)) {
-      running.value = true
-      connectSocket(detail.taskNo)
-      startPolling(detail.taskNo)
+    if (isTerminalStatus(detail.status)) {
+      localStorage.removeItem(TASK_STORAGE_KEY)
+      return
     }
+    applyTaskMessage(detail)
+    running.value = true
+    connectSocket(detail.taskNo)
+    startPolling(detail.taskNo)
   } catch {
     localStorage.removeItem(TASK_STORAGE_KEY)
   }

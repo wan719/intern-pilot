@@ -1,5 +1,8 @@
 package com.internpilot.util;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "提示词工具类，提供了构建针对AI模型的职位匹配分析、面试问题生成和简历优化等功能的提示词的方法，这些提示词会被用来指导AI模型生成符合要求的输出内容")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class PromptUtils {
 
   private PromptUtils() {
@@ -203,18 +206,53 @@ public class PromptUtils {
         分析该学生与岗位的匹配度。
 
         要求：
-        1. 输出匹配分数；
-        2. 输出匹配等级；
-        3. 输出简历优势；
-        4. 输出简历短板；
-        5. 输出缺失技能；
-        6. 输出简历优化建议；
-        7. 输出面试准备建议；
+        1. 输出 0-100 的匹配分数 matchScore；
+        2. 输出匹配等级 matchLevel；
+        3. 输出简历优势 strengths；
+        4. 输出简历短板 weaknesses；
+        5. 输出缺失技能 missingSkills；
+        6. 输出简历优化建议 suggestions；
+        7. 输出面试准备建议 interviewTips；
         8. 你必须使用简体中文回答；
         9. 所有字段值必须使用简体中文；
         10. 除技术名词外，不要输出英文解释；
         11. 必须严格返回 JSON；
-        12. 不要返回 Markdown 代码块。
+        12. 不要返回 Markdown 代码块；
+        13. 不要添加任何 JSON 之外的解释文字。
+
+        匹配等级只能使用以下枚举值：
+        - HIGH
+        - MEDIUM_HIGH
+        - MEDIUM
+        - LOW
+        - VERY_LOW
+
+        必须严格按下面的 JSON 结构返回，字段名不能翻译、不能改名、不能省略：
+
+        {
+          "matchScore": 82,
+          "matchLevel": "MEDIUM_HIGH",
+          "strengths": [
+            "优势1",
+            "优势2"
+          ],
+          "weaknesses": [
+            "短板1",
+            "短板2"
+          ],
+          "missingSkills": [
+            "缺失技能1",
+            "缺失技能2"
+          ],
+          "suggestions": [
+            "优化建议1",
+            "优化建议2"
+          ],
+          "interviewTips": [
+            "面试准备建议1",
+            "面试准备建议2"
+          ]
+        }
 
         【岗位知识库参考内容】
         %s

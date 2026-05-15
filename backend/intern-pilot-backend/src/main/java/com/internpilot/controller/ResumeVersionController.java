@@ -12,13 +12,14 @@ import com.internpilot.vo.resume.ResumeVersionCreateResponse;
 import com.internpilot.vo.resume.ResumeVersionDetailResponse;
 import com.internpilot.vo.resume.ResumeVersionListResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+@Tag(name = "简历版本管理接口")
 @RestController
 @RequestMapping("/api/resumes/{resumeId}/versions")
 @RequiredArgsConstructor

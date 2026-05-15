@@ -38,9 +38,11 @@ class MockAiClientTest {
 
         assertNotNull(result);
         assertTrue(result.contains("questions"));
-        assertTrue(result.contains("type"));
-        assertTrue(result.contains("TECHNICAL"));
-        assertTrue(result.contains("tags"));
+        assertTrue(result.contains("questionType"));
+        assertTrue(result.contains("SPRING_BOOT"));
+        assertTrue(result.contains("relatedSkills"));
+        assertTrue(result.contains("followUps"));
+        assertTrue(result.contains("keywords"));
     }
 
     @Test

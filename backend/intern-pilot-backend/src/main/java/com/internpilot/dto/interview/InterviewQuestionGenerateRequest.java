@@ -39,6 +39,4 @@ public class InterviewQuestionGenerateRequest {
     @Schema(description = "是否生成追问问题", example = "true")
     private Boolean includeFollowUps;
 
-    @Schema(description = "是否强制重新生成", example = "false")
-    private Boolean forceRefresh = false;
 }

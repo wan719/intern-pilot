@@ -5,10 +5,12 @@ import com.internpilot.enums.InterviewQuestionTypeEnum;
 import com.internpilot.enums.QuestionDifficultyEnum;
 import com.internpilot.exception.BusinessException;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+@Schema(description = "面试问题解析器，用于将AI生成的原始面试问题数据解析成结构化的面试问题结果对象，并进行必要的数据清洗和规范化处理")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class InterviewQuestionParser {
 
     private InterviewQuestionParser() {

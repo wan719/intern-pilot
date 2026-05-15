@@ -216,11 +216,14 @@ async function regenerate() {
 
   regenerating.value = true
   try {
-    await regenerateInterviewQuestionsApi(id)
+    const res: any = await regenerateInterviewQuestionsApi(id)
     ElMessage.success('面试题重新生成成功')
+    if (res?.reportId && res.reportId !== id) {
+      await router.replace(`/interview-questions/${res.reportId}`)
+    }
     await loadDetail()
-  } catch {
-    ElMessage.error('重新生成失败，请稍后重试')
+  } catch (e: any) {
+    ElMessage.error(e?.message || e?.response?.data?.message || '重新生成失败，请稍后重试')
   } finally {
     regenerating.value = false
   }

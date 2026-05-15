@@ -64,8 +64,8 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="goDetail(row.reportId)">练习</el-button>
-            <el-button link type="success" @click="regenerateReport(row)">重新生成</el-button>
-            <el-button link type="danger" @click="removeReport(row)">删除</el-button>
+            <el-button link type="success" :loading="regeneratingId === row.reportId" @click="regenerateReport(row)">重新生成</el-button>
+            <el-button v-if="authStore.hasPermission('analysis:delete')" link type="danger" :loading="deletingId === row.reportId" @click="removeReport(row)">删除</el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -152,11 +152,6 @@
           </p>
         </el-form-item>
 
-        <el-form-item label="强制重新生成">
-          <el-switch v-model="form.forceRefresh" />
-          <p class="field-hint">关闭时若已有相同组合的历史报告，会直接打开历史结果。</p>
-        </el-form-item>
-
         <el-form-item label="题目数量">
           <el-input-number v-model="form.questionCount" :min="3" :max="20" />
           <p class="field-hint">默认 8 道题，范围 3-20。</p>
@@ -220,6 +215,7 @@ import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
+import { useAuthStore } from '@/stores/auth'
 
 const reports = ref<any[]>([])
 const resumes = ref<any[]>([])
@@ -232,6 +228,9 @@ const generating = ref(false)
 const generateVisible = ref(false)
 const loadError = ref('')
 const total = ref(0)
+const regeneratingId = ref<number | null>(null)
+const deletingId = ref<number | null>(null)
+const authStore = useAuthStore()
 
 const query = reactive<{
   resumeId?: number
@@ -249,14 +248,12 @@ const form = reactive<{
   resumeVersionId?: number
   jobId?: number
   analysisReportId?: number
-  forceRefresh: boolean
   questionCount?: number
   categories?: string[]
   difficulties?: string[]
   includeAnswer: boolean
   includeFollowUps: boolean
 }>({
-  forceRefresh: false,
   includeAnswer: true,
   includeFollowUps: true
 })
@@ -368,7 +365,6 @@ function openGenerate() {
   form.resumeId = resumes.value[0]?.resumeId
   form.jobId = jobs.value[0]?.jobId
   form.analysisReportId = undefined
-  form.forceRefresh = false
   generateVisible.value = true
 }
 
@@ -381,11 +377,13 @@ async function generate() {
   generating.value = true
   try {
     const res: any = await generateInterviewQuestionsApi(form)
-    ElMessage.success(res.cacheHit ? '已打开历史面试题报告' : '面试题生成成功')
+    ElMessage.success('面试题生成成功')
     generateVisible.value = false
     query.pageNum = 1
     await loadReports()
     router.push(`/interview-questions/${res.reportId}`)
+  } catch (e: any) {
+    ElMessage.error(getErrorMessage(e, '面试题生成失败，请检查简历、岗位和 AI 服务配置。'))
   } finally {
     generating.value = false
   }
@@ -396,28 +394,52 @@ function goDetail(reportId: number) {
 }
 
 async function removeReport(row: any) {
-  await ElMessageBox.confirm(`确认删除「${row.title || '面试题报告'}」？`, '删除确认', {
-    type: 'warning'
-  })
-  await deleteInterviewQuestionReportApi(row.reportId)
-  ElMessage.success('删除成功')
-  loadReports()
+  try {
+    await ElMessageBox.confirm(`确认删除「${row.title || '面试题报告'}」？`, '删除确认', {
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+
+  deletingId.value = row.reportId
+  try {
+    await deleteInterviewQuestionReportApi(row.reportId)
+    ElMessage.success('删除成功')
+    await loadReports()
+  } catch (e: any) {
+    ElMessage.error(getErrorMessage(e, '删除失败，请稍后重试'))
+  } finally {
+    deletingId.value = null
+  }
 }
 
 async function regenerateReport(row: any) {
-  await ElMessageBox.confirm(
-    `确认重新生成「${row.title || '面试题报告'}」？旧的题目将被替换。`,
-    '重新生成确认',
-    { type: 'warning' }
-  )
+  try {
+    await ElMessageBox.confirm(
+      `确认重新生成「${row.title || '面试题报告'}」？旧的题目将被替换。`,
+      '重新生成确认',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  regeneratingId.value = row.reportId
   try {
     const res: any = await regenerateInterviewQuestionsApi(row.reportId)
     ElMessage.success('面试题重新生成成功')
     await loadReports()
     router.push(`/interview-questions/${res.reportId}`)
-  } catch {
-    ElMessage.error('重新生成失败，请稍后重试')
+  } catch (e: any) {
+    ElMessage.error(getErrorMessage(e, '重新生成失败，请稍后重试'))
+  } finally {
+    regeneratingId.value = null
   }
+}
+
+function getErrorMessage(error: any, fallback: string) {
+  return error?.message || error?.response?.data?.message || fallback
 }
 
 onMounted(async () => {

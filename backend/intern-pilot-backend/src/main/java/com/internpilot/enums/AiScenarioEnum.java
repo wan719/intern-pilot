@@ -1,9 +1,12 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum AiScenarioEnum {
+@Schema(description = "AI场景枚举，定义系统中不同的AI应用场景，每个场景对应一个唯一的code和描述")
+public enum AiScenarioEnum {//AI场景枚举，定义系统中不同的AI应用场景，
+// 每个场景对应一个唯一的code和描述
 
     RESUME_JOB_ANALYSIS("RESUME_JOB_ANALYSIS", "简历岗位匹配分析"),
 

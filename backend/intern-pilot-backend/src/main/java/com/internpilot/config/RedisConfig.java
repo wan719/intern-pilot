@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -12,9 +15,11 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
+@Schema(description = "Redis配置类，定义了RedisTemplate的相关配置，包括序列化器等")//这个注解用于Swagger API文档生成，提供了对该配置类的描述信息
 public class RedisConfig {
 
     @Bean
+    @Schema(description = "获取RedisTemplate实例，用于操作Redis数据库")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);

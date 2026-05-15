@@ -1,12 +1,15 @@
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("job_recommendation_item")
+@TableName("job_recommendation_item")//职位推荐结果表，每条记录对应一个职位推荐结果，关联到职位推荐批次表
+@Schema(description = "职位推荐结果实体类，包含职位推荐结果的详细信息和关联的职位推荐批次")
 public class JobRecommendationItem {
 
     @TableId(type = IdType.AUTO)
