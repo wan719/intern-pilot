@@ -21,4 +21,6 @@ public interface AnalysisService {
     );
 
     AnalysisReportDetailResponse getReportDetail(Long id);
+
+    void deleteReport(Long id);
 }

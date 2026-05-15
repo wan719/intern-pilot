@@ -1,9 +1,12 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum MatchLevelEnum {
+@Schema(description = "匹配度枚举，定义简历与岗位匹配的不同级别，每个级别对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum MatchLevelEnum {//匹配度枚举，定义简历与岗位匹配的不同级别，
+// 每个级别对应一个唯一的code和描述
 
     HIGH("HIGH", "高匹配"),
     MEDIUM_HIGH("MEDIUM_HIGH", "较高匹配"),
@@ -19,6 +22,12 @@ public enum MatchLevelEnum {
         this.description = description;
     }
 
+    /**
+     * 根据匹配分数获取对应的匹配度枚举实例
+     *
+     * @param score 匹配分数
+     * @return 对应的匹配度枚举实例
+     */
     public static String fromScore(Integer score) {
         if (score == null) {
             return MEDIUM.getCode();

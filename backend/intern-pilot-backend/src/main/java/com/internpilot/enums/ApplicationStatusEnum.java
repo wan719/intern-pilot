@@ -1,9 +1,11 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum ApplicationStatusEnum {
+@Schema(description = "申请状态枚举，定义求职申请的不同状态，每个状态对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum ApplicationStatusEnum {//申请状态枚举，定义求职申请的不同状态，
 
     TO_APPLY("TO_APPLY", "待投递"),
     APPLIED("APPLIED", "已投递"),

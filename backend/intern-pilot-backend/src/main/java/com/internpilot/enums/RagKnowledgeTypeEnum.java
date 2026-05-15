@@ -1,9 +1,11 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum RagKnowledgeTypeEnum {
+@Schema(description = "RAG知识库类型枚举，定义系统中RAG知识库的不同类型，每个类型对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum RagKnowledgeTypeEnum {//RAG知识库类型枚举，定义系统中RAG知识库的不同类型，
 
     JOB_DIRECTION("JOB_DIRECTION", "岗位方向介绍"),
     SKILL_REQUIREMENT("SKILL_REQUIREMENT", "技能要求"),

@@ -25,5 +25,13 @@ public class AiInterviewQuestionResult {
         private List<String> answerPoints;
 
         private List<String> relatedSkills;
+
+        private List<String> followUps;
+
+        private List<String> keywords;
+
+        private String source;
+
+        private Integer sortOrder;
     }
 }

@@ -24,9 +24,17 @@
         <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="160">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.reportId)">详情</el-button>
+            <el-button
+              v-if="authStore.hasPermission('analysis:delete')"
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,8 +77,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
-import { getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
+import { deleteAnalysisReportApi, getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
 import { formatDateTime } from '@/utils/format'
+import { useAuthStore } from '@/stores/auth'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+const authStore = useAuthStore()
 
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
@@ -91,6 +103,25 @@ async function loadReports() {
 async function openDetail(id: number) {
   detail.value = await getAnalysisReportDetailApi(id)
   detailVisible.value = true
+}
+
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除「${row.companyName} - ${row.jobTitle}」的分析报告吗？删除后不可恢复。`,
+      '确认删除',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteAnalysisReportApi(row.reportId)
+    ElMessage.success('删除成功')
+    await loadReports()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败')
+  }
 }
 
 onMounted(loadReports)

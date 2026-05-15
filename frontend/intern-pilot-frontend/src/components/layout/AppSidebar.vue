@@ -63,27 +63,27 @@
             <span>管理员后台</span>
           </div>
         </template>
-        <el-menu-item v-if="hasPermission('dashboard:admin:read')" index="/admin/dashboard" @click="go('/admin/dashboard')">
+        <el-menu-item v-if="hasPermission('admin:dashboard')" index="/admin/dashboard" @click="go('/admin/dashboard')">
           <el-icon><DataBoard /></el-icon>
           <span>后台看板</span>
         </el-menu-item>
-        <el-menu-item v-if="hasPermission('admin:user:read')" index="/admin/users" @click="go('/admin/users')">
+        <el-menu-item v-if="hasPermission('user:read')" index="/admin/users" @click="go('/admin/users')">
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
-        <el-menu-item v-if="hasPermission('admin:role:read')" index="/admin/roles" @click="go('/admin/roles')">
+        <el-menu-item v-if="hasPermission('role:read')" index="/admin/roles" @click="go('/admin/roles')">
           <el-icon><Avatar /></el-icon>
           <span>角色管理</span>
         </el-menu-item>
-        <el-menu-item v-if="hasPermission('admin:permission:read')" index="/admin/permissions" @click="go('/admin/permissions')">
+        <el-menu-item v-if="hasPermission('permission:read')" index="/admin/permissions" @click="go('/admin/permissions')">
           <el-icon><Lock /></el-icon>
           <span>权限管理</span>
         </el-menu-item>
-        <el-menu-item v-if="hasPermission('system:log:read')" index="/admin/operation-logs" @click="go('/admin/operation-logs')">
+        <el-menu-item v-if="hasPermission('operation-log:read')" index="/admin/operation-logs" @click="go('/admin/operation-logs')">
           <el-icon><Memo /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
-        <el-menu-item v-if="hasPermission('rag:knowledge:read')" index="/admin/rag-knowledge" @click="go('/admin/rag-knowledge')">
+        <el-menu-item v-if="hasPermission('rag:read')" index="/admin/rag-knowledge" @click="go('/admin/rag-knowledge')">
           <el-icon><Tickets /></el-icon>
           <span>RAG 知识库</span>
         </el-menu-item>
@@ -126,7 +126,7 @@ function hasPermission(permission: string) {
 }
 
 const showAdminGroup = computed(() => {
-  const keys = ['dashboard:admin:read', 'admin:user:read', 'admin:role:read', 'admin:permission:read', 'system:log:read', 'rag:knowledge:read']
+  const keys = ['admin:dashboard', 'user:read', 'role:read', 'permission:read', 'operation-log:read', 'rag:read']
   return keys.some((key) => hasPermission(key))
 })
 </script>

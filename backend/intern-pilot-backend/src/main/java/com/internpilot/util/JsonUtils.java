@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.exception.AiServiceException;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Collections;
 import java.util.List;
-
+@Schema(description = "JSON工具类，提供了将AI生成的原始文本解析成JSON对象、将对象序列化成JSON字符串以及将JSON字符串反序列化成对象等功能，并包含针对AI响应内容的特殊处理逻辑")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class JsonUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -20,7 +22,7 @@ public class JsonUtils {
             String json = extractJson(rawText);
             return OBJECT_MAPPER.readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            throw new AiServiceException("AI 返回结果解析失败");
+            throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI response JSON parse failed.");
         }
     }
 
@@ -28,7 +30,7 @@ public class JsonUtils {
         try {
             return OBJECT_MAPPER.writeValueAsString(object);
         } catch (JsonProcessingException e) {
-            throw new AiServiceException("JSON 序列化失败");
+            throw new AiServiceException("JSON serialization failed.");
         }
     }
 
@@ -36,7 +38,7 @@ public class JsonUtils {
         try {
             return OBJECT_MAPPER.readValue(json, clazz);
         } catch (JsonProcessingException e) {
-            throw new AiServiceException("JSON 反序列化失败");
+            throw new AiServiceException("JSON deserialization failed.");
         }
     }
 
@@ -48,13 +50,13 @@ public class JsonUtils {
             JavaType type = OBJECT_MAPPER.getTypeFactory().constructCollectionType(List.class, String.class);
             return OBJECT_MAPPER.readValue(json, type);
         } catch (JsonProcessingException e) {
-            throw new AiServiceException("JSON 反序列化失败");
+            throw new AiServiceException("JSON deserialization failed.");
         }
     }
 
     private static String extractJson(String rawText) {
         if (rawText == null || rawText.isBlank()) {
-            throw new AiServiceException("AI 返回内容为空");
+            throw new AiServiceException("AI_RESPONSE_EMPTY", "AI response content is empty.");
         }
 
         String text = rawText.trim();
@@ -73,7 +75,7 @@ public class JsonUtils {
         int end = text.lastIndexOf('}');
 
         if (start < 0 || end < 0 || end <= start) {
-            throw new AiServiceException("AI 返回内容不是合法 JSON");
+            throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI response content is not valid JSON.");
         }
 
         return text.substring(start, end + 1);

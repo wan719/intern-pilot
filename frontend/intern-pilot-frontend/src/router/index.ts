@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken } from '@/utils/token'
+import { getToken, removeToken } from '@/utils/token'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -25,32 +25,32 @@ const routes = [
       {
         path: 'admin/dashboard',
         component: () => import('@/views/admin/AdminDashboard.vue'),
-        meta: { title: '后台看板', permission: 'dashboard:admin:read' }
+        meta: { title: '后台看板', permission: 'admin:dashboard' }
       },
       {
         path: 'admin/users',
         component: () => import('@/views/admin/AdminUserList.vue'),
-        meta: { title: '用户管理', permission: 'admin:user:read' }
+        meta: { title: '用户管理', permission: 'user:read' }
       },
       {
         path: 'admin/roles',
         component: () => import('@/views/admin/AdminRoleList.vue'),
-        meta: { title: '角色管理', permission: 'admin:role:read' }
+        meta: { title: '角色管理', permission: 'role:read' }
       },
       {
         path: 'admin/permissions',
         component: () => import('@/views/admin/AdminPermissionList.vue'),
-        meta: { title: '权限管理', permission: 'admin:permission:read' }
+        meta: { title: '权限管理', permission: 'permission:read' }
       },
       {
         path: 'admin/operation-logs',
         component: () => import('@/views/admin/OperationLogList.vue'),
-        meta: { title: '操作日志', permission: 'system:log:read' }
+        meta: { title: '操作日志', permission: 'operation-log:read' }
       },
       {
         path: 'admin/rag-knowledge',
         component: () => import('@/views/admin/AdminRagKnowledgeList.vue'),
-        meta: { title: 'RAG 知识库', permission: 'rag:knowledge:read' }
+        meta: { title: 'RAG 知识库', permission: 'rag:read' }
       }
       
     ]
@@ -62,16 +62,25 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (to.meta.public) return true
   if (!getToken()) return '/login'
+
+  const auth = useAuthStore()
+  if (!auth.user) {
+    try {
+      await auth.fetchCurrentUser()
+    } catch {
+      auth.logout()
+      removeToken()
+      return '/login'
+    }
+  }
 
   const permission = to.meta.permission as string | undefined
   if (!permission) return true
 
-  const auth = useAuthStore()
-  const permissions: string[] = auth.user?.permissions || []
-  if (!permissions.includes(permission)) {
+  if (!auth.hasPermission(permission)) {
     return '/403'
   }
   return true

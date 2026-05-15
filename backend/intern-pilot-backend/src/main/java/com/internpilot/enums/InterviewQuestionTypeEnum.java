@@ -1,9 +1,12 @@
 package com.internpilot.enums;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
 @Getter
-public enum InterviewQuestionTypeEnum {
+@Schema(description = "面试题类型枚举，定义系统中不同类型的面试题，每个类型对应一个唯一的code和描述")//这个注解用于Swagger API文档生成，提供了对该枚举类的描述信息
+public enum InterviewQuestionTypeEnum {//面试题类型枚举，定义系统中不同类型的面试题，
+// 每个类型对应一个唯一的code和描述
 
     JAVA_BASIC("JAVA_BASIC", "Java基础"),
     SPRING_BOOT("SPRING_BOOT", "Spring Boot"),

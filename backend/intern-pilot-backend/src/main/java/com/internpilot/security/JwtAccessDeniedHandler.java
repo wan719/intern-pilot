@@ -3,6 +3,8 @@ package com.internpilot.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.common.Result;
 import com.internpilot.common.ResultCode;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @Component
+@Schema(description = "JWT访问拒绝处理器，当用户尝试访问没有权限的资源时返回403错误和统一的JSON响应")//这个注解用于Swagger API文档生成，提供了对该组件的描述信息
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

@@ -26,3 +26,11 @@ mybatis-plus:
 
 knife4j:
   enable: true
+
+ai:
+  provider: ${AI_PROVIDER:deepseek}
+  base-url: ${AI_BASE_URL:https://api.deepseek.com}
+  api-key: ${DEEPSEEK_API_KEY:}
+  model: ${AI_MODEL:deepseek-v4-flash}
+  pro-model: ${AI_PRO_MODEL:deepseek-v4-pro}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:60}

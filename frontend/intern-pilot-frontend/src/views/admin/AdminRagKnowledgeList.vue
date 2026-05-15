@@ -1,7 +1,7 @@
 <template>
   <PageContainer title="RAG 知识库" description="维护岗位方向知识文档，生成文本切片和 Embedding，用于增强 AI 分析。">
     <template #actions>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
+      <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
     </template>
 
     <section class="panel toolbar">
@@ -37,9 +37,9 @@
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row.documentId)">详情</el-button>
-            <el-button link type="primary" @click="openEdit(row.documentId)">编辑</el-button>
-            <el-button link type="primary" @click="rebuild(row.documentId)">重建</el-button>
-            <el-button link type="danger" @click="remove(row.documentId)">删除</el-button>
+            <el-button v-if="canManage" link type="primary" @click="openEdit(row.documentId)">编辑</el-button>
+            <el-button v-if="canManage" link type="primary" @click="rebuild(row.documentId)">重建</el-button>
+            <el-button v-if="canManage" link type="danger" @click="remove(row.documentId)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -151,7 +151,9 @@ import {
   updateRagKnowledgeApi
 } from '@/api/adminRagKnowledge'
 import { formatDateTime } from '@/utils/format'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const typeOptions = [
   { label: '岗位方向介绍', value: 'JOB_DIRECTION' },
   { label: '技能要求', value: 'SKILL_REQUIREMENT' },
@@ -176,6 +178,7 @@ const editingId = ref<number>()
 const query = reactive<any>({ direction: '', knowledgeType: '', enabled: undefined })
 const form = reactive<any>({ title: '', direction: '', knowledgeType: 'SKILL_REQUIREMENT', summary: '', content: '', enabled: 1 })
 const searchForm = reactive<any>({ query: '', direction: '', knowledgeType: '', topK: 5 })
+const canManage = computed(() => authStore.hasPermission('rag:manage'))
 const enabledSwitch = computed({
   get: () => form.enabled === 1,
   set: (value: boolean) => {
@@ -254,10 +257,15 @@ async function rebuild(documentId: number) {
 }
 
 async function remove(documentId: number) {
-  await ElMessageBox.confirm('确认删除该知识文档？', '删除确认', { type: 'warning' })
+  try {
+    await ElMessageBox.confirm('确认删除该知识文档？', '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+
   await deleteRagKnowledgeApi(documentId)
   ElMessage.success('删除成功')
-  loadDocuments()
+  await loadDocuments()
 }
 
 function openSearch() {

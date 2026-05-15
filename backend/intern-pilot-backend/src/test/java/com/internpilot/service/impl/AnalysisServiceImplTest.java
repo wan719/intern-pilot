@@ -8,6 +8,7 @@ import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
+import com.internpilot.exception.AiServiceException;
 import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
@@ -34,6 +35,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -89,8 +92,7 @@ class AnalysisServiceImplTest {
                 aiProperties,
                 redisTemplate,
                 new ObjectMapper(),
-                ragKnowledgeService
-        );
+                ragKnowledgeService);
     }
 
     @AfterEach
@@ -235,6 +237,131 @@ class AnalysisServiceImplTest {
         assertEquals(1, response.getStrengths().size());
     }
 
+    @Test
+    void matchShouldContinueWhenRagFails() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        when(ragKnowledgeService.search(any())).thenThrow(new RuntimeException("RAG 服务异常"));
+        when(aiClient.chat(anyString())).thenReturn("""
+                {
+                  "matchScore": 75,
+                  "matchLevel": "MEDIUM_HIGH",
+                  "strengths": ["Spring Boot"],
+                  "weaknesses": ["缺少实习"],
+                  "missingSkills": ["Docker"],
+                  "suggestions": ["补充部署"],
+                  "interviewTips": ["准备面试"]
+                }
+                """);
+        doAnswer(invocation -> {
+            AnalysisReport report = invocation.getArgument(0);
+            report.setId(100L);
+            report.setCreatedAt(LocalDateTime.now());
+            return 1;
+        }).when(analysisReportMapper).insert(any(AnalysisReport.class));
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+        request.setForceRefresh(false);
+
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertNotNull(response);
+        assertEquals(75, response.getMatchScore());
+        assertFalse(response.getCacheHit());
+        verify(aiClient).chat(anyString());
+    }
+
+    @Test
+    void matchShouldThrowWhenAiReturnsEmpty() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        when(aiClient.chat(anyString())).thenReturn("");
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+        request.setForceRefresh(false);
+
+        assertThrows(AiServiceException.class, () -> analysisService.match(request));
+    }
+
+    @Test
+    void matchShouldUseFallbackWhenAiReturnsInvalidJson() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        when(aiClient.chat(anyString())).thenReturn("这不是合法的 JSON 格式");
+        doAnswer(invocation -> {
+            AnalysisReport report = invocation.getArgument(0);
+            report.setId(100L);
+            report.setCreatedAt(LocalDateTime.now());
+            return 1;
+        }).when(analysisReportMapper).insert(any(AnalysisReport.class));
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+        request.setForceRefresh(false);
+
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertEquals(100L, response.getReportId());
+        assertEquals(60, response.getMatchScore());
+        assertEquals("MEDIUM", response.getMatchLevel());
+        assertTrue(response.getWeaknesses().get(0).contains("兜底解析"));
+    }
+
+    @Test
+    void deleteReportShouldDeleteOwnReport() {
+        mockLoginUser(1L);
+
+        AnalysisReport report = new AnalysisReport();
+        report.setId(10L);
+        report.setUserId(1L);
+        report.setDeleted(0);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+        when(analysisReportMapper.deleteById(10L)).thenReturn(1);
+
+        analysisService.deleteReport(10L);
+
+        verify(analysisReportMapper).deleteById(10L);
+    }
+
+    @Test
+    void deleteReportShouldThrowWhenReportNotFound() {
+        mockLoginUser(1L);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        assertThrows(com.internpilot.exception.BusinessException.class,
+                () -> analysisService.deleteReport(999L));
+    }
+
+    @Test
+    void deleteReportShouldThrowWhenNotOwner() {
+        mockLoginUser(1L);
+
+        AnalysisReport report = new AnalysisReport();
+        report.setId(10L);
+        report.setUserId(2L);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+
+        assertThrows(com.internpilot.exception.BusinessException.class,
+                () -> analysisService.deleteReport(10L));
+    }
+
     private Resume buildResume() {
         Resume resume = new Resume();
         resume.setId(1L);
@@ -255,8 +382,8 @@ class AnalysisServiceImplTest {
 
     private void mockLoginUser(Long userId) {
         CustomUserDetails userDetails = new CustomUserDetails(userId, "wan", "USER");
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
+                userDetails.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }

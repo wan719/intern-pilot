@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,9 +52,17 @@ public class AnalysisController {
     }
 
     @Operation(summary = "查询分析报告详情", description = "查询当前用户某份 AI 分析报告的完整内容")
-    @PreAuthorize("hasAuthority('analysis:read')")
     @GetMapping("/reports/{id}")
+    @PreAuthorize("hasAuthority('analysis:read')")
     public Result<AnalysisReportDetailResponse> getReportDetail(@PathVariable Long id) {
         return Result.success(analysisService.getReportDetail(id));
+    }
+
+    @Operation(summary = "删除分析报告", description = "逻辑删除当前用户自己的 AI 分析报告")
+    @DeleteMapping("/reports/{id}")
+    @PreAuthorize("hasAuthority('analysis:delete')")
+    public Result<Void> deleteReport(@PathVariable Long id) {
+        analysisService.deleteReport(id);
+        return Result.success();
     }
 }

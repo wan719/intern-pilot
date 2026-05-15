@@ -13,10 +13,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Schema(description = "JWT认证过滤器，负责从HTTP请求中提取JWT Token，验证其有效性，并将认证信息存储在Spring Security上下文中")//这个注解用于Swagger API文档生成，提供了对该组件的描述信息
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";

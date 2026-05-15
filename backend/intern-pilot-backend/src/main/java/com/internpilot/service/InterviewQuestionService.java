@@ -20,4 +20,6 @@ public interface InterviewQuestionService {
     InterviewQuestionDetailResponse getDetail(Long reportId);
 
     Boolean delete(Long reportId);
+
+    InterviewQuestionGenerateResponse regenerate(Long reportId);
 }

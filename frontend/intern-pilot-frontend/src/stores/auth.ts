@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { getCurrentUserApi } from '@/api/auth'
 import { getToken, removeToken, setToken } from '@/utils/token'
 
 export const useAuthStore = defineStore('auth', {
@@ -14,6 +15,18 @@ export const useAuthStore = defineStore('auth', {
     },
     setUser(user: any) {
       this.user = user
+    },
+    async fetchCurrentUser() {
+      if (!getToken()) {
+        this.user = null
+        return null
+      }
+      const user = await getCurrentUserApi()
+      this.user = user
+      return user
+    },
+    hasPermission(permission: string) {
+      return this.user?.permissions?.includes(permission) ?? false
     },
     logout() {
       this.token = null

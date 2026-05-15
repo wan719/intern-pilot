@@ -38,13 +38,14 @@ public class AdminController {
     private final AdminPermissionService adminPermissionService;
 
     @Operation(summary = "连通性检查")
+    @PreAuthorize("hasAuthority('admin:dashboard')")
     @GetMapping("/ping")
     public Result<String> ping() {
         return Result.success("admin ok");
     }
 
     @Operation(summary = "查询用户列表")
-    @PreAuthorize("hasAuthority('admin:user:read')")
+    @PreAuthorize("hasAuthority('user:read')")
     @GetMapping("/users")
     public Result<PageResult<AdminUserListResponse>> listUsers(
             @RequestParam(required = false) String keyword,
@@ -57,14 +58,14 @@ public class AdminController {
     }
 
     @Operation(summary = "查询用户详情")
-    @PreAuthorize("hasAuthority('admin:user:read')")
+    @PreAuthorize("hasAuthority('user:read')")
     @GetMapping("/users/{id}")
     public Result<AdminUserDetailResponse> getUserDetail(@PathVariable Long id) {
         return Result.success(adminUserService.getDetail(id));
     }
 
     @Operation(summary = "禁用用户")
-    @PreAuthorize("hasAuthority('admin:user:disable')")
+    @PreAuthorize("hasAuthority('user:update')")
     @OperationLog(module = "管理员", operation = "禁用用户", type = OperationTypeEnum.DISABLE)
     @PutMapping("/users/{id}/disable")
     public Result<Boolean> disableUser(@PathVariable Long id) {
@@ -72,7 +73,7 @@ public class AdminController {
     }
 
     @Operation(summary = "启用用户")
-    @PreAuthorize("hasAuthority('admin:user:disable')")
+    @PreAuthorize("hasAuthority('user:update')")
     @OperationLog(module = "管理员", operation = "启用用户", type = OperationTypeEnum.ENABLE)
     @PutMapping("/users/{id}/enable")
     public Result<Boolean> enableUser(@PathVariable Long id) {
@@ -80,7 +81,7 @@ public class AdminController {
     }
 
     @Operation(summary = "修改用户角色")
-    @PreAuthorize("hasAuthority('admin:user:write')")
+    @PreAuthorize("hasAuthority('user:update')")
     @OperationLog(module = "管理员", operation = "修改用户角色", type = OperationTypeEnum.GRANT)
     @PutMapping("/users/{id}/roles")
     public Result<Boolean> updateUserRoles(
@@ -91,14 +92,14 @@ public class AdminController {
     }
 
     @Operation(summary = "查询角色列表")
-    @PreAuthorize("hasAuthority('admin:role:read')")
+    @PreAuthorize("hasAuthority('role:read')")
     @GetMapping("/roles")
     public Result<List<RoleResponse>> listRoles() {
         return Result.success(adminPermissionService.listRoles());
     }
 
     @Operation(summary = "查询权限列表")
-    @PreAuthorize("hasAuthority('admin:permission:read')")
+    @PreAuthorize("hasAuthority('permission:read')")
     @GetMapping("/permissions")
     public Result<List<PermissionResponse>> listPermissions(
             @RequestParam(required = false) String resourceType
@@ -107,7 +108,7 @@ public class AdminController {
     }
 
     @Operation(summary = "修改角色权限")
-    @PreAuthorize("hasAuthority('admin:role:write')")
+    @PreAuthorize("hasAuthority('role:update')")
     @OperationLog(module = "管理员", operation = "修改角色权限", type = OperationTypeEnum.GRANT)
     @PutMapping("/roles/{id}/permissions")
     public Result<Boolean> updateRolePermissions(
@@ -118,7 +119,7 @@ public class AdminController {
     }
 
     @Operation(summary = "管理员看板汇总")
-    @PreAuthorize("hasAuthority('dashboard:admin:read')")
+    @PreAuthorize("hasAuthority('admin:dashboard')")
     @GetMapping("/dashboard/summary")
     public Result<AdminDashboardSummaryResponse> dashboardSummary() {
         return Result.success(adminUserService.dashboardSummary());

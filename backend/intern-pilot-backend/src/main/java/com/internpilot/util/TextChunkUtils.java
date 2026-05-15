@@ -3,6 +3,8 @@ package com.internpilot.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+@Schema(description = "文本分块工具类，提供了将长文本内容分割成多个较小的块的方法，以便在处理AI模型输入时能够更好地控制每个输入块的长度，确保符合模型的输入限制并提高处理效率")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class TextChunkUtils {
 
     private static final int MAX_CHUNK_LENGTH = 800;

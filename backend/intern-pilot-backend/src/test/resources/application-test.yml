@@ -26,10 +26,11 @@ jwt:
 
 ai:
   provider: mock
-  api-key: test
   base-url: mock
+  api-key: test
   model: mock-ai
-  timeout: 3000
+  pro-model: mock-ai-pro
+  timeout-seconds: 3
 
 rag:
   enabled: false

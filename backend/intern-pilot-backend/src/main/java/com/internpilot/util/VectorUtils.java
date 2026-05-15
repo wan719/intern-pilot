@@ -3,8 +3,10 @@ package com.internpilot.util;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+@Schema(description = "向量工具类，提供了计算余弦相似度、将向量序列化成JSON字符串以及将JSON字符串反序列化成向量等功能，用于在职位推荐和匹配过程中处理向量数据")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class VectorUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

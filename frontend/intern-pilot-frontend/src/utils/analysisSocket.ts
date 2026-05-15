@@ -3,12 +3,13 @@ import { Client } from '@stomp/stompjs'
 
 export interface AnalysisProgressMessage {
   taskNo: string
+  userId?: number
   status: string
   progress: number
   message: string
   reportId?: number
   errorMessage?: string
-  time?: string
+  timestamp?: string
 }
 
 export function createAnalysisSocket(

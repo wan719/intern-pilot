@@ -1,12 +1,15 @@
 package com.internpilot.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("interview_question_report")
+@TableName("interview_question_report")//面试问题报告表，报告包含多个面试问题
+@Schema(description = "面试问题报告实体类，包含面试问题报告的详细信息和关联的面试问题")
 public class InterviewQuestionReport {
 
     @TableId(type = IdType.AUTO)

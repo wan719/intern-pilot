@@ -2,8 +2,10 @@ package com.internpilot.controller;
 
 import com.internpilot.common.PageResult;
 import com.internpilot.mapper.SystemOperationLogMapper;
+import com.internpilot.security.CustomUserDetailsService;
 import com.internpilot.service.AdminPermissionService;
 import com.internpilot.service.AdminUserService;
+import com.internpilot.security.JwtTokenProvider;
 import com.internpilot.vo.admin.AdminDashboardSummaryResponse;
 import com.internpilot.vo.admin.PermissionResponse;
 import com.internpilot.vo.admin.RoleResponse;
@@ -12,6 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +45,12 @@ class AdminSecurityTest {
     @MockBean
     private SystemOperationLogMapper systemOperationLogMapper;
 
+    @MockBean
+    private CustomUserDetailsService customUserDetailsService;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
     @Test
     void users_shouldReturnUnauthorized_whenNotLogin() throws Exception {
         mockMvc.perform(get("/api/admin/users"))
@@ -54,7 +65,7 @@ class AdminSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "admin:user:read"})
+    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "user:read"})
     void users_shouldReturnOk_whenHasPermission() throws Exception {
         when(adminUserService.list(null, null, null, 1, 10))
                 .thenReturn(new PageResult<>());
@@ -71,7 +82,7 @@ class AdminSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "admin:user:disable"})
+    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "user:update"})
     void disableUser_shouldReturnOk_whenHasPermission() throws Exception {
         when(adminUserService.disable(1L)).thenReturn(true);
 
@@ -87,7 +98,7 @@ class AdminSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "admin:role:read"})
+    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "role:read"})
     void roles_shouldReturnOk_whenHasPermission() throws Exception {
         when(adminPermissionService.listRoles()).thenReturn(List.of(new RoleResponse()));
 
@@ -103,11 +114,49 @@ class AdminSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "dashboard:admin:read"})
+    @WithMockUser(username = "admin", authorities = {"ROLE_ADMIN", "admin:dashboard"})
     void dashboard_shouldReturnOk_whenHasPermission() throws Exception {
         when(adminUserService.dashboardSummary()).thenReturn(new AdminDashboardSummaryResponse());
 
         mockMvc.perform(get("/api/admin/dashboard/summary"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void ping_shouldReturnUnauthorized_whenNotLogin() throws Exception {
+        mockMvc.perform(get("/api/admin/ping"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ping_shouldReturnForbidden_whenUserTokenHasNoDashboardPermission() throws Exception {
+        when(customUserDetailsService.loadUserByUsername("wan"))
+                .thenReturn(userDetails("wan", "ROLE_USER", "resume:read"));
+        String token = jwtTokenProvider.generateToken(1L, "wan", "USER");
+
+        mockMvc.perform(get("/api/admin/ping")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ping_shouldReturnOk_whenAdminTokenHasDashboardPermission() throws Exception {
+        when(customUserDetailsService.loadUserByUsername("admin"))
+                .thenReturn(userDetails("admin", "ROLE_ADMIN", "admin:dashboard"));
+        String token = jwtTokenProvider.generateToken(2L, "admin", "ADMIN");
+
+        mockMvc.perform(get("/api/admin/ping")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    private UserDetails userDetails(String username, String... authorities) {
+        return new User(
+                username,
+                "N/A",
+                List.of(authorities).stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .toList()
+        );
     }
 }

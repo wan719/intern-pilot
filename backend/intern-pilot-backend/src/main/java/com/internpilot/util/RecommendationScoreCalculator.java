@@ -1,5 +1,8 @@
 package com.internpilot.util;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "推荐分数计算器，根据技能匹配分数、AI匹配分数和岗位类型分数等信息计算最终的推荐分数，用于评估学生与岗位的匹配程度")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class RecommendationScoreCalculator {
 
     public static int calculateFinalScore(

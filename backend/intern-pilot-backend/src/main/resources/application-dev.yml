@@ -30,8 +30,9 @@ file:
     - docx
 
 ai:
-  provider: ${AI_PROVIDER:deepseek}
-  api-key: ${AI_API_KEY:}
   base-url: ${AI_BASE_URL:https://api.deepseek.com}
-  model: ${AI_MODEL:deepseek-v4-pro}
-  timeout: ${AI_TIMEOUT:60000}
+  api-key: ${DEEPSEEK_API_KEY:}
+  provider: ${AI_PROVIDER:deepseek}
+  model: ${AI_MODEL:deepseek-v4-flash}
+  pro-model: ${AI_PRO_MODEL:deepseek-v4-pro}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:60}

@@ -11,3 +11,7 @@ export function getAnalysisReportsApi(params = {}) {
 export function getAnalysisReportDetailApi(id: number) {
   return request.get(`/api/analysis/reports/${id}`)
 }
+
+export function deleteAnalysisReportApi(id: number) {
+  return request.delete(`/api/analysis/reports/${id}`)
+}

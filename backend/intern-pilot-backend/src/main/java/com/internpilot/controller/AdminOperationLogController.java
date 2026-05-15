@@ -22,7 +22,7 @@ public class AdminOperationLogController {
     private final AdminOperationLogService adminOperationLogService;
 
     @Operation(summary = "查询系统操作日志列表")
-    @PreAuthorize("hasAuthority('system:log:read')")
+    @PreAuthorize("hasAuthority('operation-log:read')")
     @GetMapping
     public Result<PageResult<OperationLogListResponse>> list(
             @RequestParam(required = false) String module,
@@ -45,7 +45,7 @@ public class AdminOperationLogController {
     }
 
     @Operation(summary = "查询系统操作日志详情")
-    @PreAuthorize("hasAuthority('system:log:read')")
+    @PreAuthorize("hasAuthority('operation-log:read')")
     @GetMapping("/{id}")
     public Result<OperationLogDetailResponse> getDetail(@PathVariable Long id) {
         return Result.success(adminOperationLogService.getDetail(id));
@@ -57,7 +57,7 @@ public class AdminOperationLogController {
             operation = "删除系统操作日志",
             type = OperationTypeEnum.DELETE
     )
-    @PreAuthorize("hasAuthority('system:log:delete')")
+    @PreAuthorize("hasAuthority('operation-log:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
         return Result.success(adminOperationLogService.delete(id));

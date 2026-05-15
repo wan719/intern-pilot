@@ -30,7 +30,7 @@ public class InterviewQuestionGenerateResponse {
     @Schema(description = "题目数量")
     private Integer questionCount;
 
-    @Schema(description = "是否复用历史报告")
+    @Schema(description = "兼容字段，面试题生成不再复用历史报告，固定为 false")
     private Boolean cacheHit;
 
     @Schema(description = "创建时间")
