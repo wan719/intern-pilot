@@ -44,9 +44,12 @@ public class InterviewQuestionPromptBuilder {
         prompt.append("5. 题目难度要符合大学生暑期实习面试；\n");
         prompt.append("6. 答案要简洁但有要点；\n");
         prompt.append("7. 不要生成过于宽泛的问题；\n");
-        prompt.append("8. 必须严格返回 JSON；\n");
-        prompt.append("9. 不要返回 Markdown；\n");
-        prompt.append("10. 不要使用 ```json 代码块包裹。\n\n");
+        prompt.append("8. 你必须使用简体中文回答；\n");
+        prompt.append("9. 所有字段值必须使用简体中文；\n");
+        prompt.append("10. 除技术名词外，不要输出英文解释；\n");
+        prompt.append("11. 必须严格返回 JSON；\n");
+        prompt.append("12. 不要返回 Markdown；\n");
+        prompt.append("13. 不要使用 ```json 代码块包裹。\n\n");
 
         prompt.append("请生成 ").append(questionCount).append(" 道题，题目类型包含：\n");
         for (String category : categories) {

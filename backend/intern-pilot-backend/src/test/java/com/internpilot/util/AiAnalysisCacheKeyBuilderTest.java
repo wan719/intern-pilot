@@ -12,11 +12,11 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldReturnSameKeyForSameInput() {
         String key1 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
         String key2 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
         assertEquals(key1, key2);
@@ -26,11 +26,11 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldReturnDifferentKeyWhenResumeUpdatedAtChanges() {
         String key1 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
         String key2 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T11:00:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
         assertNotEquals(key1, key2);
@@ -40,11 +40,39 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldReturnDifferentKeyWhenJobUpdatedAtChanges() {
         String key1 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
         String key2 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T11:00:00", true, "v1"
+                8L, "2026-05-14T11:00:00", true, "v1", "deepseek-v4-flash"
+        );
+
+        assertNotEquals(key1, key2);
+    }
+
+    @Test
+    void buildShouldReturnDifferentKeyWhenResumeIdChanges() {
+        String key1 = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
+        );
+        String key2 = AiAnalysisCacheKeyBuilder.build(
+                1L, 11L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
+        );
+
+        assertNotEquals(key1, key2);
+    }
+
+    @Test
+    void buildShouldReturnDifferentKeyWhenJobIdChanges() {
+        String key1 = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
+        );
+        String key2 = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                9L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
         assertNotEquals(key1, key2);
@@ -54,11 +82,11 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldReturnDifferentKeyWhenPromptVersionChanges() {
         String key1 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
         String key2 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v2"
+                8L, "2026-05-14T10:40:00", true, "v2", "deepseek-v4-flash"
         );
 
         assertNotEquals(key1, key2);
@@ -68,11 +96,25 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldReturnDifferentKeyWhenRagEnabledChanges() {
         String key1 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
         String key2 = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", false, "v1"
+                8L, "2026-05-14T10:40:00", false, "v1", "deepseek-v4-flash"
+        );
+
+        assertNotEquals(key1, key2);
+    }
+
+    @Test
+    void buildShouldReturnDifferentKeyWhenModelChanges() {
+        String key1 = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
+        );
+        String key2 = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-pro"
         );
 
         assertNotEquals(key1, key2);
@@ -82,7 +124,7 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldStartWithCacheKeyPrefix() {
         String key = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
         assertTrue(key.startsWith("ai:analysis:result:"));
@@ -92,7 +134,7 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldHandleNullResumeVersionId() {
         String key = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, null, "2026-05-14T10:30:00",
-                8L, "2026-05-14T10:40:00", true, "v1"
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
         assertNotNull(key);
@@ -103,7 +145,18 @@ class AiAnalysisCacheKeyBuilderTest {
     void buildShouldHandleNullTimestamps() {
         String key = AiAnalysisCacheKeyBuilder.build(
                 1L, 10L, 3L, null,
-                8L, null, true, "v1"
+                8L, null, true, "v1", "deepseek-v4-flash"
+        );
+
+        assertNotNull(key);
+        assertTrue(key.startsWith("ai:analysis:result:"));
+    }
+
+    @Test
+    void buildShouldHandleNullModel() {
+        String key = AiAnalysisCacheKeyBuilder.build(
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", null
         );
 
         assertNotNull(key);

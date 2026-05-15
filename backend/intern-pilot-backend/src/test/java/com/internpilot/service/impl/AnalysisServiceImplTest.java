@@ -310,6 +310,47 @@ class AnalysisServiceImplTest {
         assertThrows(AiServiceException.class, () -> analysisService.match(request));
     }
 
+    @Test
+    void deleteReportShouldDeleteOwnReport() {
+        mockLoginUser(1L);
+
+        AnalysisReport report = new AnalysisReport();
+        report.setId(10L);
+        report.setUserId(1L);
+        report.setDeleted(0);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+        when(analysisReportMapper.deleteById(10L)).thenReturn(1);
+
+        analysisService.deleteReport(10L);
+
+        verify(analysisReportMapper).deleteById(10L);
+    }
+
+    @Test
+    void deleteReportShouldThrowWhenReportNotFound() {
+        mockLoginUser(1L);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        assertThrows(com.internpilot.exception.BusinessException.class,
+                () -> analysisService.deleteReport(999L));
+    }
+
+    @Test
+    void deleteReportShouldThrowWhenNotOwner() {
+        mockLoginUser(1L);
+
+        AnalysisReport report = new AnalysisReport();
+        report.setId(10L);
+        report.setUserId(2L);
+
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+
+        assertThrows(com.internpilot.exception.BusinessException.class,
+                () -> analysisService.deleteReport(10L));
+    }
+
     private Resume buildResume() {
         Resume resume = new Resume();
         resume.setId(1L);

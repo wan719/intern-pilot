@@ -1,6 +1,5 @@
 package com.internpilot.service.impl;
 
-import com.internpilot.enums.AiScenarioEnum;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -13,7 +12,7 @@ class MockAiClientTest {
 
     @Test
     void chatShouldReturnAnalysisJsonForResumeJobAnalysisPrompt() {
-        String prompt = "请根据学生简历和目标岗位JD进行匹配分析，输出matchScore等字段";
+        String prompt = "Please generate a resume-job match analysis with matchScore.";
         String result = mockAiClient.chat(prompt);
 
         assertNotNull(result);
@@ -24,7 +23,7 @@ class MockAiClientTest {
 
     @Test
     void chatShouldReturnOptimizedResumeForResumeOptimizationPrompt() {
-        String prompt = "请根据原始简历内容优化简历，生成一份更适合该岗位投递的简历优化版本";
+        String prompt = "Please optimize this resume and return an optimized resume version.";
         String result = mockAiClient.chat(prompt);
 
         assertNotNull(result);
@@ -34,27 +33,29 @@ class MockAiClientTest {
 
     @Test
     void chatShouldReturnQuestionsForInterviewQuestionPrompt() {
-        String prompt = "请根据学生简历和目标岗位JD生成面试题";
+        String prompt = "Generate interview questions with questionType, followUps and keywords.";
         String result = mockAiClient.chat(prompt);
 
         assertNotNull(result);
         assertTrue(result.contains("questions"));
-        assertTrue(result.contains("HashMap"));
+        assertTrue(result.contains("type"));
+        assertTrue(result.contains("TECHNICAL"));
+        assertTrue(result.contains("tags"));
     }
 
     @Test
     void chatShouldReturnRecommendationsForJobRecommendationPrompt() {
-        String prompt = "请根据学生简历进行岗位推荐";
+        String prompt = "Generate job recommendations for this student resume.";
         String result = mockAiClient.chat(prompt);
 
         assertNotNull(result);
         assertTrue(result.contains("recommendations"));
-        assertTrue(result.contains("腾讯"));
+        assertTrue(result.contains("星云科技"));
     }
 
     @Test
     void chatShouldReturnDefaultForUnknownPrompt() {
-        String prompt = "你好，请帮我分析一下";
+        String prompt = "Hello, please help me analyze this.";
         String result = mockAiClient.chat(prompt);
 
         assertNotNull(result);
@@ -79,9 +80,9 @@ class MockAiClientTest {
 
     @Test
     void chatShouldNotThrowForAnyPrompt() {
-        assertDoesNotThrow(() -> mockAiClient.chat("任意文本"));
+        assertDoesNotThrow(() -> mockAiClient.chat("any text"));
         assertDoesNotThrow(() -> mockAiClient.chat(""));
         assertDoesNotThrow(() -> mockAiClient.chat(null));
-        assertDoesNotThrow(() -> mockAiClient.chat("包含匹配分析和面试题的混合文本"));
+        assertDoesNotThrow(() -> mockAiClient.chat("mixed match analysis and interview questions"));
     }
 }

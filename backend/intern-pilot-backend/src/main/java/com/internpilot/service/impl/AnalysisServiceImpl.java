@@ -34,8 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -87,26 +89,53 @@ public class AnalysisServiceImpl implements AnalysisService {
         boolean ragEnabled = ragKnowledgeService != null;
         String cacheKey = buildCacheKey(userId, resume.getId(), resumeVersionId,
                 resumeUpdatedAt, job.getId(), jobUpdatedAt, ragEnabled);
+        String cacheProbePromptHash = hashText(PromptUtils.buildAnalysisPrompt(resumeText, job.getJdContent(), null));
         boolean forceRefresh = Boolean.TRUE.equals(request.getForceRefresh());
+
+        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                + "cacheHit=pending, cacheKey={}, promptHash={}, resumeId={}, resumeVersionId={}, resumeUpdatedAt={}, "
+                + "jobId={}, jobUpdatedAt={}, forceRefresh={}",
+                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, cacheProbePromptHash,
+                resume.getId(), resumeVersionId, resumeUpdatedAt,
+                job.getId(), jobUpdatedAt, forceRefresh);
 
         if (!forceRefresh) {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached instanceof AnalysisResultResponse cachedResponse) {
                 AnalysisResultResponse copy = copyResultResponse(cachedResponse);
                 copy.setCacheHit(true);
+                log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}",
+                        aiProperties.getProvider(), aiProperties.getModel(), cacheKey,
+                        cacheProbePromptHash, hashObject(copy));
                 return copy;
             }
             if (cached != null) {
                 AnalysisResultResponse cachedResponse = objectMapper.convertValue(cached, AnalysisResultResponse.class);
                 AnalysisResultResponse copy = copyResultResponse(cachedResponse);
                 copy.setCacheHit(true);
+                log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}",
+                        aiProperties.getProvider(), aiProperties.getModel(), cacheKey,
+                        cacheProbePromptHash, hashObject(copy));
                 return copy;
             }
         }
 
+        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                        + "cacheHit=false, cacheKey={}, promptHash={}, callingAi=true",
+                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, cacheProbePromptHash);
         String ragContext = buildRagContext(resumeText, job);
         String prompt = PromptUtils.buildAnalysisPrompt(resumeText, job.getJdContent(), ragContext);
+        String promptHash = hashText(prompt);
+        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                        + "cacheHit=false, cacheKey={}, promptHash={}, promptLength={}",
+                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, promptHash, prompt.length());
         String rawResponse = aiClient.chat(prompt);
+        String responseHash = hashText(rawResponse);
+        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+                        + "cacheHit=false, cacheKey={}, promptHash={}, responseHash={}, responseLength={}",
+                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, promptHash, responseHash, rawResponse.length());
         AiAnalysisResult aiResult = JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
         normalizeAiResult(aiResult);
 
@@ -183,6 +212,13 @@ public class AnalysisServiceImpl implements AnalysisService {
         return toDetailResponse(report);
     }
 
+    @Override
+    public void deleteReport(Long id) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        AnalysisReport report = getUserReportOrThrow(id, currentUserId);
+        analysisReportMapper.deleteById(report.getId());
+    }
+
     private Resume getUserResumeOrThrow(Long resumeId, Long userId) {
         Resume resume = resumeMapper.selectOne(
                 new LambdaQueryWrapper<Resume>()
@@ -219,7 +255,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                         .eq(AnalysisReport::getDeleted, 0)
                         .last("LIMIT 1"));
 
-        if (report == null) {
+        if (report == null || !userId.equals(report.getUserId())) {
             throw new BusinessException("分析报告不存在或无权限访问");
         }
         return report;
@@ -229,7 +265,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             String resumeUpdatedAt, Long jobId, String jobUpdatedAt, boolean ragEnabled) {
         return AiAnalysisCacheKeyBuilder.build(
                 userId, resumeId, resumeVersionId, resumeUpdatedAt,
-                jobId, jobUpdatedAt, ragEnabled, ANALYSIS_PROMPT_VERSION);
+                jobId, jobUpdatedAt, ragEnabled, ANALYSIS_PROMPT_VERSION,
+                aiProperties.getModel());
     }
 
     private String buildRagContext(String resumeText, JobDescription job) {
@@ -314,6 +351,18 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     private List<String> nullToEmpty(List<String> list) {
         return list == null ? Collections.emptyList() : list;
+    }
+
+    private String hashText(String text) {
+        return DigestUtils.md5DigestAsHex((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String hashObject(Object value) {
+        try {
+            return hashText(objectMapper.writeValueAsString(value));
+        } catch (Exception e) {
+            return "unavailable";
+        }
     }
 
     private AnalysisResultResponse toResultResponse(AnalysisReport report) {

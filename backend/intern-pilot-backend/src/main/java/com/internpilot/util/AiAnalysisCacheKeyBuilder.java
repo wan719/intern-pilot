@@ -19,7 +19,8 @@ public class AiAnalysisCacheKeyBuilder {
             Long jobId,
             String jobUpdatedAt,
             boolean ragEnabled,
-            String promptVersion
+            String promptVersion,
+            String model
     ) {
         String rawKey = userId + ":" +
                 resumeId + ":" +
@@ -28,7 +29,8 @@ public class AiAnalysisCacheKeyBuilder {
                 jobId + ":" +
                 (jobUpdatedAt == null ? "" : jobUpdatedAt) + ":" +
                 ragEnabled + ":" +
-                promptVersion;
+                promptVersion + ":" +
+                (model == null ? "" : model);
 
         String hash = DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
         return CACHE_KEY_PREFIX + hash;

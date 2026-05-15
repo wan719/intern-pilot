@@ -2,189 +2,219 @@ package com.internpilot.service.impl;
 
 import com.internpilot.enums.AiScenarioEnum;
 import com.internpilot.service.AiClient;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("mock")
+@ConditionalOnProperty(prefix = "ai", name = "provider", havingValue = "mock")
 public class MockAiClient implements AiClient {
 
-    @Override
-    public String chat(String prompt) {
-        AiScenarioEnum scenario = detectScenario(prompt);
+  @Override
+  public String chat(String prompt) {
+    AiScenarioEnum scenario = detectScenario(prompt);
 
-        return switch (scenario) {
-            case RESUME_JOB_ANALYSIS -> mockResumeJobAnalysis();
-            case RESUME_OPTIMIZATION -> mockResumeOptimization();
-            case INTERVIEW_QUESTION_GENERATION -> mockInterviewQuestions();
-            case JOB_RECOMMENDATION -> mockJobRecommendation();
-            case RAG_QA -> mockRagQa();
-            default -> mockDefaultResponse();
-        };
+    return switch (scenario) {
+      case RESUME_JOB_ANALYSIS -> mockResumeJobAnalysis();
+      case RESUME_OPTIMIZATION -> mockResumeOptimization();
+      case INTERVIEW_QUESTION_GENERATION -> mockInterviewQuestions();
+      case JOB_RECOMMENDATION -> mockJobRecommendation();
+      case RAG_QA -> mockRagQa();
+      default -> mockDefaultResponse();
+    };
+  }
+
+  private AiScenarioEnum detectScenario(String prompt) {
+    if (prompt == null || prompt.isBlank()) {
+      return AiScenarioEnum.UNKNOWN;
     }
 
-    private AiScenarioEnum detectScenario(String prompt) {
-        if (prompt == null || prompt.isBlank()) {
-            return AiScenarioEnum.UNKNOWN;
+    String lowerPrompt = prompt.toLowerCase();
+
+    if (lowerPrompt.contains("recommend")
+        || lowerPrompt.contains("job recommendation")) {
+      return AiScenarioEnum.JOB_RECOMMENDATION;
+    }
+
+    if (lowerPrompt.contains("optimize")
+        || lowerPrompt.contains("optimized resume")
+        || lowerPrompt.contains("resume optimization")) {
+      return AiScenarioEnum.RESUME_OPTIMIZATION;
+    }
+
+    if (lowerPrompt.contains("interview")
+        || lowerPrompt.contains("questiontype")
+        || lowerPrompt.contains("follow-up")
+        || lowerPrompt.contains("followup")) {
+      return AiScenarioEnum.INTERVIEW_QUESTION_GENERATION;
+    }
+
+    if (prompt.contains("matchScore")
+        || prompt.contains("matching report")
+        || lowerPrompt.contains("match analysis")
+        || (lowerPrompt.contains("resume") && lowerPrompt.contains("job"))
+        || (lowerPrompt.contains("json") && prompt.contains("JD"))) {
+      return AiScenarioEnum.RESUME_JOB_ANALYSIS;
+    }
+
+    if (lowerPrompt.contains("rag")
+        || lowerPrompt.contains("knowledge base")) {
+      return AiScenarioEnum.RAG_QA;
+    }
+
+    return AiScenarioEnum.UNKNOWN;
+  }
+
+  private String mockResumeJobAnalysis() {
+    return """
+        {
+          "matchScore": 82,
+          "matchLevel": "MEDIUM_HIGH",
+          "strengths": [
+            "Spring Boot 项目经验与目标岗位高度匹配",
+            "MySQL、Redis、JWT 和 RBAC 经验满足常见后端要求",
+            "简历包含完整全栈项目及部署实践"
+          ],
+          "weaknesses": [
+            "高并发生产经验仍然有限",
+            "分布式系统经验需要更具体的证据",
+            "测试和性能调优示例可以扩展"
+          ],
+          "missingSkills": [
+            "Docker 部署",
+            "Linux 运维",
+            "消息队列"
+          ],
+          "suggestions": [
+            "在项目部分补充可量化的 API、缓存和权限模块成果",
+            "准备 Spring Security 过滤器链和 JWT 认证的具体案例",
+            "增加部署或 CI/CD 段落以强化工程完整性"
+          ],
+          "interviewTips": [
+            "清晰解释 Spring Security 认证流程",
+            "准备 Redis 缓存穿透、击穿和雪崩的解决方案",
+            "以 InternPilot 为主要项目故事，描述自己的职责分工"
+          ]
         }
+        """;
+  }
 
-        if (prompt.contains("匹配分析") || prompt.contains("匹配度") || prompt.contains("matchScore")) {
-            return AiScenarioEnum.RESUME_JOB_ANALYSIS;
+  private String mockResumeOptimization() {
+    return """
+        优化后的简历内容（模拟）：
+
+        个人信息
+        --------
+        姓名：张三
+        学校：XX大学 软件工程 本科 2026届
+        邮箱：zhangsan@example.com
+        电话：138-xxxx-xxxx
+        GitHub：github.com/zhangsan
+
+        技术栈
+        --------
+        Java, Spring Boot, Spring Security, MyBatis, MySQL, Redis, JWT, Vue3, Docker, Git
+
+        项目经历
+        --------
+        InternPilot - AI 实习投递平台 | 全栈开发
+        2025.03 - 至今
+        - 基于 Spring Boot + Vue3 构建 AI 驱动的实习投递平台
+        - 设计并实现 RBAC 权限管理系统，支持角色-权限动态绑定
+        - 集成 JWT 无状态认证，实现登录拦截和 Token 刷新
+        - 使用 Redis 缓存 AI 分析结果，减少重复 API 调用
+        - 通过 WebSocket 实时推送 AI 分析任务进度
+        - 实现简历解析、岗位匹配、面试题生成等 AI 功能
+
+        技能亮点
+        --------
+        - 熟悉 Spring Boot 自动配置原理和常用 Starter
+        - 理解 MySQL InnoDB 索引结构和 SQL 优化
+        - 掌握 Redis 缓存策略和常见问题解决方案
+        - 了解 Docker 容器化部署和 CI/CD 流程
+        """;
+  }
+
+  private String mockInterviewQuestions() {
+    return """
+        {
+          "questions": [
+            {
+              "type": "TECHNICAL",
+              "question": "Spring Boot 中 @Transactional 注解的原理是什么？什么情况下事务会失效？",
+              "answer": "基于 AOP 代理实现，通过 TransactionInterceptor 拦截。失效场景：同类方法调用、非 public 方法、异常被 catch、rollbackFor 配置不当。",
+              "difficulty": "MEDIUM",
+              "tags": ["Spring Boot", "事务"]
+            },
+            {
+              "type": "TECHNICAL",
+              "question": "Redis 缓存穿透、击穿和雪崩分别是什么？如何解决？",
+              "answer": "穿透：查询不存在的数据，用布隆过滤器或缓存空值。击穿：热点 key 过期，用互斥锁或永不过期。雪崩：大量 key 同时过期，用随机过期时间或多级缓存。",
+              "difficulty": "MEDIUM",
+              "tags": ["Redis", "缓存"]
+            },
+            {
+              "type": "TECHNICAL",
+              "question": "JWT 的组成结构是什么？如何防止 JWT 被伪造？",
+              "answer": "Header.Payload.Signature 三部分。防伪造：使用强密钥签名、设置合理过期时间、HTTPS 传输、不存敏感信息在 Payload。",
+              "difficulty": "EASY",
+              "tags": ["JWT", "安全"]
+            },
+            {
+              "type": "PROJECT",
+              "question": "请详细介绍你在 InternPilot 项目中负责的模块和技术难点。",
+              "answer": "建议从 RBAC 权限设计、AI 分析流程、缓存策略等方面展开，重点说明自己独立完成的部分和遇到的挑战。",
+              "difficulty": "MEDIUM",
+              "tags": ["项目经验", "InternPilot"]
+            },
+            {
+              "type": "BEHAVIORAL",
+              "question": "在团队项目中遇到技术分歧时，你是如何处理的？",
+              "answer": "先理解对方观点，用数据和 demo 验证方案可行性，以项目目标为导向达成共识。",
+              "difficulty": "EASY",
+              "tags": ["团队协作", "沟通"]
+            }
+          ]
         }
+        """;
+  }
 
-        if (prompt.contains("优化简历") || prompt.contains("简历优化") || prompt.contains("简历优化版本")) {
-            return AiScenarioEnum.RESUME_OPTIMIZATION;
+  private String mockJobRecommendation() {
+    return """
+        {
+          "recommendations": [
+            {
+              "jobTitle": "Java 后端实习生",
+              "companyName": "星云科技",
+              "matchScore": 85,
+              "reason": "Spring Boot 和 RBAC 项目经验与岗位高度匹配。"
+            },
+            {
+              "jobTitle": "AI 应用开发实习生",
+              "companyName": "阿斯特 AI",
+              "matchScore": 78,
+              "reason": "AI 分析流程和 Prompt 工程经验相关。"
+            },
+            {
+              "jobTitle": "全栈开发实习生",
+              "companyName": "云桥科技",
+              "matchScore": 72,
+              "reason": "Vue 和 Spring Boot 技术栈合适，但生产部署经验可以扩展。"
+            }
+          ]
         }
+        """;
+  }
 
-        if (prompt.contains("面试题") || prompt.contains("面试准备") || prompt.contains("interview")) {
-            return AiScenarioEnum.INTERVIEW_QUESTION_GENERATION;
+  private String mockRagQa() {
+    return "根据知识库内容，Spring Boot、MyBatis、Redis 和 JWT 是后端实习面试的常见话题。建议准备基于项目的示例和技术权衡的解释。";
+  }
+
+  private String mockDefaultResponse() {
+    return """
+        {
+          "message": "Mock AI 默认响应",
+          "note": "未检测到特定业务场景。"
         }
-
-        if (prompt.contains("岗位推荐") || prompt.contains("推荐岗位")) {
-            return AiScenarioEnum.JOB_RECOMMENDATION;
-        }
-
-        if (prompt.contains("知识库") || prompt.contains("RAG")) {
-            return AiScenarioEnum.RAG_QA;
-        }
-
-        return AiScenarioEnum.UNKNOWN;
-    }
-
-    private String mockResumeJobAnalysis() {
-        return """
-                {
-                  "matchScore": 82,
-                  "matchLevel": "MEDIUM_HIGH",
-                  "strengths": [
-                    "具备 Spring Boot 项目开发经验",
-                    "熟悉 MySQL、Redis、JWT 等后端常用技术",
-                    "有完整项目从认证到部署的实践经历"
-                  ],
-                  "weaknesses": [
-                    "企业级高并发经验不足",
-                    "缺少真实线上项目性能优化经历",
-                    "对分布式系统理解仍需加强"
-                  ],
-                  "missingSkills": [
-                    "Docker",
-                    "Linux 部署",
-                    "消息队列"
-                  ],
-                  "suggestions": [
-                    "补充 Redis 缓存、接口限流和性能优化相关实践",
-                    "完善项目 README 和部署演示说明",
-                    "准备 Spring Security、MyBatis、事务等面试题"
-                  ],
-                  "interviewTips": [
-                    "准备 Spring Security 过滤器链流程",
-                    "准备 JWT 登录流程",
-                    "准备 Redis 缓存穿透、击穿、雪崩问题"
-                  ]
-                }
-                """;
-    }
-
-    private String mockResumeOptimization() {
-        return """
-                优化后的简历内容：
-
-                项目名称：InternPilot 面向大学生的 AI 实习投递与简历优化平台
-
-                项目描述：
-                基于 Spring Boot、Spring Security、MyBatis、MySQL、Redis、Vue3 和 Docker 构建的前后端分离 AI 应用平台，支持简历上传解析、岗位 JD 管理、AI 匹配分析、WebSocket 实时进度展示、RAG 岗位知识库和管理员权限系统。
-
-                个人职责：
-                1. 负责用户认证与 JWT 鉴权模块设计。
-                2. 负责 RBAC 权限系统设计，实现用户、角色、权限动态管理。
-                3. 负责 AI 简历匹配分析链路，实现 Redis 缓存和 WebSocket 进度推送。
-                4. 负责前后端联调、接口测试和 Docker Compose 本地部署。
-                """;
-    }
-
-    private String mockInterviewQuestions() {
-        return """
-                {
-                  "title": "Java后端开发实习生 面试题准备",
-                  "questions": [
-                    {
-                      "category": "Java基础",
-                      "difficulty": "EASY",
-                      "question": "HashMap 的底层数据结构是什么？",
-                      "answer": "JDK 8 中 HashMap 底层由数组、链表和红黑树组成。当链表长度超过阈值且数组容量足够时，链表会转换为红黑树以提高查询效率。"
-                    },
-                    {
-                      "category": "Spring Boot",
-                      "difficulty": "MEDIUM",
-                      "question": "Spring Boot 自动配置的原理是什么？",
-                      "answer": "Spring Boot 通过自动配置类、条件注解和配置元数据，在应用启动时根据类路径、配置文件和 Bean 条件自动装配所需组件。"
-                    },
-                    {
-                      "category": "项目经验",
-                      "difficulty": "MEDIUM",
-                      "question": "你的项目中为什么要使用 WebSocket 展示 AI 分析进度？",
-                      "answer": "因为 AI 分析属于耗时任务，如果只使用同步接口，用户体验较差。WebSocket 可以在任务执行过程中实时推送阶段进度，提升交互体验。"
-                    },
-                    {
-                      "category": "MySQL",
-                      "difficulty": "MEDIUM",
-                      "question": "MySQL 索引的底层数据结构是什么？为什么使用 B+ 树？",
-                      "answer": "MySQL InnoDB 引擎使用 B+ 树作为索引结构。B+ 树所有数据存储在叶子节点，非叶子节点只存储键值，适合范围查询和磁盘 IO 优化。"
-                    },
-                    {
-                      "category": "Redis",
-                      "difficulty": "MEDIUM",
-                      "question": "Redis 缓存穿透、击穿、雪崩分别是什么？如何解决？",
-                      "answer": "缓存穿透：查询不存在的数据，解决方案是布隆过滤器或缓存空值。缓存击穿：热点 key 过期，解决方案是互斥锁或永不过期。缓存雪崩：大量 key 同时过期，解决方案是过期时间加随机值或集群部署。"
-                    }
-                  ]
-                }
-                """;
-    }
-
-    private String mockJobRecommendation() {
-        return """
-                {
-                  "recommendations": [
-                    {
-                      "jobTitle": "Java后端开发实习生",
-                      "companyName": "腾讯",
-                      "matchScore": 85,
-                      "reason": "你的 Spring Boot 项目经验和后端技术栈与该岗位高度匹配"
-                    },
-                    {
-                      "jobTitle": "Java开发实习生",
-                      "companyName": "字节跳动",
-                      "matchScore": 78,
-                      "reason": "你的技术基础扎实，但高并发经验需要加强"
-                    },
-                    {
-                      "jobTitle": "后端开发实习生",
-                      "companyName": "美团",
-                      "matchScore": 72,
-                      "reason": "你的项目经验与岗位要求部分匹配，建议补充分布式系统知识"
-                    }
-                  ]
-                }
-                """;
-    }
-
-    private String mockRagQa() {
-        return """
-                根据知识库内容，以下是相关回答：
-
-                Spring Boot 是一个基于 Spring 框架的快速开发框架，它提供了自动配置、起步依赖和 Actuator 等功能，帮助开发者快速构建生产级别的 Spring 应用。
-
-                在实习面试中，面试官通常会关注候选人对 Spring Boot 核心特性的理解，包括自动配置原理、常用注解、以及如何与 MyBatis、Redis 等中间件集成。
-                """;
-    }
-
-    private String mockDefaultResponse() {
-        return """
-                {
-                  "message": "Mock AI 默认响应",
-                  "note": "未识别到具体业务场景，返回通用响应"
-                }
-                """;
-    }
+        """;
+  }
 }
