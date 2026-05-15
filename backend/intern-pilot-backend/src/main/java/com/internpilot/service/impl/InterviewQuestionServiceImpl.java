@@ -25,8 +25,9 @@ import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.service.AiClient;
 import com.internpilot.service.InterviewQuestionService;
 import com.internpilot.service.RagKnowledgeService;
+import com.internpilot.util.InterviewQuestionParser;
+import com.internpilot.util.InterviewQuestionPromptBuilder;
 import com.internpilot.util.JsonUtils;
-import com.internpilot.util.PromptUtils;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.interview.InterviewQuestionDetailResponse;
 import com.internpilot.vo.interview.InterviewQuestionGenerateResponse;
@@ -108,16 +109,15 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             analysisReportText = analysisReportText + "\n\n【岗位知识库参考内容】\n" + ragContext;
         }
 
-        String prompt = PromptUtils.buildInterviewQuestionPrompt(
+        String prompt = InterviewQuestionPromptBuilder.build(
                 resumeText,
                 job.getJdContent(),
-                analysisReportText);
+                analysisReportText,
+                request);
 
         String rawResponse = aiClient.chat(prompt);
 
-        AiInterviewQuestionResult aiResult = JsonUtils.parseAiJson(
-                rawResponse,
-                AiInterviewQuestionResult.class);
+        AiInterviewQuestionResult aiResult = InterviewQuestionParser.parse(rawResponse);
 
         if (aiResult.getQuestions() == null || aiResult.getQuestions().isEmpty()) {
             throw new BusinessException("AI 未生成有效面试题");
@@ -152,6 +152,9 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             question.setAnswer(item.getAnswer());
             question.setAnswerPoints(JsonUtils.toJsonString(nullToEmpty(item.getAnswerPoints())));
             question.setRelatedSkills(JsonUtils.toJsonString(nullToEmpty(item.getRelatedSkills())));
+            question.setFollowUps(JsonUtils.toJsonString(nullToEmpty(item.getFollowUps())));
+            question.setKeywords(JsonUtils.toJsonString(nullToEmpty(item.getKeywords())));
+            question.setSource(item.getSource());
             question.setSortOrder(sortOrder++);
 
             interviewQuestionMapper.insert(question);
@@ -236,6 +239,96 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         }
 
         return true;
+    }
+
+    @Override
+    @Transactional
+    public InterviewQuestionGenerateResponse regenerate(Long reportId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        InterviewQuestionReport existingReport = getUserQuestionReportOrThrow(reportId, currentUserId);
+
+        Resume resume = getUserResumeOrThrow(existingReport.getResumeId(), currentUserId);
+        ResumeVersion resumeVersion = resolveResumeVersion(resume, existingReport.getResumeVersionId(), currentUserId);
+        String resumeText = resumeVersion == null ? resume.getParsedText() : resumeVersion.getContent();
+        JobDescription job = getUserJobOrThrow(existingReport.getJobId(), currentUserId);
+
+        AnalysisReport analysisReport = null;
+        if (existingReport.getAnalysisReportId() != null) {
+            analysisReport = getUserAnalysisReportOrThrow(existingReport.getAnalysisReportId(), currentUserId);
+        }
+
+        if (!StringUtils.hasText(resumeText)) {
+            throw new BusinessException("简历解析文本为空，无法生成面试题");
+        }
+
+        if (!StringUtils.hasText(job.getJdContent())) {
+            throw new BusinessException("岗位JD为空，无法生成面试题");
+        }
+
+        String analysisReportText = buildAnalysisReportText(analysisReport);
+        String ragContext = buildRagContext(resumeText, job);
+        if (StringUtils.hasText(ragContext)) {
+            analysisReportText = analysisReportText + "\n\n【岗位知识库参考内容】\n" + ragContext;
+        }
+
+        String prompt = InterviewQuestionPromptBuilder.build(
+                resumeText,
+                job.getJdContent(),
+                analysisReportText,
+                null);
+
+        String rawResponse = aiClient.chat(prompt);
+
+        AiInterviewQuestionResult aiResult = InterviewQuestionParser.parse(rawResponse);
+
+        if (aiResult.getQuestions() == null || aiResult.getQuestions().isEmpty()) {
+            throw new BusinessException("AI 未生成有效面试题");
+        }
+
+        String title = StringUtils.hasText(aiResult.getTitle())
+                ? aiResult.getTitle()
+                : job.getCompanyName() + " " + job.getJobTitle() + " 面试题准备";
+
+        existingReport.setTitle(title);
+        existingReport.setQuestionCount(aiResult.getQuestions().size());
+        existingReport.setAiProvider(aiProperties.getProvider());
+        existingReport.setAiModel(aiProperties.getModel());
+        existingReport.setRawAiResponse(rawResponse);
+
+        interviewQuestionReportMapper.updateById(existingReport);
+
+        List<InterviewQuestion> oldQuestions = interviewQuestionMapper.selectList(
+                new LambdaQueryWrapper<InterviewQuestion>()
+                        .eq(InterviewQuestion::getReportId, existingReport.getId())
+                        .eq(InterviewQuestion::getUserId, currentUserId)
+                        .eq(InterviewQuestion::getDeleted, 0));
+
+        for (InterviewQuestion q : oldQuestions) {
+            q.setDeleted(1);
+            interviewQuestionMapper.updateById(q);
+        }
+
+        int sortOrder = 1;
+        for (AiInterviewQuestionResult.QuestionItem item : aiResult.getQuestions()) {
+            InterviewQuestion question = new InterviewQuestion();
+            question.setReportId(existingReport.getId());
+            question.setUserId(currentUserId);
+            question.setQuestionType(normalizeQuestionType(item.getQuestionType()));
+            question.setDifficulty(normalizeDifficulty(item.getDifficulty()));
+            question.setQuestion(item.getQuestion());
+            question.setAnswer(item.getAnswer());
+            question.setAnswerPoints(JsonUtils.toJsonString(nullToEmpty(item.getAnswerPoints())));
+            question.setRelatedSkills(JsonUtils.toJsonString(nullToEmpty(item.getRelatedSkills())));
+            question.setFollowUps(JsonUtils.toJsonString(nullToEmpty(item.getFollowUps())));
+            question.setKeywords(JsonUtils.toJsonString(nullToEmpty(item.getKeywords())));
+            question.setSource(item.getSource());
+            question.setSortOrder(sortOrder++);
+
+            interviewQuestionMapper.insert(question);
+        }
+
+        return toGenerateResponse(existingReport, false);
     }
 
     private Resume getUserResumeOrThrow(Long resumeId, Long userId) {
@@ -481,8 +574,11 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         response.setDifficulty(question.getDifficulty());
         response.setQuestion(question.getQuestion());
         response.setAnswer(question.getAnswer());
-        response.setAnswerPoints(JsonUtils.fromJsonString(question.getAnswerPoints(), List.class));
-        response.setRelatedSkills(JsonUtils.fromJsonString(question.getRelatedSkills(), List.class));
+        response.setAnswerPoints(JsonUtils.toStringList(question.getAnswerPoints()));
+        response.setRelatedSkills(JsonUtils.toStringList(question.getRelatedSkills()));
+        response.setFollowUps(JsonUtils.toStringList(question.getFollowUps()));
+        response.setKeywords(JsonUtils.toStringList(question.getKeywords()));
+        response.setSource(question.getSource());
         response.setSortOrder(question.getSortOrder());
         return response;
     }

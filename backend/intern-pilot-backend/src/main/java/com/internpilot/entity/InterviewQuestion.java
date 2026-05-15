@@ -28,6 +28,12 @@ public class InterviewQuestion {
 
     private String relatedSkills;
 
+    private String followUps;
+
+    private String keywords;
+
+    private String source;
+
     private Integer sortOrder;
 
     private LocalDateTime createdAt;

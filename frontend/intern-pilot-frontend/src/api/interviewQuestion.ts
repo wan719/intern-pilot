@@ -15,3 +15,7 @@ export function getInterviewQuestionDetailApi(reportId: number) {
 export function deleteInterviewQuestionReportApi(reportId: number) {
   return request.delete(`/api/interview-questions/${reportId}`)
 }
+
+export function regenerateInterviewQuestionsApi(reportId: number) {
+  return request.post(`/api/interview-questions/${reportId}/regenerate`)
+}

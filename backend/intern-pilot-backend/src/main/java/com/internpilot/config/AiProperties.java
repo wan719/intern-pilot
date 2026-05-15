@@ -9,13 +9,15 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "ai")
 public class AiProperties {
 
-    private String provider;
+    private String provider = "deepseek";
 
     private String apiKey;
 
-    private String baseUrl;
+    private String baseUrl = "https://api.deepseek.com";
 
-    private String model;
+    private String model = "deepseek-v4-flash";
 
-    private Long timeout;
+    private String proModel = "deepseek-v4-pro";
+
+    private Long timeoutSeconds = 60L;
 }

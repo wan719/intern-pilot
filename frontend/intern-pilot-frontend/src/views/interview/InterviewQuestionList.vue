@@ -64,6 +64,7 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="goDetail(row.reportId)">练习</el-button>
+            <el-button link type="success" @click="regenerateReport(row)">重新生成</el-button>
             <el-button link type="danger" @click="removeReport(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -155,6 +156,41 @@
           <el-switch v-model="form.forceRefresh" />
           <p class="field-hint">关闭时若已有相同组合的历史报告，会直接打开历史结果。</p>
         </el-form-item>
+
+        <el-form-item label="题目数量">
+          <el-input-number v-model="form.questionCount" :min="3" :max="20" />
+          <p class="field-hint">默认 8 道题，范围 3-20。</p>
+        </el-form-item>
+
+        <el-form-item label="题目分类">
+          <el-select v-model="form.categories" placeholder="不选则生成所有类型" multiple filterable>
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="难度">
+          <el-select v-model="form.difficulties" placeholder="不选则混合难度" multiple filterable>
+            <el-option
+              v-for="item in difficultyOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="生成参考答案">
+          <el-switch v-model="form.includeAnswer" />
+        </el-form-item>
+
+        <el-form-item label="生成追问问题">
+          <el-switch v-model="form.includeFollowUps" />
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -177,7 +213,8 @@ import { getAnalysisReportsApi } from '@/api/analysis'
 import {
   deleteInterviewQuestionReportApi,
   generateInterviewQuestionsApi,
-  getInterviewQuestionReportsApi
+  getInterviewQuestionReportsApi,
+  regenerateInterviewQuestionsApi
 } from '@/api/interviewQuestion'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
@@ -213,11 +250,36 @@ const form = reactive<{
   jobId?: number
   analysisReportId?: number
   forceRefresh: boolean
+  questionCount?: number
+  categories?: string[]
+  difficulties?: string[]
+  includeAnswer: boolean
+  includeFollowUps: boolean
 }>({
-  forceRefresh: false
+  forceRefresh: false,
+  includeAnswer: true,
+  includeFollowUps: true
 })
 
 const canGenerate = computed(() => resumes.value.length > 0 && jobs.value.length > 0)
+
+const categoryOptions = [
+  { label: 'Java 基础', value: 'JAVA_BASIC' },
+  { label: 'Spring Boot', value: 'SPRING_BOOT' },
+  { label: 'Spring Security', value: 'SPRING_SECURITY' },
+  { label: 'MySQL', value: 'MYSQL' },
+  { label: 'Redis', value: 'REDIS' },
+  { label: '项目追问', value: 'PROJECT' },
+  { label: 'HR 面试', value: 'HR' },
+  { label: '简历深挖', value: 'RESUME' },
+  { label: '岗位技能专项', value: 'JOB_SKILL' }
+]
+
+const difficultyOptions = [
+  { label: '简单', value: 'EASY' },
+  { label: '中等', value: 'MEDIUM' },
+  { label: '较难', value: 'HARD' }
+]
 
 const filteredAnalysisReports = computed(() => {
   if (!form.resumeId || !form.jobId) {
@@ -340,6 +402,22 @@ async function removeReport(row: any) {
   await deleteInterviewQuestionReportApi(row.reportId)
   ElMessage.success('删除成功')
   loadReports()
+}
+
+async function regenerateReport(row: any) {
+  await ElMessageBox.confirm(
+    `确认重新生成「${row.title || '面试题报告'}」？旧的题目将被替换。`,
+    '重新生成确认',
+    { type: 'warning' }
+  )
+  try {
+    const res: any = await regenerateInterviewQuestionsApi(row.reportId)
+    ElMessage.success('面试题重新生成成功')
+    await loadReports()
+    router.push(`/interview-questions/${res.reportId}`)
+  } catch {
+    ElMessage.error('重新生成失败，请稍后重试')
+  }
 }
 
 onMounted(async () => {

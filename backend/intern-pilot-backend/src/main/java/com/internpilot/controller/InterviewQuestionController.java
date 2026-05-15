@@ -60,4 +60,12 @@ public class InterviewQuestionController {
     public Result<Boolean> delete(@PathVariable Long reportId) {
         return Result.success(interviewQuestionService.delete(reportId));
     }
+
+    @Operation(summary = "重新生成面试题", description = "基于已有报告重新生成面试题")
+    @OperationLog(module = "AI面试题", operation = "重新生成AI面试题", type = OperationTypeEnum.AI, recordParams = false)
+    @PreAuthorize("hasAuthority('analysis:write')")
+    @PostMapping("/{reportId}/regenerate")
+    public Result<InterviewQuestionGenerateResponse> regenerate(@PathVariable Long reportId) {
+        return Result.success(interviewQuestionService.regenerate(reportId));
+    }
 }

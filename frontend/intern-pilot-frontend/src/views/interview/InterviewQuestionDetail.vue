@@ -2,6 +2,7 @@
   <PageContainer title="面试题练习" :description="detail?.title || '先看题目自测，再展开参考答案和答题要点。'">
     <template #actions>
       <el-button @click="router.push('/interview-questions')">返回列表</el-button>
+      <el-button type="primary" :loading="regenerating" @click="regenerate">重新生成</el-button>
     </template>
 
     <section v-if="loading" class="panel">
@@ -81,6 +82,25 @@
                   </el-tag>
                   <span v-if="!item.relatedSkills?.length" class="empty-text">暂无技能标签</span>
                 </div>
+
+                <div v-if="item.followUps?.length" class="tag-section">
+                  <h4>追问问题</h4>
+                  <ul class="followup-list">
+                    <li v-for="(fu, idx) in item.followUps" :key="idx">{{ fu }}</li>
+                  </ul>
+                </div>
+
+                <div v-if="item.keywords?.length" class="tag-section">
+                  <h4>关键词</h4>
+                  <el-tag v-for="kw in item.keywords" :key="kw" type="info">
+                    {{ kw }}
+                  </el-tag>
+                </div>
+
+                <div v-if="item.source" class="tag-section">
+                  <h4>生成依据</h4>
+                  <span class="source-text">{{ item.source }}</span>
+                </div>
               </template>
             </article>
           </div>
@@ -93,8 +113,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
-import { getInterviewQuestionDetailApi } from '@/api/interviewQuestion'
+import { getInterviewQuestionDetailApi, regenerateInterviewQuestionsApi } from '@/api/interviewQuestion'
 import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
@@ -104,6 +125,7 @@ const loading = ref(false)
 const errorText = ref('')
 const activeNames = ref<string[]>([])
 const visibleAnswerIds = ref<Set<number>>(new Set())
+const regenerating = ref(false)
 
 const groupedQuestions = computed(() => {
   const map = new Map<string, any[]>()
@@ -187,6 +209,22 @@ async function loadDetail() {
 }
 
 onMounted(loadDetail)
+
+async function regenerate() {
+  const id = Number(route.params.id)
+  if (!Number.isFinite(id)) return
+
+  regenerating.value = true
+  try {
+    await regenerateInterviewQuestionsApi(id)
+    ElMessage.success('面试题重新生成成功')
+    await loadDetail()
+  } catch {
+    ElMessage.error('重新生成失败，请稍后重试')
+  } finally {
+    regenerating.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -244,6 +282,18 @@ onMounted(loadDetail)
 
 .empty-text {
   color: #98a2b3;
+  font-size: 13px;
+}
+
+.followup-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #344054;
+  line-height: 1.8;
+}
+
+.source-text {
+  color: #667085;
   font-size: 13px;
 }
 

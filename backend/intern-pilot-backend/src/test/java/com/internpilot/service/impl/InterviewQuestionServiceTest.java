@@ -109,6 +109,9 @@ class InterviewQuestionServiceTest {
         q1.setAnswer("Spring Boot通过@EnableAutoConfiguration...");
         q1.setAnswerPoints("[\"自动配置原理\",\"@Conditional注解\"]");
         q1.setRelatedSkills("[\"Spring Boot\"]");
+        q1.setFollowUps("[\"追问1\",\"追问2\"]");
+        q1.setKeywords("[\"Spring Boot\",\"自动配置\"]");
+        q1.setSource("根据岗位要求生成");
         q1.setSortOrder(1);
 
         InterviewQuestion q2 = new InterviewQuestion();
@@ -172,11 +175,58 @@ class InterviewQuestionServiceTest {
         verify(interviewQuestionMapper).updateById(any(InterviewQuestion.class));
     }
 
+    @Test
+    void getDetailShouldReturnNewFields() {
+        mockLoginUser(1L);
+
+        InterviewQuestionReport report = new InterviewQuestionReport();
+        report.setId(1L);
+        report.setUserId(1L);
+        report.setTitle("测试面试题");
+        report.setResumeId(10L);
+        report.setJobId(20L);
+        report.setQuestionCount(1);
+        report.setCreatedAt(LocalDateTime.now());
+
+        when(interviewQuestionReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+
+        InterviewQuestion q1 = new InterviewQuestion();
+        q1.setId(1L);
+        q1.setQuestionType("JAVA_BASIC");
+        q1.setDifficulty("EASY");
+        q1.setQuestion("测试问题");
+        q1.setAnswer("测试答案");
+        q1.setAnswerPoints("[\"要点1\"]");
+        q1.setRelatedSkills("[\"Java\"]");
+        q1.setFollowUps("[\"追问1\",\"追问2\"]");
+        q1.setKeywords("[\"Java\",\"OOP\"]");
+        q1.setSource("根据岗位要求生成");
+        q1.setSortOrder(1);
+
+        when(interviewQuestionMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(List.of(q1));
+
+        JobDescription job = new JobDescription();
+        job.setId(20L);
+        job.setCompanyName("腾讯");
+        job.setJobTitle("Java后端开发实习生");
+        when(jobDescriptionMapper.selectById(20L)).thenReturn(job);
+
+        InterviewQuestionDetailResponse response = interviewQuestionService.getDetail(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.getQuestions().size());
+        assertNotNull(response.getQuestions().get(0).getFollowUps());
+        assertEquals(2, response.getQuestions().get(0).getFollowUps().size());
+        assertNotNull(response.getQuestions().get(0).getKeywords());
+        assertEquals(2, response.getQuestions().get(0).getKeywords().size());
+        assertEquals("根据岗位要求生成", response.getQuestions().get(0).getSource());
+    }
+
     private void mockLoginUser(Long userId) {
         CustomUserDetails userDetails = new CustomUserDetails(userId, "testuser", "USER");
 
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities())
-        );
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities()));
     }
 }

@@ -30,6 +30,15 @@ public class InterviewQuestionItemResponse {
     @Schema(description = "相关技能")
     private List<String> relatedSkills;
 
+    @Schema(description = "追问问题")
+    private List<String> followUps;
+
+    @Schema(description = "关键词")
+    private List<String> keywords;
+
+    @Schema(description = "生成依据")
+    private String source;
+
     @Schema(description = "排序")
     private Integer sortOrder;
 }
