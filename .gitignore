@@ -5,6 +5,7 @@ replay_pid*.log
 uploads/
 node_modules/
 dist/
+build/
 *.tsbuildinfo
 *.pdf
 *.docx
