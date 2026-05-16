@@ -616,7 +616,7 @@ server {
 | 平台 | 定位 | 地址 |
 | --- | --- | --- |
 | GitHub | 主仓库，主要开发、README 维护、CI/CD、提交历史保留 | `https://github.com/wan719/intern-pilot` |
-| Gitee | 同步仓库，用于课程提交和国内访问 | `https://gitee.com/你的用户名/intern-pilot` |
+| Gitee | 同步仓库，用于课程提交和国内访问 | `https://gitee.com/li-hong2006/intern-pilot` |
 
 原则：
 
@@ -644,7 +644,7 @@ git push gitee dev
 
 | 内容 | 说明 |
 | --- | --- |
-| Gitee 仓库完整 URL | `https://gitee.com/你的用户名/intern-pilot` |
+| Gitee 仓库完整 URL | `https://gitee.com/li-hong2006/intern-pilot` |
 | 项目名称 | InternPilot 智能实习领航员 |
 | 团队成员及分工 | wan719，独立完成项目选题、需求分析、前后端开发、数据库设计、AI 接入、测试和 README 编写 |
 
