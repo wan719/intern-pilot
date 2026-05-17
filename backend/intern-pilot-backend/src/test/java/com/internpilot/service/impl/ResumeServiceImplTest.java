@@ -1,4 +1,4 @@
-package com.internpilot.service.impl;
+package com.internpilot.service.resume.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -7,9 +7,9 @@ import com.internpilot.entity.ResumeVersion;
 import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.service.FileStorageService;
-import com.internpilot.service.ResumeParseService;
-import com.internpilot.service.StoredFileInfo;
+import com.internpilot.service.resume.FileStorageService;
+import com.internpilot.service.resume.ResumeParseService;
+import com.internpilot.service.resume.StoredFileInfo;
 import com.internpilot.vo.resume.ResumeDetailResponse;
 import com.internpilot.vo.resume.ResumeUploadResponse;
 import org.junit.jupiter.api.AfterEach;

@@ -1,7 +1,7 @@
-package com.internpilot.service.impl;
+package com.internpilot.ai.client;
 
 import com.internpilot.config.AiProperties;
-import com.internpilot.enums.AiScenarioEnum;
+import com.internpilot.ai.scenario.AiScenarioEnum;
 import com.internpilot.exception.AiServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -138,21 +138,21 @@ class DeepSeekAiClientTest {
                 @SuppressWarnings("unchecked")
                 List<Map<String, String>> messages = (List<Map<String, String>>) body.get("messages");
                 String systemContent = messages.get(0).get("content");
-                assertTrue(systemContent.contains("简体中文"),
+                assertTrue(systemContent.contains("简体中"),
                                 "System prompt should contain Chinese language constraint");
         }
 
         @Test
         void userPromptShouldContainChineseLanguageConstraintForNonJsonScenario() {
                 Map<String, Object> body = deepSeekAiClient.buildRequestBody(
-                                "优化简历",
+                                "优化简",
                                 AiScenarioEnum.RESUME_OPTIMIZATION,
                                 "deepseek-v4-flash");
 
                 @SuppressWarnings("unchecked")
                 List<Map<String, String>> messages = (List<Map<String, String>>) body.get("messages");
                 String userContent = messages.get(1).get("content");
-                assertTrue(userContent.contains("简体中文"),
+                assertTrue(userContent.contains("简体中"),
                                 "User prompt for non-JSON scenario should contain Chinese language constraint");
         }
 

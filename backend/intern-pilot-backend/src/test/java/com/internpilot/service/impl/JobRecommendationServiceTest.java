@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.recommendation.impl.JobRecommendationServiceImpl;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;

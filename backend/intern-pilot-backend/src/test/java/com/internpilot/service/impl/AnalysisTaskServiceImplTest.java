@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.analysis.impl.AnalysisTaskServiceImpl;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.dto.analysis.AnalysisTaskCreateRequest;
 import com.internpilot.entity.AnalysisTask;
@@ -7,8 +9,8 @@ import com.internpilot.enums.AnalysisTaskStatusEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisTaskMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.service.AnalysisProgressPublisher;
-import com.internpilot.service.AnalysisService;
+import com.internpilot.service.analysis.AnalysisProgressPublisher;
+import com.internpilot.service.analysis.AnalysisService;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
 import com.internpilot.vo.analysis.AnalysisTaskDetailResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -105,7 +107,7 @@ class AnalysisTaskServiceImplTest {
 
         verify(progressPublisher).publish(
                 anyString(), eq(1L), eq(AnalysisTaskStatusEnum.PENDING.getCode()),
-                eq(0), eq("任务已创建"), eq(null), eq(null)
+                eq(0), eq("任务已创"), eq(null), eq(null)
         );
     }
 

@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.resume.impl.ResumeParseServiceImpl;
+
 import com.internpilot.exception.FileParseException;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;

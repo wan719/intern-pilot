@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.analysis.impl.AnalysisServiceImpl;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,8 +16,8 @@ import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.service.AiClient;
-import com.internpilot.service.RagKnowledgeService;
+import com.internpilot.ai.client.AiClient;
+import com.internpilot.service.rag.RagKnowledgeService;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
@@ -224,7 +226,7 @@ class AnalysisServiceImplTest {
         report.setCreatedAt(LocalDateTime.now());
 
         Resume resume = buildResume();
-        resume.setResumeName("Java后端简历");
+        resume.setResumeName("Java后端简");
 
         when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
         when(resumeMapper.selectById(1L)).thenReturn(resume);
@@ -232,7 +234,7 @@ class AnalysisServiceImplTest {
 
         AnalysisReportDetailResponse response = analysisService.getReportDetail(5L);
 
-        assertEquals("Java后端简历", response.getResumeName());
+        assertEquals("Java后端简", response.getResumeName());
         assertEquals("腾讯", response.getCompanyName());
         assertEquals(1, response.getStrengths().size());
     }

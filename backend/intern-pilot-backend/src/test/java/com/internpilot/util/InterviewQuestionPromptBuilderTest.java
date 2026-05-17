@@ -1,5 +1,7 @@
 package com.internpilot.util;
 
+import com.internpilot.ai.prompt.InterviewQuestionPromptBuilder;
+
 import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
 import org.junit.jupiter.api.Test;
 

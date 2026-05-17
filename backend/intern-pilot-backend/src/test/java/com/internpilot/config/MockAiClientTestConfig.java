@@ -1,6 +1,6 @@
 package com.internpilot.config;
 
-import com.internpilot.service.AiClient;
+import com.internpilot.ai.client.AiClient;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;

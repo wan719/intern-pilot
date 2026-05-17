@@ -1,8 +1,9 @@
-package com.internpilot.service.impl;
+package com.internpilot.service.resume.impl;
 
 import com.internpilot.config.FileStorageConfig;
 import com.internpilot.exception.FileParseException;
-import com.internpilot.service.StoredFileInfo;
+import com.internpilot.service.resume.StoredFileInfo;
+import com.internpilot.service.resume.impl.LocalFileStorageServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;

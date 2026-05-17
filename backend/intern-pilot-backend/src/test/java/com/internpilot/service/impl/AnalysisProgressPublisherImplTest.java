@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.analysis.impl.AnalysisProgressPublisherImpl;
+
 import com.internpilot.enums.AnalysisTaskStatusEnum;
 import com.internpilot.vo.analysis.AnalysisProgressMessage;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,7 @@
 package com.internpilot.util;
 
+import com.internpilot.ai.parser.InterviewQuestionParser;
+
 import com.internpilot.dto.interview.AiInterviewQuestionResult;
 import com.internpilot.exception.BusinessException;
 import org.junit.jupiter.api.Test;

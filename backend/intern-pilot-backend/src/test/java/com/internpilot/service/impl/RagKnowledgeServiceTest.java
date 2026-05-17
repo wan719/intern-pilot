@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.service.rag.impl.RagKnowledgeServiceImpl;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.dto.rag.RagKnowledgeCreateRequest;
 import com.internpilot.dto.rag.RagSearchRequest;
@@ -9,7 +11,7 @@ import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.RagKnowledgeChunkMapper;
 import com.internpilot.mapper.RagKnowledgeDocumentMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.service.EmbeddingClient;
+import com.internpilot.ai.client.EmbeddingClient;
 import com.internpilot.vo.rag.RagSearchResultResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -87,7 +89,7 @@ class RagKnowledgeServiceTest {
 
         assertThatThrownBy(() -> ragKnowledgeService.create(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("RAG知识类型不合法");
+                .hasMessageContaining("RAG知识类型不合");
     }
 
     @Test
@@ -122,7 +124,7 @@ class RagKnowledgeServiceTest {
         request.setTitle("Java后端实习岗位能力模型");
         request.setDirection("Java后端");
         request.setKnowledgeType("SKILL_REQUIREMENT");
-        request.setContent("Java后端岗位需要掌握 Java、Spring Boot、MySQL、Redis 和接口设计。");
+        request.setContent("Java后端岗位需要掌Java、Spring Boot、MySQL、Redis 和接口设计");
         return request;
     }
 

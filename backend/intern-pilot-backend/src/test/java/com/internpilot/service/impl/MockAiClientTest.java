@@ -1,5 +1,7 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.ai.client.MockAiClient;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;

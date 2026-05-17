@@ -3,7 +3,7 @@ package com.internpilot.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.dto.auth.LoginRequest;
 import com.internpilot.dto.auth.RegisterRequest;
-import com.internpilot.service.AuthService;
+import com.internpilot.service.auth.AuthService;
 import com.internpilot.vo.auth.LoginResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
