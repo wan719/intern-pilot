@@ -337,6 +337,35 @@ a {
   }
 }
 
+.auth-demo-hint {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  color: #ad6800;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .el-input {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .el-button {
+    width: 148px;
+    flex: 0 0 148px;
+    margin-left: 0 !important;
+    white-space: nowrap;
+  }
+}
+
 .auth-form {
   align-self: center;
   padding: 36px;

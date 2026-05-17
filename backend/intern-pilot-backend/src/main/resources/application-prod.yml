@@ -23,6 +23,10 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
 
+auth:
+  captcha:
+    mode: ${AUTH_CAPTCHA_MODE:mock}
+
 file:
   upload-dir: uploads/resumes
   max-size: 10485760

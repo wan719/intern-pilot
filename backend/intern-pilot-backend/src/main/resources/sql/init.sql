@@ -17,15 +17,110 @@ CREATE TABLE IF NOT EXISTS user (
     major VARCHAR(100) DEFAULT NULL,
     grade VARCHAR(30) DEFAULT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    account_type VARCHAR(20) NOT NULL DEFAULT 'USERNAME',
+    phone_verified TINYINT NOT NULL DEFAULT 0,
+    email_verified TINYINT NOT NULL DEFAULT 0,
     enabled TINYINT NOT NULL DEFAULT 1,
     last_login_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
     UNIQUE KEY uk_user_username (username),
-    KEY idx_user_email (email),
+    UNIQUE KEY uk_user_phone (phone),
+    UNIQUE KEY uk_user_email (email),
     KEY idx_user_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN phone VARCHAR(20) DEFAULT NULL AFTER email',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'phone'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN account_type VARCHAR(20) NOT NULL DEFAULT ''USERNAME'' AFTER role',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'account_type'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN phone_verified TINYINT NOT NULL DEFAULT 0 AFTER account_type',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'phone_verified'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN email_verified TINYINT NOT NULL DEFAULT 0 AFTER phone_verified',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'email_verified'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN last_login_at DATETIME DEFAULT NULL AFTER enabled',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'last_login_at'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD UNIQUE KEY uk_user_phone (phone)',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_phone'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD UNIQUE KEY uk_user_email (email)',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_email'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -507,15 +602,19 @@ WHERE NOT EXISTS (
 -- Only for local demo environment
 -- =========================
 
-INSERT IGNORE INTO user (
+INSERT INTO user (
     username,
     password,
     email,
+    phone,
     real_name,
     school,
     major,
     grade,
     role,
+    account_type,
+    phone_verified,
+    email_verified,
     enabled,
     deleted
 )
@@ -524,11 +623,15 @@ VALUES
     'admin',
     '$2y$10$ESsqmJNo1tZqYzKCxaSKve7VLx6xnF77vav.k/iLBQ0bCP9c5B2E2',
     'admin@internpilot.local',
-    '系统管理员',
+    '13800000000',
+    'System Administrator',
     'InternPilot',
-    '软件工程',
-    '管理员',
+    'Software Engineering',
+    'Admin',
     'ADMIN',
+    'SYSTEM',
+    1,
+    1,
     1,
     0
 ),
@@ -536,14 +639,32 @@ VALUES
     'demo',
     '$2y$10$ESsqmJNo1tZqYzKCxaSKve7VLx6xnF77vav.k/iLBQ0bCP9c5B2E2',
     'demo@internpilot.local',
-    '演示用户',
-    '西南大学',
-    '软件工程',
-    '大二',
+    '13900000000',
+    'Demo User',
+    'Southwest University',
+    'Software Engineering',
+    'Sophomore',
     'USER',
+    'SYSTEM',
+    1,
+    1,
     1,
     0
-);
+)
+ON DUPLICATE KEY UPDATE
+    password = VALUES(password),
+    email = VALUES(email),
+    phone = VALUES(phone),
+    real_name = VALUES(real_name),
+    school = VALUES(school),
+    major = VALUES(major),
+    grade = VALUES(grade),
+    role = VALUES(role),
+    account_type = VALUES(account_type),
+    phone_verified = VALUES(phone_verified),
+    email_verified = VALUES(email_verified),
+    enabled = 1,
+    deleted = 0;
 
 INSERT IGNORE INTO user_role (user_id, role_id)
 SELECT u.id, r.id

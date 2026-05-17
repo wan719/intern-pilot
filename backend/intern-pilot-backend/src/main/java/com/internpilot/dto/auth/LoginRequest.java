@@ -8,9 +8,9 @@ import lombok.Data;
 @Schema(description = "用户登录请求")
 public class LoginRequest {
 
-    @Schema(description = "用户名", example = "wan")
-    @NotBlank(message = "用户名不能为空")
-    private String username;
+    @Schema(description = "手机号 / 邮箱 / 用户名（系统账号）", example = "demo@internpilot.local")
+    @NotBlank(message = "账号不能为空")
+    private String account;
 
     @Schema(description = "密码", example = "123456")
     @NotBlank(message = "密码不能为空")

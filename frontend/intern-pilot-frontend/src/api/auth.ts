@@ -1,16 +1,25 @@
 import request from '@/utils/request'
 
 export interface LoginRequest {
-  username: string
+  account: string
   password: string
 }
 
-export interface RegisterRequest extends LoginRequest {
+export interface RegisterRequest {
+  account: string
+  accountType: string
+  password: string
   confirmPassword: string
-  email?: string
+  captchaCode: string
+  username?: string
   school?: string
   major?: string
   grade?: string
+}
+
+export interface CaptchaSendRequest {
+  target: string
+  type: string
 }
 
 export function loginApi(data: LoginRequest) {
@@ -19,6 +28,10 @@ export function loginApi(data: LoginRequest) {
 
 export function registerApi(data: RegisterRequest) {
   return request.post('/api/auth/register', data)
+}
+
+export function sendRegisterCaptchaApi(data: CaptchaSendRequest) {
+  return request.post('/api/auth/captcha/register', data)
 }
 
 export function getCurrentUserApi() {

@@ -34,3 +34,11 @@ ai:
   model: ${AI_MODEL:deepseek-v4-flash}
   pro-model: ${AI_PRO_MODEL:deepseek-v4-pro}
   timeout-seconds: ${AI_TIMEOUT_SECONDS:60}
+
+auth:
+  captcha:
+    mode: ${AUTH_CAPTCHA_MODE:mock}
+    ttl-seconds: ${AUTH_CAPTCHA_TTL:300}
+    cooldown-seconds: ${AUTH_CAPTCHA_COOLDOWN:60}
+    max-fail-count: ${AUTH_CAPTCHA_MAX_FAIL:5}
+    daily-limit: ${AUTH_CAPTCHA_DAILY_LIMIT:10}

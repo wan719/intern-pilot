@@ -36,6 +36,12 @@ public class User {
 
     private String role;
 
+    private String accountType;
+
+    private Integer phoneVerified;
+
+    private Integer emailVerified;
+
     private Integer enabled;
 
     private LocalDateTime lastLoginAt;

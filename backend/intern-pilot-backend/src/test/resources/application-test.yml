@@ -24,6 +24,10 @@ jwt:
   secret: intern-pilot-test-secret-key-please-change-to-long-enough-string
   expiration: 3600000
 
+auth:
+  captcha:
+    mode: mock
+
 ai:
   provider: mock
   base-url: mock

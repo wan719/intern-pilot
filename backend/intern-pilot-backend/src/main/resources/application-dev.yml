@@ -29,6 +29,10 @@ file:
     - pdf
     - docx
 
+auth:
+  captcha:
+    mode: mock
+
 ai:
   base-url: ${AI_BASE_URL:https://api.deepseek.com}
   api-key: ${DEEPSEEK_API_KEY:}

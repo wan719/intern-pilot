@@ -9,12 +9,17 @@ CREATE TABLE IF NOT EXISTS `user` (
     major VARCHAR(100) DEFAULT NULL,
     grade VARCHAR(30) DEFAULT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    account_type VARCHAR(20) NOT NULL DEFAULT 'USERNAME',
+    phone_verified TINYINT NOT NULL DEFAULT 0,
+    email_verified TINYINT NOT NULL DEFAULT 0,
     enabled TINYINT NOT NULL DEFAULT 1,
     last_login_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
-    CONSTRAINT uk_user_username UNIQUE (username)
+    CONSTRAINT uk_user_username UNIQUE (username),
+    CONSTRAINT uk_user_phone UNIQUE (phone),
+    CONSTRAINT uk_user_email UNIQUE (email)
 );
 
 CREATE TABLE IF NOT EXISTS role (

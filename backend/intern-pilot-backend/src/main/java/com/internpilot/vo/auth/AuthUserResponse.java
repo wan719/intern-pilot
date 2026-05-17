@@ -18,6 +18,9 @@ public class AuthUserResponse {
     @Schema(description = "邮箱", example = "wan@example.com")
     private String email;
 
+    @Schema(description = "手机号", example = "13800000000")
+    private String phone;
+
     @Schema(description = "学校", example = "西南大学")
     private String school;
 

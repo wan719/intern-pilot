@@ -75,17 +75,21 @@ JOIN permission p
 WHERE r.role_code = 'ADMIN'
 ON DUPLICATE KEY UPDATE deleted = 0;
 
-INSERT INTO user (username, password, email, real_name, school, major, grade, role, enabled, deleted)
+INSERT INTO user (username, password, email, phone, real_name, school, major, grade, role, account_type, phone_verified, email_verified, enabled, deleted)
 VALUES
 (
     'admin',
     '$2a$10$vT/TFZxrkbTqFSyWqheFM.mKDMBH0MH78znE4y72rW65jiuBB0j0u',
     'admin@internpilot.local',
+    '13800000000',
     'System Administrator',
     'InternPilot',
     'Software Engineering',
     'Admin',
     'ADMIN',
+    'SYSTEM',
+    1,
+    1,
     1,
     0
 ),
@@ -93,22 +97,30 @@ VALUES
     'demo',
     '$2a$10$vT/TFZxrkbTqFSyWqheFM.mKDMBH0MH78znE4y72rW65jiuBB0j0u',
     'demo@internpilot.local',
+    '13900000000',
     'Demo User',
     'Southwest University',
     'Software Engineering',
     'Sophomore',
     'USER',
+    'SYSTEM',
+    1,
+    1,
     1,
     0
 )
 ON DUPLICATE KEY UPDATE
     password = VALUES(password),
     email = VALUES(email),
+    phone = VALUES(phone),
     real_name = VALUES(real_name),
     school = VALUES(school),
     major = VALUES(major),
     grade = VALUES(grade),
     role = VALUES(role),
+    account_type = VALUES(account_type),
+    phone_verified = VALUES(phone_verified),
+    email_verified = VALUES(email_verified),
     enabled = 1,
     deleted = 0;
 

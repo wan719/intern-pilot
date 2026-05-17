@@ -29,6 +29,7 @@ public class SecurityConfig {
     private static final String[] WHITE_LIST = {
             "/api/auth/register",
             "/api/auth/login",
+            "/api/auth/captcha/**",
             "/api/health",
             "/doc.html",
             "/webjars/**",
