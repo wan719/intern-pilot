@@ -14,15 +14,18 @@ spring:
       max-request-size: 10MB
   mail:
     host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:587}
+    port: ${MAIL_PORT:465}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:}
     properties:
       mail:
         smtp:
           auth: true
+          ssl:
+            enable: ${MAIL_SSL_ENABLED:true}
           starttls:
-            enable: true
+            enable: ${MAIL_STARTTLS_ENABLED:false}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -53,7 +56,7 @@ auth:
   captcha:
     mode: ${AUTH_CAPTCHA_MODE:mock}
     email-provider: ${AUTH_EMAIL_CAPTCHA_PROVIDER:mock}
-    sms-provider: ${AUTH_SMS_CAPTCHA_PROVIDER:mock}
+    sms-provider: ${AUTH_SMS_CAPTCHA_PROVIDER:disabled}
     ttl-seconds: ${AUTH_CAPTCHA_TTL:300}
     cooldown-seconds: ${AUTH_CAPTCHA_COOLDOWN:60}
     max-fail-count: ${AUTH_CAPTCHA_MAX_FAIL:5}

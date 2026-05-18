@@ -3,12 +3,10 @@ package com.internpilot.service.auth;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.captcha.EmailCaptchaSender;
 import com.internpilot.captcha.MockCaptchaSender;
-import com.internpilot.captcha.TencentSmsCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.entity.User;
 import com.internpilot.enums.CaptchaSceneEnum;
-import com.internpilot.enums.CaptchaTargetTypeEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +33,6 @@ public class CaptchaService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectProvider<MockCaptchaSender> mockCaptchaSenderProvider;
     private final EmailCaptchaSender emailCaptchaSender;
-    private final TencentSmsCaptchaSender tencentSmsCaptchaSender;
     private final CaptchaProperties captchaProperties;
     private final UserMapper userMapper;
 
@@ -43,32 +40,29 @@ public class CaptchaService {
         String target = request.getTarget().trim();
         String type = request.getType().trim().toUpperCase();
 
-        if (!CaptchaTargetTypeEnum.isSupported(type)) {
-            throw new BusinessException("账号类型无效，仅支持 PHONE 或 EMAIL");
+        if (!"EMAIL".equals(type)) {
+            throw new BusinessException("当前阶段仅支持邮箱注册验证码");
         }
+        validateEmail(target);
+        ensureEmailNotRegistered(target);
 
-        validateTarget(type, target);
-        CaptchaSceneEnum scene = "EMAIL".equals(type)
-                ? CaptchaSceneEnum.EMAIL_REGISTER
-                : CaptchaSceneEnum.PHONE_REGISTER;
-        ensureNotRegistered(type, target);
-
-        String provider = providerFor(type);
+        String provider = captchaProperties.getEmailProvider();
         if ("disabled".equalsIgnoreCase(provider)) {
-            throw new BusinessException("EMAIL".equals(type) ? "邮箱注册暂未开放" : "手机号注册暂未开放");
+            throw new BusinessException("邮箱注册暂未开放");
         }
 
-        String dailyKey = ensureCaptchaPolicy(scene, target);
+        String dailyKey = ensureCaptchaPolicy(CaptchaSceneEnum.EMAIL_REGISTER, target);
         String code = "mock".equalsIgnoreCase(provider) ? MOCK_CODE : generateCode();
         try {
-            sendByProvider(type, provider, target, code, scene);
+            sendByProvider(provider, target, code);
         } catch (RuntimeException e) {
             rollbackDailyCount(dailyKey);
             throw e;
         }
-        saveCaptcha(scene, target, code);
+        saveCaptcha(CaptchaSceneEnum.EMAIL_REGISTER, target, code);
 
-        log.info("Captcha sent. scene={} type={} target={}", scene.getCode(), type, maskTarget(type, target));
+        log.info("Captcha sent. scene={} type=EMAIL target={}",
+                CaptchaSceneEnum.EMAIL_REGISTER.getCode(), maskEmail(target));
     }
 
     public void validateCaptcha(String target, CaptchaSceneEnum scene, String inputCode) {
@@ -102,32 +96,19 @@ public class CaptchaService {
         stringRedisTemplate.delete(failKey);
     }
 
-    private void validateTarget(String type, String target) {
-        if ("EMAIL".equals(type)) {
-            if (!target.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                throw new BusinessException("邮箱格式不正确");
-            }
-            return;
-        }
-        if (!target.matches("^\\d{6,15}$")) {
-            throw new BusinessException("手机号格式不正确");
+    private void validateEmail(String target) {
+        if (!target.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new BusinessException("邮箱格式不正确");
         }
     }
 
-    private void ensureNotRegistered(String type, String target) {
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>().eq(User::getDeleted, 0);
-        if ("EMAIL".equals(type)) {
-            wrapper.eq(User::getEmail, target);
-            Long count = userMapper.selectCount(wrapper);
-            if (count != null && count > 0) {
-                throw new BusinessException("该邮箱已被注册");
-            }
-            return;
-        }
-        wrapper.eq(User::getPhone, target);
-        Long count = userMapper.selectCount(wrapper);
+    private void ensureEmailNotRegistered(String target) {
+        Long count = userMapper.selectCount(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getEmail, target)
+                        .eq(User::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BusinessException("该手机号已被注册");
+            throw new BusinessException("该邮箱已被注册");
         }
     }
 
@@ -156,23 +137,18 @@ public class CaptchaService {
         }
     }
 
-    private void sendByProvider(String type, String provider, String target, String code, CaptchaSceneEnum scene) {
+    private void sendByProvider(String provider, String target, String code) {
         if ("mock".equalsIgnoreCase(provider)) {
             MockCaptchaSender mockSender = mockCaptchaSenderProvider.getIfAvailable();
             if (mockSender == null) {
                 throw new BusinessException("验证码服务未配置，请联系管理员");
             }
-            mockSender.send(target, code, scene);
+            mockSender.send(target, code, CaptchaSceneEnum.EMAIL_REGISTER);
             return;
         }
 
-        if ("EMAIL".equals(type) && "smtp".equalsIgnoreCase(provider)) {
-            emailCaptchaSender.send(target, code, scene);
-            return;
-        }
-
-        if ("PHONE".equals(type) && "tencent".equalsIgnoreCase(provider)) {
-            tencentSmsCaptchaSender.send(target, code, scene);
+        if ("smtp".equalsIgnoreCase(provider)) {
+            emailCaptchaSender.send(target, code, CaptchaSceneEnum.EMAIL_REGISTER);
             return;
         }
 
@@ -188,25 +164,15 @@ public class CaptchaService {
         stringRedisTemplate.delete(failKey);
     }
 
-    private String providerFor(String type) {
-        return "EMAIL".equals(type) ? captchaProperties.getEmailProvider() : captchaProperties.getSmsProvider();
-    }
-
     private String generateCode() {
         return String.valueOf(100000 + RANDOM.nextInt(900000));
     }
 
-    private String maskTarget(String type, String target) {
-        if ("EMAIL".equals(type)) {
-            int at = target.indexOf('@');
-            if (at <= 1) {
-                return "***" + target.substring(Math.max(0, at));
-            }
-            return target.substring(0, Math.min(2, at)) + "***" + target.substring(at);
+    private String maskEmail(String target) {
+        int at = target.indexOf('@');
+        if (at <= 1) {
+            return "***" + target.substring(Math.max(0, at));
         }
-        if (target.length() < 7) {
-            return "******";
-        }
-        return target.substring(0, 3) + "****" + target.substring(target.length() - 4);
+        return target.substring(0, Math.min(2, at)) + "***" + target.substring(at);
     }
 }

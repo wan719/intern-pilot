@@ -28,7 +28,7 @@ auth:
   captcha:
     mode: mock
     email-provider: mock
-    sms-provider: mock
+    sms-provider: disabled
 
 ai:
   provider: mock

@@ -11,8 +11,8 @@ import com.internpilot.enums.AccountTypeEnum;
 import com.internpilot.enums.CaptchaSceneEnum;
 import com.internpilot.enums.UserRoleEnum;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.RoleMapper;
 import com.internpilot.mapper.PermissionMapper;
+import com.internpilot.mapper.RoleMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.mapper.UserRoleMapper;
 import com.internpilot.security.JwtTokenProvider;
@@ -44,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void sendRegisterCaptcha(CaptchaSendRequest request) {
+        authServiceEmailOnly(request.getType());
         captchaService.sendRegisterCaptcha(request);
     }
 
@@ -56,63 +57,37 @@ public class AuthServiceImpl implements AuthService {
 
         String account = request.getAccount().trim();
         String accountType = request.getAccountType().trim().toUpperCase();
-
-        if (!AccountTypeEnum.PHONE.getCode().equals(accountType)
-                && !AccountTypeEnum.EMAIL.getCode().equals(accountType)) {
-            throw new BusinessException("账号类型无效，仅支持 PHONE 或 EMAIL");
+        if (!AccountTypeEnum.EMAIL.getCode().equals(accountType)) {
+            throw new BusinessException("当前阶段仅支持邮箱注册");
+        }
+        if (!account.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new BusinessException("邮箱格式不正确");
         }
 
-        CaptchaSceneEnum scene;
-        if ("EMAIL".equals(accountType)) {
-            scene = CaptchaSceneEnum.EMAIL_REGISTER;
-            if (!account.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                throw new BusinessException("邮箱格式不正确");
-            }
-            Long emailCount = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getEmail, account)
-                            .eq(User::getDeleted, 0));
-            if (emailCount != null && emailCount > 0) {
-                throw new BusinessException("该邮箱已被注册");
-            }
-        } else {
-            scene = CaptchaSceneEnum.PHONE_REGISTER;
-            if (!account.matches("^\\d{6,15}$")) {
-                throw new BusinessException("手机号格式不正确");
-            }
-            Long phoneCount = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getPhone, account)
-                            .eq(User::getDeleted, 0));
-            if (phoneCount != null && phoneCount > 0) {
-                throw new BusinessException("该手机号已被注册");
-            }
+        Long emailCount = userMapper.selectCount(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getEmail, account)
+                        .eq(User::getDeleted, 0));
+        if (emailCount != null && emailCount > 0) {
+            throw new BusinessException("该邮箱已被注册");
         }
 
-        captchaService.validateCaptcha(account, scene, request.getCaptchaCode());
+        captchaService.validateCaptcha(account, CaptchaSceneEnum.EMAIL_REGISTER, request.getCaptchaCode());
 
         User user = new User();
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRoleEnum.USER.getCode());
         user.setEnabled(1);
-        user.setAccountType(accountType);
-
-        if ("EMAIL".equals(accountType)) {
-            user.setEmail(account);
-            user.setEmailVerified(1);
-            user.setPhoneVerified(0);
-            user.setUsername(StringUtils.hasText(request.getUsername())
-                    ? request.getUsername()
-                    : account.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 6));
-        } else {
-            user.setPhone(account);
-            user.setPhoneVerified(1);
-            user.setEmailVerified(0);
-            String autoUsername = StringUtils.hasText(request.getUsername())
-                    ? request.getUsername()
-                    : "user_" + account.substring(Math.max(0, account.length() - 4)) + "_" + UUID.randomUUID().toString().substring(0, 6);
-            user.setUsername(autoUsername);
-        }
+        user.setAccountType(AccountTypeEnum.EMAIL.getCode());
+        user.setEmail(account);
+        user.setEmailVerified(1);
+        user.setPhoneVerified(0);
+        user.setUsername(StringUtils.hasText(request.getUsername())
+                ? request.getUsername()
+                : account.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 6));
+        user.setSchool(request.getSchool());
+        user.setMajor(request.getMajor());
+        user.setGrade(request.getGrade());
 
         Long usernameCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>()
@@ -121,10 +96,6 @@ public class AuthServiceImpl implements AuthService {
         if (usernameCount != null && usernameCount > 0) {
             throw new BusinessException("用户名已被占用，请更换用户名");
         }
-
-        user.setSchool(request.getSchool());
-        user.setMajor(request.getMajor());
-        user.setGrade(request.getGrade());
 
         userMapper.insert(user);
 
@@ -148,30 +119,25 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        String account = request.getAccount().trim();
+        String email = request.getAccount().trim();
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new BusinessException("邮箱或密码错误");
+        }
 
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getEmail, account)
+                        .eq(User::getEmail, email)
                         .eq(User::getDeleted, 0)
                         .last("LIMIT 1"));
 
         if (user == null) {
-            user = userMapper.selectOne(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getPhone, account)
-                            .eq(User::getDeleted, 0)
-                            .last("LIMIT 1"));
-        }
-
-        if (user == null) {
-            throw new BusinessException("账号或密码错误");
+            throw new BusinessException("邮箱或密码错误");
         }
         if (user.getEnabled() == null || user.getEnabled() != 1) {
             throw new BusinessException("当前用户已被禁用");
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BusinessException("账号或密码错误");
+            throw new BusinessException("邮箱或密码错误");
         }
 
         user.setLastLoginTime(LocalDateTime.now());
@@ -184,6 +150,12 @@ public class AuthServiceImpl implements AuthService {
         return response;
     }
 
+    private void authServiceEmailOnly(String type) {
+        if (!"EMAIL".equalsIgnoreCase(type == null ? "" : type.trim())) {
+            throw new BusinessException("当前阶段仅支持邮箱注册验证码");
+        }
+    }
+
     private AuthUserResponse toAuthUserResponse(User user) {
         List<String> roles = permissionMapper.selectRoleCodesByUserId(user.getId());
         List<String> permissions = permissionMapper.selectPermissionCodesByUserId(user.getId());
@@ -191,6 +163,7 @@ public class AuthServiceImpl implements AuthService {
         AuthUserResponse response = new AuthUserResponse();
         response.setUserId(user.getId());
         response.setUsername(user.getUsername());
+        response.setNickname(user.getRealName());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setSchool(user.getSchool());

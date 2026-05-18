@@ -28,6 +28,7 @@ public class UserServiceImpl implements UserService {
         AuthUserResponse response = new AuthUserResponse();
         response.setUserId(user.getId());
         response.setUsername(user.getUsername());
+        response.setNickname(user.getRealName());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setSchool(user.getSchool());

@@ -21,15 +21,18 @@ spring:
 
   mail:
     host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:587}
+    port: ${MAIL_PORT:465}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:}
     properties:
       mail:
         smtp:
           auth: true
+          ssl:
+            enable: ${MAIL_SSL_ENABLED:true}
           starttls:
-            enable: true
+            enable: ${MAIL_STARTTLS_ENABLED:false}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000

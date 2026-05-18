@@ -9,8 +9,19 @@
         {{ aiProvider === 'deepseek' ? 'DeepSeek' : 'Mock AI' }}
       </el-tag>
       <el-button :icon="Refresh" circle @click="$emit('refresh')" />
-      <span>{{ auth.user?.username || '已登录用户' }}</span>
-      <el-button type="primary" plain @click="logout">退出</el-button>
+      <el-dropdown trigger="click" @command="handleCommand">
+        <el-button plain>
+          <el-icon><User /></el-icon>
+          <span>{{ displayName }}</span>
+          <el-icon><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+            <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
   </header>
 </template>
@@ -18,7 +29,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Refresh } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAiProviderApi } from '@/api/health'
 
@@ -28,11 +39,18 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const title = computed(() => route.meta.title || '数据看板')
+const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '已登录用户')
 const aiProvider = ref('')
 
-function logout() {
-  auth.logout()
-  router.push('/login')
+function handleCommand(command: string) {
+  if (command === 'profile') {
+    router.push('/user/center')
+    return
+  }
+  if (command === 'logout') {
+    auth.logout()
+    router.push('/login')
+  }
 }
 
 onMounted(async () => {

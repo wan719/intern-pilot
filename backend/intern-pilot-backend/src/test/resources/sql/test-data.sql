@@ -43,9 +43,9 @@ SELECT 1, id FROM permission WHERE permission_code IN (
 MERGE INTO role_permission (role_id, permission_id) KEY(role_id, permission_id)
 SELECT 2, id FROM permission;
 
-MERGE INTO `user` (id, username, password, email, phone, role, account_type, phone_verified, email_verified, enabled) KEY(id) VALUES
-(1, 'wan', '$2a$10$dummyhashedpassword', 'wan@example.com', '13800000001', 'USER', 'USERNAME', 0, 0, 1),
-(2, 'admin', '$2a$10$dummyhashedpassword', 'admin@internpilot.local', '13800000000', 'ADMIN', 'SYSTEM', 1, 1, 1);
+MERGE INTO `user` (id, username, password, email, phone, real_name, role, account_type, phone_verified, email_verified, enabled) KEY(id) VALUES
+(1, 'wan', '$2a$10$ALC4OfgsZIFH5B9VOqBB3eGDP0OyozNURp3ElLGH.O0VkdNzQzWkS', 'wan@example.com', NULL, '测试用户', 'USER', 'EMAIL', 0, 1, 1),
+(2, 'admin', '$2a$10$ALC4OfgsZIFH5B9VOqBB3eGDP0OyozNURp3ElLGH.O0VkdNzQzWkS', '3425446714@qq.com', NULL, '系统管理员', 'ADMIN', 'SYSTEM', 0, 1, 1);
 
 MERGE INTO user_role (user_id, role_id) KEY(user_id, role_id) VALUES
 (1, 1),

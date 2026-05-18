@@ -7,7 +7,7 @@ USE intern_pilot;
 SET NAMES utf8mb4;
 
 -- Local development RBAC seed data.
--- Password for both accounts: 123456
+-- The administrator password is stored only as a BCrypt hash.
 -- Run this after the base schema/init script has created the RBAC tables.
 -- This script is intended for local MySQL only, not for production.
 
@@ -76,42 +76,25 @@ WHERE r.role_code = 'ADMIN'
 ON DUPLICATE KEY UPDATE deleted = 0;
 
 INSERT INTO user (username, password, email, phone, real_name, school, major, grade, role, account_type, phone_verified, email_verified, enabled, deleted)
-VALUES
-(
+VALUES (
     'admin',
-    '$2a$10$vT/TFZxrkbTqFSyWqheFM.mKDMBH0MH78znE4y72rW65jiuBB0j0u',
-    'admin@internpilot.local',
-    '13800000000',
-    'System Administrator',
-    'InternPilot',
-    'Software Engineering',
-    'Admin',
+    '$2a$10$ZV3jkByDqvMmusH8GcxwPOeV2XxMmNPwW7mOkhCgdnfMHw6Osnhge',
+    '3425446714@qq.com',
+    NULL,
+    '系统管理员',
+    NULL,
+    NULL,
+    NULL,
     'ADMIN',
     'SYSTEM',
-    1,
-    1,
-    1,
-    0
-),
-(
-    'demo',
-    '$2a$10$vT/TFZxrkbTqFSyWqheFM.mKDMBH0MH78znE4y72rW65jiuBB0j0u',
-    'demo@internpilot.local',
-    '13900000000',
-    'Demo User',
-    'Southwest University',
-    'Software Engineering',
-    'Sophomore',
-    'USER',
-    'SYSTEM',
-    1,
+    0,
     1,
     1,
     0
 )
 ON DUPLICATE KEY UPDATE
+    username = VALUES(username),
     password = VALUES(password),
-    email = VALUES(email),
     phone = VALUES(phone),
     real_name = VALUES(real_name),
     school = VALUES(school),
@@ -127,7 +110,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO user_role (user_id, role_id, deleted)
 SELECT u.id, r.id, 0
 FROM user u
-JOIN role r ON r.role_code = u.role
-WHERE u.username IN ('admin', 'demo')
+JOIN role r ON r.role_code = 'ADMIN'
+WHERE u.email = '3425446714@qq.com'
   AND u.deleted = 0
 ON DUPLICATE KEY UPDATE deleted = 0;

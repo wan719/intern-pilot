@@ -312,15 +312,11 @@ npm run dev
 http://localhost:5173
 ```
 
-### 默认账号与测试数据
+### 默认账号与线上管理员
 
-| 账号 | 密码 | 角色 | 说明 |
-| --- | --- | --- | --- |
-| `admin@internpilot.local` / `13800000000` | 不公开 | 系统管理员 | 拥有全部权限，可访问管理后台 |
-| `demo@internpilot.local` / `13900000000` | 不公开 | 普通用户 | 用于体验核心功能 |
+线上系统不公开默认账号和管理员密码。`init.sql` 只初始化一个管理员邮箱账号 `3425446714@qq.com`，密码仅以 BCrypt 哈希形式保存，仓库和 README 不记录明文密码。
 
-> 以上账号仅用于本地开发和演示，生产环境请务必修改密码。
-
+本阶段不再初始化 `demo / 123456` 或旧 `admin / 123456` 演示账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
 系统启动时会执行 `src/main/resources/sql/init.sql`，包含：
 
 - 基础角色：`USER`、`ADMIN`
@@ -357,50 +353,34 @@ $env:SPRING_PROFILES_ACTIVE="test"
 
 如果 `AI_PROVIDER=deepseek` 但未设置 `DEEPSEEK_API_KEY`，后端会返回明确的 AI 服务错误，提示配置环境变量。
 
-### 注册验证码配置
+### 邮箱验证码配置
 
-注册验证码支持邮箱 SMTP、腾讯云短信和测试 Mock。生产环境不要使用 Mock。
+本阶段只开放邮箱注册验证码，手机验证码 provider 固定为 `disabled`。生产环境使用 SMTP 真实发送验证码，测试环境继续使用 MockCaptchaSender，不会真实发送邮件。
 
-邮箱验证码使用 SMTP 发送，需要配置：
-
-```env
-AUTH_EMAIL_CAPTCHA_PROVIDER=smtp
-MAIL_HOST=
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_FROM=
-```
-
-手机验证码使用腾讯云短信发送，需要先在腾讯云控制台完成短信签名和模板审核，然后配置：
-
-```env
-AUTH_SMS_CAPTCHA_PROVIDER=tencent
-TENCENT_SMS_SECRET_ID=
-TENCENT_SMS_SECRET_KEY=
-TENCENT_SMS_REGION=ap-guangzhou
-TENCENT_SMS_SDK_APP_ID=
-TENCENT_SMS_SIGN_NAME=
-TENCENT_SMS_TEMPLATE_ID=
-TENCENT_SMS_TEMPLATE_HAS_EXPIRE_MINUTES=false
-```
-
-如果暂时只开放邮箱注册、关闭手机号注册：
+以 QQ 邮箱 SMTP 为例，服务器 `.env` 需要配置：
 
 ```env
 AUTH_EMAIL_CAPTCHA_PROVIDER=smtp
 AUTH_SMS_CAPTCHA_PROVIDER=disabled
+MAIL_HOST=smtp.qq.com
+MAIL_PORT=465
+MAIL_USERNAME=你的邮箱
+MAIL_PASSWORD=QQ邮箱SMTP授权码
+MAIL_FROM=你的邮箱
+MAIL_SSL_ENABLED=true
+MAIL_STARTTLS_ENABLED=false
 ```
+
+`MAIL_PASSWORD` 是 QQ 邮箱 SMTP 授权码，不是邮箱登录密码。不要把真实授权码写入代码、README、提交记录或截图。
 
 测试环境使用：
 
 ```env
 AUTH_EMAIL_CAPTCHA_PROVIDER=mock
-AUTH_SMS_CAPTCHA_PROVIDER=mock
+AUTH_SMS_CAPTCHA_PROVIDER=disabled
 ```
 
-不要把 `MAIL_PASSWORD`、`TENCENT_SMS_SECRET_ID`、`TENCENT_SMS_SECRET_KEY` 或真实 API Key 写入代码、README 或提交记录。
-
+不要把 `MAIL_PASSWORD` 或真实 API Key 写入代码、README 或提交记录。
 ### API 文档
 
 后端启动后访问：

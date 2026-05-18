@@ -13,7 +13,7 @@ public class CaptchaProperties {
 
     private String emailProvider = "mock";
 
-    private String smsProvider = "mock";
+    private String smsProvider = "disabled";
 
     private int ttlSeconds = 300;
 

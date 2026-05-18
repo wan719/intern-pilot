@@ -22,7 +22,7 @@ class EmailCaptchaSenderTest {
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> sender.send("test@example.com", "123456", CaptchaSceneEnum.EMAIL_REGISTER));
 
-        assertEquals("邮箱验证码服务未配置，请联系管理员", exception.getMessage());
+        assertEquals(EmailCaptchaSender.CONFIG_ERROR, exception.getMessage());
         assertFalse(exception.getMessage().contains("secret-mail-password"));
         assertFalse(exception.getMessage().contains("123456"));
     }

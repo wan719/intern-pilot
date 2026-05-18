@@ -2,7 +2,6 @@ package com.internpilot.service.auth.impl;
 
 import com.internpilot.captcha.EmailCaptchaSender;
 import com.internpilot.captcha.MockCaptchaSender;
-import com.internpilot.captcha.TencentSmsCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.dto.auth.LoginRequest;
@@ -21,20 +20,16 @@ import com.internpilot.vo.auth.LoginResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.lenient;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -68,14 +63,9 @@ class AuthServiceImplTest {
     private ValueOperations<String, String> valueOperations;
 
     @Mock
-    private MockCaptchaSender mockCaptchaSender;
-
-    @Mock
     private EmailCaptchaSender emailCaptchaSender;
 
-    @Mock
-    private TencentSmsCaptchaSender tencentSmsCaptchaSender;
-
+    private MockCaptchaSender mockCaptchaSender;
     private CaptchaProperties captchaProperties;
     private CaptchaService captchaService;
     private AuthServiceImpl authService;
@@ -83,9 +73,8 @@ class AuthServiceImplTest {
     @BeforeEach
     void setUp() {
         captchaProperties = new CaptchaProperties();
-        captchaProperties.setMode("mock");
         captchaProperties.setEmailProvider("mock");
-        captchaProperties.setSmsProvider("mock");
+        captchaProperties.setSmsProvider("disabled");
         captchaProperties.setTtlSeconds(300);
         captchaProperties.setCooldownSeconds(60);
         captchaProperties.setMaxFailCount(5);
@@ -96,7 +85,7 @@ class AuthServiceImplTest {
 
         mockCaptchaSender = spy(new MockCaptchaSender());
         captchaService = new CaptchaService(stringRedisTemplate, objectProvider(mockCaptchaSender),
-                emailCaptchaSender, tencentSmsCaptchaSender, captchaProperties, userMapper);
+                emailCaptchaSender, captchaProperties, userMapper);
         authService = new AuthServiceImpl(userMapper, passwordEncoder, jwtTokenProvider,
                 roleMapper, permissionMapper, userRoleMapper, captchaService);
     }
@@ -120,19 +109,16 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void sendRegisterCaptcha_shouldSucceed_forPhone() {
+    void sendRegisterCaptcha_shouldFail_forPhone() {
         CaptchaSendRequest request = new CaptchaSendRequest();
         request.setTarget("13800000000");
         request.setType("PHONE");
 
-        when(userMapper.selectCount(any())).thenReturn(0L);
-        when(stringRedisTemplate.hasKey(anyString())).thenReturn(false);
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> captchaService.sendRegisterCaptcha(request));
 
-        captchaService.sendRegisterCaptcha(request);
-
-        verify(valueOperations).set(eq("auth:captcha:PHONE_REGISTER:13800000000"), eq("123456"), eq(300L),
-                eq(TimeUnit.SECONDS));
-        verify(mockCaptchaSender).send(eq("13800000000"), eq("123456"), any());
+        assertEquals("当前阶段仅支持邮箱注册验证码", exception.getMessage());
+        verify(valueOperations, never()).set(startsWith("auth:captcha:PHONE_REGISTER"), anyString(), anyLong(), any());
     }
 
     @Test
@@ -149,22 +135,6 @@ class AuthServiceImplTest {
 
         assertEquals("邮箱注册暂未开放", exception.getMessage());
         verify(valueOperations, never()).set(startsWith("auth:captcha:EMAIL_REGISTER"), anyString(), anyLong(), any());
-    }
-
-    @Test
-    void sendRegisterCaptcha_shouldFail_whenSmsProviderDisabled() {
-        captchaProperties.setSmsProvider("disabled");
-        CaptchaSendRequest request = new CaptchaSendRequest();
-        request.setTarget("13800000000");
-        request.setType("PHONE");
-
-        when(userMapper.selectCount(any())).thenReturn(0L);
-
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> captchaService.sendRegisterCaptcha(request));
-
-        assertEquals("手机号注册暂未开放", exception.getMessage());
-        verify(valueOperations, never()).set(startsWith("auth:captcha:PHONE_REGISTER"), anyString(), anyLong(), any());
     }
 
     @Test
@@ -185,26 +155,8 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void sendRegisterCaptcha_shouldFail_whenDailyLimitExceeded() {
-        CaptchaSendRequest request = new CaptchaSendRequest();
-        request.setTarget("limit@example.com");
-        request.setType("EMAIL");
-
-        when(userMapper.selectCount(any())).thenReturn(0L);
-        when(stringRedisTemplate.hasKey(anyString())).thenReturn(false);
-        when(valueOperations.increment("auth:captcha:daily:EMAIL_REGISTER:limit@example.com")).thenReturn(11L);
-
-        assertThrows(BusinessException.class, () -> captchaService.sendRegisterCaptcha(request));
-    }
-
-    @Test
     void registerWithCaptcha_shouldFail_whenWrongCaptcha() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("test@example.com");
-        request.setAccountType("EMAIL");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("000000");
+        RegisterRequest request = emailRegisterRequest("test@example.com", "000000");
 
         when(userMapper.selectCount(any())).thenReturn(0L);
         when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
@@ -216,12 +168,7 @@ class AuthServiceImplTest {
 
     @Test
     void register_shouldSucceed_forEmail() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("test@example.com");
-        request.setAccountType("EMAIL");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("123456");
+        RegisterRequest request = emailRegisterRequest("test@example.com", "123456");
 
         when(userMapper.selectCount(any())).thenReturn(0L);
         when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
@@ -230,7 +177,6 @@ class AuthServiceImplTest {
         when(roleMapper.selectOne(any())).thenReturn(mockRole());
         when(permissionMapper.selectRoleCodesByUserId(anyLong())).thenReturn(List.of("USER"));
         when(permissionMapper.selectPermissionCodesByUserId(anyLong())).thenReturn(Collections.emptyList());
-
         when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
             User u = invocation.getArgument(0);
             u.setId(10L);
@@ -247,94 +193,35 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void register_shouldFail_whenUsernameDuplicate() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("test@example.com");
-        request.setAccountType("EMAIL");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("123456");
-        request.setUsername("demo");
+    void register_shouldFail_whenDuplicateEmail() {
+        RegisterRequest request = emailRegisterRequest("test@example.com", "123456");
 
-        when(userMapper.selectCount(any())).thenReturn(0L).thenReturn(1L);
-        when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
-        when(valueOperations.get("auth:captcha:fail:EMAIL_REGISTER:test@example.com")).thenReturn(null);
-        when(passwordEncoder.encode("123456")).thenReturn("encoded_password");
+        when(userMapper.selectCount(any())).thenReturn(1L);
+
+        assertThrows(BusinessException.class, () -> authService.register(request));
+    }
+
+    @Test
+    void register_shouldFail_forPhone() {
+        RegisterRequest request = emailRegisterRequest("13800000000", "123456");
+        request.setAccountType("PHONE");
 
         BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
 
-        assertEquals("用户名已被占用，请更换用户名", exception.getMessage());
+        assertEquals("当前阶段仅支持邮箱注册", exception.getMessage());
         verify(userMapper, never()).insert(any(User.class));
-    }
-
-    @Test
-    void register_shouldSucceed_forPhone() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("13800000000");
-        request.setAccountType("PHONE");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("123456");
-
-        when(userMapper.selectCount(any())).thenReturn(0L);
-        when(valueOperations.get("auth:captcha:PHONE_REGISTER:13800000000")).thenReturn("123456");
-        when(valueOperations.get("auth:captcha:fail:PHONE_REGISTER:13800000000")).thenReturn(null);
-        when(passwordEncoder.encode("123456")).thenReturn("encoded_password");
-        when(roleMapper.selectOne(any())).thenReturn(mockRole());
-        when(permissionMapper.selectRoleCodesByUserId(anyLong())).thenReturn(List.of("USER"));
-        when(permissionMapper.selectPermissionCodesByUserId(anyLong())).thenReturn(Collections.emptyList());
-
-        when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
-            User u = invocation.getArgument(0);
-            u.setId(11L);
-            return 1;
-        });
-
-        AuthUserResponse response = authService.register(request);
-
-        assertNotNull(response);
-        assertEquals("13800000000", response.getPhone());
-        verify(userMapper).insert(any(User.class));
-    }
-
-    @Test
-    void register_shouldFail_whenDuplicateEmail() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("test@example.com");
-        request.setAccountType("EMAIL");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("123456");
-
-        when(userMapper.selectCount(any())).thenReturn(1L);
-
-        assertThrows(BusinessException.class, () -> authService.register(request));
-    }
-
-    @Test
-    void register_shouldFail_whenDuplicatePhone() {
-        RegisterRequest request = new RegisterRequest();
-        request.setAccount("13800000000");
-        request.setAccountType("PHONE");
-        request.setPassword("123456");
-        request.setConfirmPassword("123456");
-        request.setCaptchaCode("123456");
-
-        when(userMapper.selectCount(any())).thenReturn(1L);
-
-        assertThrows(BusinessException.class, () -> authService.register(request));
     }
 
     @Test
     void login_shouldSucceed_withEmail() {
         LoginRequest request = new LoginRequest();
-        request.setAccount("demo@internpilot.local");
+        request.setAccount("test@example.com");
         request.setPassword("123456");
 
-        User mockUser = mockUser(1L, "demo", "demo@internpilot.local", "USER");
+        User mockUser = mockUser(1L, "test", "test@example.com", "USER");
         when(userMapper.selectOne(any())).thenReturn(mockUser);
         when(passwordEncoder.matches("123456", "encoded_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(1L, "demo", "USER")).thenReturn("jwt-token");
+        when(jwtTokenProvider.generateToken(1L, "test", "USER")).thenReturn("jwt-token");
         when(jwtTokenProvider.getExpirationSeconds()).thenReturn(86400L);
         when(permissionMapper.selectRoleCodesByUserId(1L)).thenReturn(List.of("USER"));
         when(permissionMapper.selectPermissionCodesByUserId(1L)).thenReturn(Collections.emptyList());
@@ -343,52 +230,7 @@ class AuthServiceImplTest {
 
         assertNotNull(response);
         assertEquals("jwt-token", response.getToken());
-        assertEquals("demo@internpilot.local", response.getUser().getEmail());
-    }
-
-    @Test
-    void login_shouldSucceed_withPhone() {
-        LoginRequest request = new LoginRequest();
-        request.setAccount("13800000000");
-        request.setPassword("123456");
-
-        User mockUser = mockUser(2L, "admin", "admin@internpilot.local", "ADMIN");
-        when(userMapper.selectOne(any())).thenReturn(null).thenReturn(mockUser);
-        when(passwordEncoder.matches("123456", "encoded_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(2L, "admin", "ADMIN")).thenReturn("jwt-token");
-        when(jwtTokenProvider.getExpirationSeconds()).thenReturn(86400L);
-        when(permissionMapper.selectRoleCodesByUserId(2L)).thenReturn(List.of("ADMIN"));
-        when(permissionMapper.selectPermissionCodesByUserId(2L)).thenReturn(Collections.emptyList());
-
-        LoginResponse response = authService.login(request);
-
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getToken());
-        assertEquals("admin@internpilot.local", response.getUser().getEmail());
-    }
-
-    @Test
-    void login_shouldFail_whenWrongPassword() {
-        LoginRequest request = new LoginRequest();
-        request.setAccount("demo@internpilot.local");
-        request.setPassword("wrong_password");
-
-        User mockUser = mockUser(1L, "demo", "demo@internpilot.local", "USER");
-        when(userMapper.selectOne(any())).thenReturn(mockUser);
-        when(passwordEncoder.matches("wrong_password", "encoded_password")).thenReturn(false);
-
-        assertThrows(BusinessException.class, () -> authService.login(request));
-    }
-
-    @Test
-    void login_shouldFail_withUsernameForSystemAccount() {
-        LoginRequest request = new LoginRequest();
-        request.setAccount("admin");
-        request.setPassword("123456");
-
-        when(userMapper.selectOne(any())).thenReturn(null);
-
-        assertThrows(BusinessException.class, () -> authService.login(request));
+        assertEquals("test@example.com", response.getUser().getEmail());
     }
 
     @Test
@@ -397,9 +239,31 @@ class AuthServiceImplTest {
         request.setAccount("demo");
         request.setPassword("123456");
 
-        when(userMapper.selectOne(any())).thenReturn(null);
+        assertThrows(BusinessException.class, () -> authService.login(request));
+        verify(userMapper, never()).selectOne(any());
+    }
+
+    @Test
+    void login_shouldFail_whenWrongPassword() {
+        LoginRequest request = new LoginRequest();
+        request.setAccount("test@example.com");
+        request.setPassword("wrong_password");
+
+        User mockUser = mockUser(1L, "test", "test@example.com", "USER");
+        when(userMapper.selectOne(any())).thenReturn(mockUser);
+        when(passwordEncoder.matches("wrong_password", "encoded_password")).thenReturn(false);
 
         assertThrows(BusinessException.class, () -> authService.login(request));
+    }
+
+    private RegisterRequest emailRegisterRequest(String account, String captchaCode) {
+        RegisterRequest request = new RegisterRequest();
+        request.setAccount(account);
+        request.setAccountType("EMAIL");
+        request.setPassword("123456");
+        request.setConfirmPassword("123456");
+        request.setCaptchaCode(captchaCode);
+        return request;
     }
 
     private Role mockRole() {

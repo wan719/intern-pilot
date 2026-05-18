@@ -15,6 +15,9 @@ public class AuthUserResponse {
     @Schema(description = "用户名", example = "wan")
     private String username;
 
+    @Schema(description = "昵称", example = "wan")
+    private String nickname;
+
     @Schema(description = "邮箱", example = "wan@example.com")
     private String email;
 

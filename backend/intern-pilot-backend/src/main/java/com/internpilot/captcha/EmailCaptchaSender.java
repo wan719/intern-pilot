@@ -18,7 +18,8 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class EmailCaptchaSender implements CaptchaSender {
 
-    private static final String CONFIG_ERROR = "邮箱验证码服务未配置，请联系管理员";
+    public static final String CONFIG_ERROR =
+            "邮箱验证码服务未配置完整，请检查 MAIL_HOST、MAIL_PORT、MAIL_USERNAME、MAIL_PASSWORD、MAIL_FROM";
     private static final String SEND_ERROR = "验证码发送失败，请稍后重试";
 
     private final JavaMailSender mailSender;
@@ -32,7 +33,7 @@ public class EmailCaptchaSender implements CaptchaSender {
     @Value("${spring.mail.password:}")
     private String password;
 
-    @Value("${mail.from:${MAIL_FROM:}}")
+    @Value("${spring.mail.from:${MAIL_FROM:}}")
     private String from;
 
     @Override
@@ -64,10 +65,9 @@ public class EmailCaptchaSender implements CaptchaSender {
     }
 
     private String buildBody(String code) {
-        return "您好，您正在注册 InternPilot 账号。\n\n"
-                + "本次注册验证码为：" + code + "\n"
-                + "验证码 5 分钟内有效，请勿转发或告知他人。\n\n"
-                + "如非本人操作，请忽略本邮件。";
+        return "您好，您的 InternPilot 注册验证码为：" + code + "。\n\n"
+                + "验证码 5 分钟内有效，请勿泄露给他人。\n"
+                + "如果不是您本人操作，请忽略本邮件。";
     }
 
     private String maskEmail(String email) {

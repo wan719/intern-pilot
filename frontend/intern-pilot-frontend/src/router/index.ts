@@ -22,6 +22,7 @@ const routes = [
       { path: 'interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题' } },
       { path: 'interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情' } },
       { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录' } },
+      { path: 'user/center', component: () => import('@/views/user/UserCenter.vue'), meta: { title: '个人中心' } },
       {
         path: 'admin/dashboard',
         component: () => import('@/views/admin/AdminDashboard.vue'),

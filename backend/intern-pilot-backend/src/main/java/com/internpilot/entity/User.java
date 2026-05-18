@@ -11,8 +11,8 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("user")//用户表，存储系统中的用户信息，包括用户名、密码、联系方式、学校信息等
-@Schema(description = "用户实体类，包含用户的详细信息和关联的简历、职位推荐等")
+@TableName("`user`")//鐢ㄦ埛琛紝瀛樺偍绯荤粺涓殑鐢ㄦ埛淇℃伅锛屽寘鎷敤鎴峰悕銆佸瘑鐮併€佽仈绯绘柟寮忋€佸鏍′俊鎭瓑
+@Schema(description = "鐢ㄦ埛瀹炰綋绫伙紝鍖呭惈鐢ㄦ埛鐨勮缁嗕俊鎭拰鍏宠仈鐨勭畝鍘嗐€佽亴浣嶆帹鑽愮瓑")
 public class User {
 
     @TableId(type = IdType.AUTO)
@@ -53,3 +53,4 @@ public class User {
     @TableLogic
     private Integer deleted;
 }
+
