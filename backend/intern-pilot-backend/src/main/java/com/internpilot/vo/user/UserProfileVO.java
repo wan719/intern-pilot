@@ -20,6 +20,18 @@ public class UserProfileVO {
 
     private Boolean emailVerified;
 
+    private String preferredJobTitle;
+
+    private String preferredCity;
+
+    private String expectedSalary;
+
+    private String employmentType;
+
+    private Long defaultResumeId;
+
+    private String defaultResumeName;
+
     private List<String> roles;
 
     private List<String> permissions;

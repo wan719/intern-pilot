@@ -36,6 +36,14 @@ public class User {
 
     private String grade;
 
+    private String preferredJobTitle;
+
+    private String preferredCity;
+
+    private String expectedSalary;
+
+    private String employmentType;
+
     private String role;
 
     private String accountType;

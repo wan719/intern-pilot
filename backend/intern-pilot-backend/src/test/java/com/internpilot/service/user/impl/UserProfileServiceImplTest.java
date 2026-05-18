@@ -5,6 +5,7 @@ import com.internpilot.dto.user.UpdateProfileRequest;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.PermissionMapper;
+import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.vo.user.UserProfileVO;
@@ -38,6 +39,9 @@ class UserProfileServiceImplTest {
     private PermissionMapper permissionMapper;
 
     @Mock
+    private ResumeMapper resumeMapper;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     private UserProfileServiceImpl service;
@@ -47,7 +51,7 @@ class UserProfileServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserProfileServiceImpl(userMapper, permissionMapper, passwordEncoder);
+        service = new UserProfileServiceImpl(userMapper, permissionMapper, resumeMapper, passwordEncoder);
         CustomUserDetails principal = new CustomUserDetails(1L, "wan", List.of("USER"), List.of());
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
@@ -81,11 +85,19 @@ class UserProfileServiceImplTest {
 
         UpdateProfileRequest request = new UpdateProfileRequest();
         request.setNickname("新昵称");
+        request.setPreferredJobTitle("Java 后端实习生");
+        request.setPreferredCity("重庆");
+        request.setExpectedSalary("150-200/天");
+        request.setEmploymentType("实习");
 
         UserProfileVO profile = service.updateCurrentProfile(request);
 
         assertEquals("新昵称", user.getRealName());
         assertEquals("新昵称", profile.getNickname());
+        assertEquals("Java 后端实习生", user.getPreferredJobTitle());
+        assertEquals("重庆", profile.getPreferredCity());
+        assertEquals("150-200/天", profile.getExpectedSalary());
+        assertEquals("实习", profile.getEmploymentType());
         verify(userMapper).updateById(user);
     }
 

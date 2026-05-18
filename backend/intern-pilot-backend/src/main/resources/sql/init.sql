@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS user (
     school VARCHAR(100) DEFAULT NULL,
     major VARCHAR(100) DEFAULT NULL,
     grade VARCHAR(30) DEFAULT NULL,
+    preferred_job_title VARCHAR(100) DEFAULT NULL,
+    preferred_city VARCHAR(100) DEFAULT NULL,
+    expected_salary VARCHAR(100) DEFAULT NULL,
+    employment_type VARCHAR(50) DEFAULT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
     account_type VARCHAR(20) NOT NULL DEFAULT 'USERNAME',
     phone_verified TINYINT NOT NULL DEFAULT 0,
@@ -40,6 +44,58 @@ SET @ddl = (
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'user'
       AND COLUMN_NAME = 'phone'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN preferred_job_title VARCHAR(100) DEFAULT NULL AFTER grade',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'preferred_job_title'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN preferred_city VARCHAR(100) DEFAULT NULL AFTER preferred_job_title',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'preferred_city'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN expected_salary VARCHAR(100) DEFAULT NULL AFTER preferred_city',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'expected_salary'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN employment_type VARCHAR(50) DEFAULT NULL AFTER expected_salary',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'employment_type'
 );
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

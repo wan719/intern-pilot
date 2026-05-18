@@ -1,10 +1,13 @@
 package com.internpilot.service.user.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.dto.user.ChangePasswordRequest;
 import com.internpilot.dto.user.UpdateProfileRequest;
+import com.internpilot.entity.Resume;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.PermissionMapper;
+import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.service.user.UserProfileService;
 import com.internpilot.util.SecurityUtils;
@@ -37,6 +40,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserMapper userMapper;
     private final PermissionMapper permissionMapper;
+    private final ResumeMapper resumeMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${file.avatar-dir:uploads/avatars}")
@@ -52,6 +56,10 @@ public class UserProfileServiceImpl implements UserProfileService {
     public UserProfileVO updateCurrentProfile(UpdateProfileRequest request) {
         User user = loadCurrentUser();
         user.setRealName(request.getNickname());
+        user.setPreferredJobTitle(request.getPreferredJobTitle());
+        user.setPreferredCity(request.getPreferredCity());
+        user.setExpectedSalary(request.getExpectedSalary());
+        user.setEmploymentType(request.getEmploymentType());
         userMapper.updateById(user);
         return toProfile(user);
     }
@@ -109,12 +117,30 @@ public class UserProfileServiceImpl implements UserProfileService {
         profile.setAvatarUrl(user.getAvatarUrl());
         profile.setEmail(user.getEmail());
         profile.setEmailVerified(Integer.valueOf(1).equals(user.getEmailVerified()));
+        profile.setPreferredJobTitle(user.getPreferredJobTitle());
+        profile.setPreferredCity(user.getPreferredCity());
+        profile.setExpectedSalary(user.getExpectedSalary());
+        profile.setEmploymentType(user.getEmploymentType());
+        fillDefaultResume(profile, user.getId());
         profile.setRoles(permissionMapper.selectRoleCodesByUserId(user.getId()));
         profile.setPermissions(permissionMapper.selectPermissionCodesByUserId(user.getId()));
         profile.setLastLoginTime(user.getLastLoginTime());
         profile.setCreatedAt(user.getCreatedAt());
         profile.setUpdatedAt(user.getUpdatedAt());
         return profile;
+    }
+
+    private void fillDefaultResume(UserProfileVO profile, Long userId) {
+        Resume resume = resumeMapper.selectOne(new LambdaQueryWrapper<Resume>()
+                .eq(Resume::getUserId, userId)
+                .eq(Resume::getIsDefault, 1)
+                .eq(Resume::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (resume == null) {
+            return;
+        }
+        profile.setDefaultResumeId(resume.getId());
+        profile.setDefaultResumeName(resume.getResumeName());
     }
 
     private void validateAvatar(MultipartFile file) {
