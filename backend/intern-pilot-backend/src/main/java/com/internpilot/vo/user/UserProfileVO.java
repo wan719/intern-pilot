@@ -14,6 +14,8 @@ public class UserProfileVO {
 
     private String nickname;
 
+    private String avatarUrl;
+
     private String email;
 
     private Boolean emailVerified;

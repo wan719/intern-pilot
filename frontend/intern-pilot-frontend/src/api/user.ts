@@ -22,6 +22,12 @@ export function updateUserProfileApi(data: UpdateProfileRequest) {
   return request.put('/api/user/profile', data)
 }
 
+export function uploadUserAvatarApi(data: FormData) {
+  return request.post('/api/user/avatar', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 export function changePasswordApi(data: ChangePasswordRequest) {
   return request.put('/api/user/password', data)
 }

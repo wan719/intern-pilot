@@ -12,12 +12,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +41,9 @@ class UserProfileServiceImplTest {
     private PasswordEncoder passwordEncoder;
 
     private UserProfileServiceImpl service;
+
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() {
@@ -79,6 +86,28 @@ class UserProfileServiceImplTest {
 
         assertEquals("新昵称", user.getRealName());
         assertEquals("新昵称", profile.getNickname());
+        verify(userMapper).updateById(user);
+    }
+
+    @Test
+    void updateCurrentAvatar_shouldStoreImageAndUpdateProfile() {
+        User user = mockUser();
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(permissionMapper.selectRoleCodesByUserId(1L)).thenReturn(List.of("USER"));
+        when(permissionMapper.selectPermissionCodesByUserId(1L)).thenReturn(List.of());
+        ReflectionTestUtils.setField(service, "avatarDir", tempDir.toString());
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.png",
+                "image/png",
+                new byte[]{1, 2, 3}
+        );
+
+        UserProfileVO profile = service.updateCurrentAvatar(file);
+
+        assertNotNull(profile.getAvatarUrl());
+        assertTrue(profile.getAvatarUrl().startsWith("/uploads/avatars/user-1/"));
+        assertEquals(profile.getAvatarUrl(), user.getAvatarUrl());
         verify(userMapper).updateById(user);
     }
 

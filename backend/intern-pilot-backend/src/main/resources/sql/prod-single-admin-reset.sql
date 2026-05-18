@@ -3,6 +3,19 @@
 
 SET NAMES utf8mb4;
 
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL AFTER real_name',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND COLUMN_NAME = 'avatar_url'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 CREATE TEMPORARY TABLE tmp_removed_users AS
 SELECT id
 FROM user

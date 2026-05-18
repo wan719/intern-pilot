@@ -28,6 +28,8 @@ public class User {
 
     private String realName;
 
+    private String avatarUrl;
+
     private String school;
 
     private String major;

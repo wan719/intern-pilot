@@ -12,10 +12,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "用户信息接口")
 @RestController
@@ -42,6 +45,12 @@ public class UserController {
     @PutMapping("/profile")
     public Result<UserProfileVO> updateCurrentProfile(@RequestBody @Valid UpdateProfileRequest request) {
         return Result.success(userProfileService.updateCurrentProfile(request));
+    }
+
+    @Operation(summary = "上传或修改当前用户头像")
+    @PostMapping("/avatar")
+    public Result<UserProfileVO> updateCurrentAvatar(@RequestParam("file") MultipartFile file) {
+        return Result.success(userProfileService.updateCurrentAvatar(file));
     }
 
     @Operation(summary = "修改当前用户密码")

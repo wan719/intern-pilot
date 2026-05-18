@@ -10,17 +10,37 @@ import com.internpilot.service.user.UserProfileService;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.user.UserProfileVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UserProfileServiceImpl implements UserProfileService {
 
+    private static final long AVATAR_MAX_SIZE = 2 * 1024 * 1024L;
+    private static final Set<String> AVATAR_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+    private static final Set<String> AVATAR_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+
     private final UserMapper userMapper;
     private final PermissionMapper permissionMapper;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${file.avatar-dir:uploads/avatars}")
+    private String avatarDir;
 
     @Override
     public UserProfileVO getCurrentProfile() {
@@ -34,6 +54,28 @@ public class UserProfileServiceImpl implements UserProfileService {
         user.setRealName(request.getNickname());
         userMapper.updateById(user);
         return toProfile(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileVO updateCurrentAvatar(MultipartFile file) {
+        User user = loadCurrentUser();
+        validateAvatar(file);
+
+        String extension = getExtension(file.getOriginalFilename());
+        String storedFileName = generateAvatarFileName(user.getId(), extension);
+        Path userDir = Paths.get(avatarDir, "user-" + user.getId());
+
+        try {
+            Files.createDirectories(userDir);
+            Path targetPath = userDir.resolve(storedFileName).normalize();
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            user.setAvatarUrl("/uploads/avatars/user-" + user.getId() + "/" + storedFileName);
+            userMapper.updateById(user);
+            return toProfile(user);
+        } catch (IOException e) {
+            throw new BusinessException("头像保存失败，请稍后重试");
+        }
     }
 
     @Override
@@ -64,6 +106,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         profile.setId(user.getId());
         profile.setUsername(user.getUsername());
         profile.setNickname(user.getRealName());
+        profile.setAvatarUrl(user.getAvatarUrl());
         profile.setEmail(user.getEmail());
         profile.setEmailVerified(Integer.valueOf(1).equals(user.getEmailVerified()));
         profile.setRoles(permissionMapper.selectRoleCodesByUserId(user.getId()));
@@ -72,5 +115,42 @@ public class UserProfileServiceImpl implements UserProfileService {
         profile.setCreatedAt(user.getCreatedAt());
         profile.setUpdatedAt(user.getUpdatedAt());
         return profile;
+    }
+
+    private void validateAvatar(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择头像文件");
+        }
+        if (file.getSize() > AVATAR_MAX_SIZE) {
+            throw new BusinessException("头像大小不能超过 2MB");
+        }
+
+        String extension = getExtension(file.getOriginalFilename());
+        if (!AVATAR_EXTENSIONS.contains(extension)) {
+            throw new BusinessException("头像仅支持 JPG、PNG、WEBP 格式");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isBlank()
+                && !AVATAR_MIME_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new BusinessException("头像仅支持 JPG、PNG、WEBP 格式");
+        }
+    }
+
+    private String generateAvatarFileName(Long userId, String extension) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String random = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        return userId + "_" + timestamp + "_" + random + "." + extension;
+    }
+
+    private String getExtension(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "";
+        }
+        int index = fileName.lastIndexOf('.');
+        if (index < 0 || index == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(index + 1).toLowerCase(Locale.ROOT);
     }
 }

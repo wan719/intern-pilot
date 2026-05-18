@@ -24,6 +24,7 @@ jwt:
 
 file:
   upload-dir: uploads/resumes
+  avatar-dir: uploads/avatars
   max-size: 10485760
   allowed-types:
     - pdf

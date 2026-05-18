@@ -18,6 +18,9 @@ public class AuthUserResponse {
     @Schema(description = "昵称", example = "wan")
     private String nickname;
 
+    @Schema(description = "头像URL", example = "/uploads/avatars/user-1/avatar.png")
+    private String avatarUrl;
+
     @Schema(description = "邮箱", example = "wan@example.com")
     private String email;
 

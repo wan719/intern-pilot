@@ -2,7 +2,10 @@
   <PageContainer title="个人中心" description="查看当前账号资料、邮箱验证状态和角色信息。">
     <div class="user-center-grid">
       <section class="panel profile-summary">
-        <div class="profile-avatar">{{ avatarText }}</div>
+        <div class="profile-avatar">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" />
+          <span v-else>{{ avatarText }}</span>
+        </div>
         <div>
           <h3>{{ profile?.nickname || profile?.username || '当前用户' }}</h3>
           <p>{{ profile?.email || '-' }}</p>
@@ -11,6 +14,15 @@
             <el-tag v-else type="warning" effect="plain">邮箱未验证</el-tag>
             <el-tag v-for="role in profile?.roles || []" :key="role" effect="plain">{{ role }}</el-tag>
           </div>
+          <el-upload
+            class="avatar-upload"
+            accept="image/jpeg,image/png,image/webp"
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="uploadAvatar"
+          >
+            <el-button size="small" :loading="avatarUploading">上传/修改头像</el-button>
+          </el-upload>
         </div>
       </section>
 
@@ -63,12 +75,13 @@ import dayjs from 'dayjs'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
-import { changePasswordApi, getUserProfileApi, updateUserProfileApi } from '@/api/user'
+import { changePasswordApi, getUserProfileApi, updateUserProfileApi, uploadUserAvatarApi } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const profile = ref<any>(null)
 const profileSaving = ref(false)
+const avatarUploading = ref(false)
 const passwordSaving = ref(false)
 
 const profileForm = reactive({ nickname: '' })
@@ -78,6 +91,18 @@ const avatarText = computed(() => {
   const name = profile.value?.nickname || profile.value?.username || 'U'
   return String(name).slice(0, 1).toUpperCase()
 })
+const avatarUrl = computed(() => resolveAvatarUrl(profile.value?.avatarUrl))
+
+function resolveAvatarUrl(url?: string) {
+  if (!url) {
+    return ''
+  }
+  if (/^https?:\/\//i.test(url)) {
+    return url
+  }
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  return `${baseUrl}${url}`
+}
 
 function formatTime(value?: string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-'
@@ -91,6 +116,7 @@ function syncAuthUser() {
     ...(auth.user || {}),
     username: profile.value.username,
     nickname: profile.value.nickname,
+    avatarUrl: profile.value.avatarUrl,
     email: profile.value.email,
     roles: profile.value.roles,
     permissions: profile.value.permissions
@@ -111,6 +137,33 @@ async function saveProfile() {
     ElMessage.success('资料已保存')
   } finally {
     profileSaving.value = false
+  }
+}
+
+async function uploadAvatar(file: any) {
+  const raw = file?.raw
+  if (!raw) {
+    return
+  }
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(raw.type)) {
+    ElMessage.warning('头像仅支持 JPG、PNG、WEBP 格式')
+    return
+  }
+  if (raw.size > 2 * 1024 * 1024) {
+    ElMessage.warning('头像大小不能超过 2MB')
+    return
+  }
+
+  const data = new FormData()
+  data.append('file', raw)
+  avatarUploading.value = true
+  try {
+    profile.value = await uploadUserAvatarApi(data)
+    syncAuthUser()
+    ElMessage.success('头像已更新')
+  } finally {
+    avatarUploading.value = false
   }
 }
 
@@ -161,6 +214,17 @@ onMounted(loadProfile)
   color: #fff;
   font-size: 28px;
   font-weight: 700;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload {
+  margin-top: 12px;
 }
 
 .profile-summary h3 {

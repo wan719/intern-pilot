@@ -55,10 +55,6 @@
         <el-icon><List /></el-icon>
         <span>投递记录</span>
       </el-menu-item>
-      <el-menu-item index="/user/center" @click="go('/user/center')">
-        <el-icon><User /></el-icon>
-        <span>个人中心</span>
-      </el-menu-item>
 
       <el-sub-menu v-if="showAdminGroup" index="admin-group">
         <template #title>
