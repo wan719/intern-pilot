@@ -27,6 +27,8 @@ jwt:
 auth:
   captcha:
     mode: mock
+    email-provider: mock
+    sms-provider: mock
 
 ai:
   provider: mock

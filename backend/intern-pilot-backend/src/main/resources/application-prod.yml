@@ -19,13 +19,30 @@ spring:
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE:0}
 
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
 
 auth:
   captcha:
-    mode: ${AUTH_CAPTCHA_MODE:mock}
+    mode: ${AUTH_CAPTCHA_MODE:real}
+    email-provider: ${AUTH_EMAIL_CAPTCHA_PROVIDER:smtp}
+    sms-provider: ${AUTH_SMS_CAPTCHA_PROVIDER:disabled}
 
 file:
   upload-dir: uploads/resumes
@@ -41,6 +58,16 @@ ai:
   model: ${AI_MODEL:deepseek-v4-flash}
   pro-model: ${AI_PRO_MODEL:deepseek-v4-pro}
   timeout-seconds: ${AI_TIMEOUT_SECONDS:60}
+
+sms:
+  tencent:
+    secret-id: ${TENCENT_SMS_SECRET_ID:}
+    secret-key: ${TENCENT_SMS_SECRET_KEY:}
+    region: ${TENCENT_SMS_REGION:ap-guangzhou}
+    sdk-app-id: ${TENCENT_SMS_SDK_APP_ID:}
+    sign-name: ${TENCENT_SMS_SIGN_NAME:}
+    template-id: ${TENCENT_SMS_TEMPLATE_ID:}
+    template-has-expire-minutes: ${TENCENT_SMS_TEMPLATE_HAS_EXPIRE_MINUTES:false}
 
 rag:
   enabled: ${RAG_ENABLED:true}

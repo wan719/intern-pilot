@@ -1,19 +1,23 @@
 package com.internpilot.service.auth;
 
-import com.internpilot.captcha.CaptchaSender;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.internpilot.captcha.EmailCaptchaSender;
+import com.internpilot.captcha.MockCaptchaSender;
+import com.internpilot.captcha.TencentSmsCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.entity.User;
-import com.internpilot.enums.AccountTypeEnum;
 import com.internpilot.enums.CaptchaSceneEnum;
+import com.internpilot.enums.CaptchaTargetTypeEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.UserMapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -24,10 +28,14 @@ public class CaptchaService {
     private static final String CAPTCHA_PREFIX = "auth:captcha:";
     private static final String COOLDOWN_PREFIX = "auth:captcha:cooldown:";
     private static final String FAIL_PREFIX = "auth:captcha:fail:";
+    private static final String DAILY_PREFIX = "auth:captcha:daily:";
     private static final String MOCK_CODE = "123456";
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final CaptchaSender captchaSender;
+    private final ObjectProvider<MockCaptchaSender> mockCaptchaSenderProvider;
+    private final EmailCaptchaSender emailCaptchaSender;
+    private final TencentSmsCaptchaSender tencentSmsCaptchaSender;
     private final CaptchaProperties captchaProperties;
     private final UserMapper userMapper;
 
@@ -35,64 +43,32 @@ public class CaptchaService {
         String target = request.getTarget().trim();
         String type = request.getType().trim().toUpperCase();
 
-        if (!AccountTypeEnum.PHONE.getCode().equals(type)
-                && !AccountTypeEnum.EMAIL.getCode().equals(type)) {
+        if (!CaptchaTargetTypeEnum.isSupported(type)) {
             throw new BusinessException("账号类型无效，仅支持 PHONE 或 EMAIL");
         }
 
-        if ("EMAIL".equals(type)) {
-            if (!target.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                throw new BusinessException("邮箱格式不正确");
-            }
-        } else if ("PHONE".equals(type)) {
-            if (!target.matches("^\\d{6,15}$")) {
-                throw new BusinessException("手机号格式不正确");
-            }
+        validateTarget(type, target);
+        CaptchaSceneEnum scene = "EMAIL".equals(type)
+                ? CaptchaSceneEnum.EMAIL_REGISTER
+                : CaptchaSceneEnum.PHONE_REGISTER;
+        ensureNotRegistered(type, target);
+
+        String provider = providerFor(type);
+        if ("disabled".equalsIgnoreCase(provider)) {
+            throw new BusinessException("EMAIL".equals(type) ? "邮箱注册暂未开放" : "手机号注册暂未开放");
         }
 
-        CaptchaSceneEnum scene;
-        if ("EMAIL".equals(type)) {
-            scene = CaptchaSceneEnum.EMAIL_REGISTER;
-            Long emailCount = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getEmail, target)
-                            .eq(User::getDeleted, 0));
-            if (emailCount != null && emailCount > 0) {
-                throw new BusinessException("该邮箱已被注册");
-            }
-        } else {
-            scene = CaptchaSceneEnum.PHONE_REGISTER;
-            Long phoneCount = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getPhone, target)
-                            .eq(User::getDeleted, 0));
-            if (phoneCount != null && phoneCount > 0) {
-                throw new BusinessException("该手机号已被注册");
-            }
+        String dailyKey = ensureCaptchaPolicy(scene, target);
+        String code = "mock".equalsIgnoreCase(provider) ? MOCK_CODE : generateCode();
+        try {
+            sendByProvider(type, provider, target, code, scene);
+        } catch (RuntimeException e) {
+            rollbackDailyCount(dailyKey);
+            throw e;
         }
+        saveCaptcha(scene, target, code);
 
-        String cooldownKey = COOLDOWN_PREFIX + scene.getCode() + ":" + target;
-        Boolean hasCooldown = stringRedisTemplate.hasKey(cooldownKey);
-        if (Boolean.TRUE.equals(hasCooldown)) {
-            throw new BusinessException("验证码发送过于频繁，请稍后再试");
-        }
-
-        String code;
-        if ("mock".equals(captchaProperties.getMode())) {
-            code = MOCK_CODE;
-        } else {
-            code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
-        }
-
-        String captchaKey = CAPTCHA_PREFIX + scene.getCode() + ":" + target;
-        stringRedisTemplate.opsForValue().set(captchaKey, code, captchaProperties.getTtlSeconds(), TimeUnit.SECONDS);
-        stringRedisTemplate.opsForValue().set(cooldownKey, "1", captchaProperties.getCooldownSeconds(), TimeUnit.SECONDS);
-
-        String failKey = FAIL_PREFIX + scene.getCode() + ":" + target;
-        stringRedisTemplate.delete(failKey);
-
-        captchaSender.send(target, code, scene);
-        log.info("验证码已发送: scene={} target={}", scene.getCode(), target);
+        log.info("Captcha sent. scene={} type={} target={}", scene.getCode(), type, maskTarget(type, target));
     }
 
     public void validateCaptcha(String target, CaptchaSceneEnum scene, String inputCode) {
@@ -124,5 +100,113 @@ public class CaptchaService {
 
         stringRedisTemplate.delete(captchaKey);
         stringRedisTemplate.delete(failKey);
+    }
+
+    private void validateTarget(String type, String target) {
+        if ("EMAIL".equals(type)) {
+            if (!target.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                throw new BusinessException("邮箱格式不正确");
+            }
+            return;
+        }
+        if (!target.matches("^\\d{6,15}$")) {
+            throw new BusinessException("手机号格式不正确");
+        }
+    }
+
+    private void ensureNotRegistered(String type, String target) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>().eq(User::getDeleted, 0);
+        if ("EMAIL".equals(type)) {
+            wrapper.eq(User::getEmail, target);
+            Long count = userMapper.selectCount(wrapper);
+            if (count != null && count > 0) {
+                throw new BusinessException("该邮箱已被注册");
+            }
+            return;
+        }
+        wrapper.eq(User::getPhone, target);
+        Long count = userMapper.selectCount(wrapper);
+        if (count != null && count > 0) {
+            throw new BusinessException("该手机号已被注册");
+        }
+    }
+
+    private String ensureCaptchaPolicy(CaptchaSceneEnum scene, String target) {
+        String cooldownKey = COOLDOWN_PREFIX + scene.getCode() + ":" + target;
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(cooldownKey))) {
+            throw new BusinessException("验证码发送过于频繁，请稍后再试");
+        }
+
+        String dailyKey = DAILY_PREFIX + scene.getCode() + ":" + target;
+        Long dailyCount = stringRedisTemplate.opsForValue().increment(dailyKey);
+        if (dailyCount != null && dailyCount == 1L) {
+            stringRedisTemplate.expire(dailyKey, 1, TimeUnit.DAYS);
+        }
+        if (dailyCount != null && dailyCount > captchaProperties.getDailyLimit()) {
+            throw new BusinessException("今日验证码发送次数已达上限");
+        }
+        return dailyKey;
+    }
+
+    private void rollbackDailyCount(String dailyKey) {
+        try {
+            stringRedisTemplate.opsForValue().decrement(dailyKey);
+        } catch (RuntimeException e) {
+            log.warn("Failed to rollback captcha daily count. key={}", dailyKey);
+        }
+    }
+
+    private void sendByProvider(String type, String provider, String target, String code, CaptchaSceneEnum scene) {
+        if ("mock".equalsIgnoreCase(provider)) {
+            MockCaptchaSender mockSender = mockCaptchaSenderProvider.getIfAvailable();
+            if (mockSender == null) {
+                throw new BusinessException("验证码服务未配置，请联系管理员");
+            }
+            mockSender.send(target, code, scene);
+            return;
+        }
+
+        if ("EMAIL".equals(type) && "smtp".equalsIgnoreCase(provider)) {
+            emailCaptchaSender.send(target, code, scene);
+            return;
+        }
+
+        if ("PHONE".equals(type) && "tencent".equalsIgnoreCase(provider)) {
+            tencentSmsCaptchaSender.send(target, code, scene);
+            return;
+        }
+
+        throw new BusinessException("验证码服务未配置，请联系管理员");
+    }
+
+    private void saveCaptcha(CaptchaSceneEnum scene, String target, String code) {
+        String captchaKey = CAPTCHA_PREFIX + scene.getCode() + ":" + target;
+        String cooldownKey = COOLDOWN_PREFIX + scene.getCode() + ":" + target;
+        String failKey = FAIL_PREFIX + scene.getCode() + ":" + target;
+        stringRedisTemplate.opsForValue().set(captchaKey, code, captchaProperties.getTtlSeconds(), TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(cooldownKey, "1", captchaProperties.getCooldownSeconds(), TimeUnit.SECONDS);
+        stringRedisTemplate.delete(failKey);
+    }
+
+    private String providerFor(String type) {
+        return "EMAIL".equals(type) ? captchaProperties.getEmailProvider() : captchaProperties.getSmsProvider();
+    }
+
+    private String generateCode() {
+        return String.valueOf(100000 + RANDOM.nextInt(900000));
+    }
+
+    private String maskTarget(String type, String target) {
+        if ("EMAIL".equals(type)) {
+            int at = target.indexOf('@');
+            if (at <= 1) {
+                return "***" + target.substring(Math.max(0, at));
+            }
+            return target.substring(0, Math.min(2, at)) + "***" + target.substring(at);
+        }
+        if (target.length() < 7) {
+            return "******";
+        }
+        return target.substring(0, 3) + "****" + target.substring(target.length() - 4);
     }
 }

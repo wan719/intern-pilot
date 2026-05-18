@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS `user` (
     phone_verified TINYINT NOT NULL DEFAULT 0,
     email_verified TINYINT NOT NULL DEFAULT 0,
     enabled TINYINT NOT NULL DEFAULT 1,
-    last_login_at DATETIME DEFAULT NULL,
+    last_login_time DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
-    CONSTRAINT uk_user_username UNIQUE (username),
-    CONSTRAINT uk_user_phone UNIQUE (phone),
-    CONSTRAINT uk_user_email UNIQUE (email)
+    CONSTRAINT uk_user_username_deleted UNIQUE (username, deleted),
+    CONSTRAINT uk_user_phone_deleted UNIQUE (phone, deleted),
+    CONSTRAINT uk_user_email_deleted UNIQUE (email, deleted)
 );
 
 CREATE TABLE IF NOT EXISTS role (

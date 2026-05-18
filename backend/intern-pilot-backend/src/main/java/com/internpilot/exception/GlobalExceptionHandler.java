@@ -4,6 +4,8 @@ import com.internpilot.common.Result;
 import com.internpilot.common.ResultCode;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -38,6 +40,18 @@ public class GlobalExceptionHandler {
      * @param e AI服务异常对象
      * @return 统一的响应结果
      */
+    @ExceptionHandler(DuplicateKeyException.class)
+    public Result<Void> handleDuplicateKeyException(DuplicateKeyException e) {
+        log.warn("数据重复: {}", e.getMostSpecificCause().getMessage());
+        return Result.fail(ResultCode.BAD_REQUEST, "账号信息已存在，请更换邮箱、手机号或用户名");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public Result<Void> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        log.warn("数据约束异常: {}", e.getMostSpecificCause().getMessage());
+        return Result.fail(ResultCode.BAD_REQUEST, "注册信息不完整或已存在，请检查后重试");
+    }
+
     @ExceptionHandler(AiServiceException.class)
     public Result<Void> handleAiServiceException(AiServiceException e) {
         log.error("AI 服务异常 [{}]: {}", e.getErrorCode(), e.getMessage());

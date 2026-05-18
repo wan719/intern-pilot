@@ -5,9 +5,6 @@
         <span class="eyebrow">InternPilot</span>
         <h1>创建求职工作台账号</h1>
         <p>准备好一份简历和目标岗位，就可以跑完整的 AI 匹配与投递闭环。</p>
-        <p class="auth-demo-hint">
-          演示验证码固定为 123456
-        </p>
       </div>
       <el-form class="auth-form" :model="form" label-position="top">
         <h2>注册</h2>

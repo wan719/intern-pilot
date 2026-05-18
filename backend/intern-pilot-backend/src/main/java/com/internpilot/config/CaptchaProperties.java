@@ -11,6 +11,10 @@ public class CaptchaProperties {
 
     private String mode = "mock";
 
+    private String emailProvider = "mock";
+
+    private String smsProvider = "mock";
+
     private int ttlSeconds = 300;
 
     private int cooldownSeconds = 60;

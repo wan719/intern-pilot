@@ -21,13 +21,13 @@ CREATE TABLE IF NOT EXISTS user (
     phone_verified TINYINT NOT NULL DEFAULT 0,
     email_verified TINYINT NOT NULL DEFAULT 0,
     enabled TINYINT NOT NULL DEFAULT 1,
-    last_login_at DATETIME DEFAULT NULL,
+    last_login_time DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
-    UNIQUE KEY uk_user_username (username),
-    UNIQUE KEY uk_user_phone (phone),
-    UNIQUE KEY uk_user_email (email),
+    UNIQUE KEY uk_user_username_deleted (username, deleted),
+    UNIQUE KEY uk_user_phone_deleted (phone, deleted),
+    UNIQUE KEY uk_user_email_deleted (email, deleted),
     KEY idx_user_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -85,20 +85,33 @@ DEALLOCATE PREPARE stmt;
 
 SET @ddl = (
     SELECT IF(COUNT(*) = 0,
-        'ALTER TABLE user ADD COLUMN last_login_at DATETIME DEFAULT NULL AFTER enabled',
+        'ALTER TABLE user ADD COLUMN last_login_time DATETIME DEFAULT NULL AFTER enabled',
         'SELECT 1')
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'user'
-      AND COLUMN_NAME = 'last_login_at'
+      AND COLUMN_NAME = 'last_login_time'
 );
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 SET @ddl = (
-    SELECT IF(COUNT(*) = 0,
-        'ALTER TABLE user ADD UNIQUE KEY uk_user_phone (phone)',
+    SELECT IF(COUNT(*) > 0,
+        'ALTER TABLE user DROP INDEX uk_user_username',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_username'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) > 0,
+        'ALTER TABLE user DROP INDEX uk_user_phone',
         'SELECT 1')
     FROM INFORMATION_SCHEMA.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE()
@@ -110,13 +123,52 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 SET @ddl = (
-    SELECT IF(COUNT(*) = 0,
-        'ALTER TABLE user ADD UNIQUE KEY uk_user_email (email)',
+    SELECT IF(COUNT(*) > 0,
+        'ALTER TABLE user DROP INDEX uk_user_email',
         'SELECT 1')
     FROM INFORMATION_SCHEMA.STATISTICS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'user'
       AND INDEX_NAME = 'uk_user_email'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD UNIQUE KEY uk_user_username_deleted (username, deleted)',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_username_deleted'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD UNIQUE KEY uk_user_phone_deleted (phone, deleted)',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_phone_deleted'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE user ADD UNIQUE KEY uk_user_email_deleted (email, deleted)',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'user'
+      AND INDEX_NAME = 'uk_user_email_deleted'
 );
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

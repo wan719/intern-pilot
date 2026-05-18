@@ -29,7 +29,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
 - **WebSocket 实时进度**：异步分析任务进度实时推送，支持刷新恢复
 - **AI 面试题生成**：结合分析报告、岗位信息和 RAG 知识库上下文，生成分类、难度、答案、追问的结构化面试题
 - **RAG 岗位知识库**：管理员维护岗位方向知识，系统自动切片、生成 Embedding，在分析和面试题生成时检索相关知识增强 AI 输出
-- **DeepSeek + Mock AI 双模式**：支持 DeepSeek 真实 API 和 Mock AI 本地演示，无 API Key 也能完整体验
+- **DeepSeek + Mock AI 双模式**：线上默认使用 DeepSeek 真实 API，Mock AI 仅保留给 test / CI
 - **RBAC 管理后台**：用户、角色、权限、操作日志、仪表盘和知识库管理
 - **岗位推荐闭环**：从岗位库、推荐批次、推荐理由到投递记录形成完整求职链路
 - **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2 和前端类型检查覆盖核心链路
@@ -107,7 +107,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
 | WebSocket 进度 | 实时展示 AI 分析任务进度，支持刷新恢复 |
 | AI 缓存 | 使用 Redis 缓存分析结果，避免重复调用 AI |
 | DeepSeek 接入 | 支持 deepseek-v4-flash 和 deepseek-v4-pro |
-| Mock AI | 无 API Key 时也能本地演示和测试 |
+| Mock AI | 仅用于 test / CI，线上不允许启用 |
 | AI 面试题 | 生成分类、难度、答案、追问、关键词 |
 | 岗位推荐 | 根据用户简历和岗位信息生成推荐结果 |
 | 投递记录 | 管理投递状态、备注和时间线 |
@@ -278,7 +278,7 @@ CREATE DATABASE intern_pilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 | `REDIS_HOST` | `localhost` | Redis 主机 |
 | `REDIS_PORT` | `6379` | Redis 端口 |
 | `JWT_SECRET` | 开发默认值 | 生产环境必须替换 |
-| `AI_PROVIDER` | `deepseek` | AI 提供方，真实演示用 `deepseek`，无 Key/测试可用 `mock` |
+| `AI_PROVIDER` | `deepseek` | AI 提供方，线上必须使用 `deepseek`，`mock` 仅用于 test / CI |
 | `DEEPSEEK_API_KEY` | 空 | DeepSeek API Key，**不要写入仓库** |
 | `AI_BASE_URL` | `https://api.deepseek.com` | AI 接口地址 |
 | `AI_MODEL` | `deepseek-v4-flash` | 默认 AI 模型名 |
@@ -316,8 +316,8 @@ http://localhost:5173
 
 | 账号 | 密码 | 角色 | 说明 |
 | --- | --- | --- | --- |
-| `admin` | `123456` | 系统管理员 | 拥有全部权限，可访问管理后台 |
-| `demo` | `123456` | 普通用户 | 用于体验核心功能 |
+| `admin@internpilot.local` / `13800000000` | 不公开 | 系统管理员 | 拥有全部权限，可访问管理后台 |
+| `demo@internpilot.local` / `13900000000` | 不公开 | 普通用户 | 用于体验核心功能 |
 
 > 以上账号仅用于本地开发和演示，生产环境请务必修改密码。
 
@@ -346,15 +346,60 @@ $env:AI_PRO_MODEL="deepseek-v4-pro"
 
 - `deepseek-v4-flash` 是默认模型，用于简历岗位分析、面试题生成、简历优化、岗位推荐等常规生成任务
 - `deepseek-v4-pro` 用于 RAG_QA 或复杂深度分析场景
-- Mock 模式仍然保留，适合测试、CI、本地无 Key 演示：
+- Mock 模式仍然保留，但仅适合 test / CI；线上环境不允许运行 `AI_PROVIDER=mock`：
 
 ```powershell
 $env:AI_PROVIDER="mock"
+$env:SPRING_PROFILES_ACTIVE="test"
 ```
 
 > 请不要将真实 API Key 提交到 Git 仓库。项目通过环境变量读取 API Key。
 
 如果 `AI_PROVIDER=deepseek` 但未设置 `DEEPSEEK_API_KEY`，后端会返回明确的 AI 服务错误，提示配置环境变量。
+
+### 注册验证码配置
+
+注册验证码支持邮箱 SMTP、腾讯云短信和测试 Mock。生产环境不要使用 Mock。
+
+邮箱验证码使用 SMTP 发送，需要配置：
+
+```env
+AUTH_EMAIL_CAPTCHA_PROVIDER=smtp
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM=
+```
+
+手机验证码使用腾讯云短信发送，需要先在腾讯云控制台完成短信签名和模板审核，然后配置：
+
+```env
+AUTH_SMS_CAPTCHA_PROVIDER=tencent
+TENCENT_SMS_SECRET_ID=
+TENCENT_SMS_SECRET_KEY=
+TENCENT_SMS_REGION=ap-guangzhou
+TENCENT_SMS_SDK_APP_ID=
+TENCENT_SMS_SIGN_NAME=
+TENCENT_SMS_TEMPLATE_ID=
+TENCENT_SMS_TEMPLATE_HAS_EXPIRE_MINUTES=false
+```
+
+如果暂时只开放邮箱注册、关闭手机号注册：
+
+```env
+AUTH_EMAIL_CAPTCHA_PROVIDER=smtp
+AUTH_SMS_CAPTCHA_PROVIDER=disabled
+```
+
+测试环境使用：
+
+```env
+AUTH_EMAIL_CAPTCHA_PROVIDER=mock
+AUTH_SMS_CAPTCHA_PROVIDER=mock
+```
+
+不要把 `MAIL_PASSWORD`、`TENCENT_SMS_SECRET_ID`、`TENCENT_SMS_SECRET_KEY` 或真实 API Key 写入代码、README 或提交记录。
 
 ### API 文档
 

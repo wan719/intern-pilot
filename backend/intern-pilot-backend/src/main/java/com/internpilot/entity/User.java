@@ -44,7 +44,7 @@ public class User {
 
     private Integer enabled;
 
-    private LocalDateTime lastLoginAt;
+    private LocalDateTime lastLoginTime;
 
     private LocalDateTime createdAt;
 

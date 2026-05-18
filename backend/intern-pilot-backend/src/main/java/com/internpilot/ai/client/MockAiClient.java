@@ -3,9 +3,11 @@ package com.internpilot.ai.client;
 import com.internpilot.ai.scenario.AiScenarioEnum;
 import com.internpilot.ai.client.AiClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
+@Profile("test")
 @ConditionalOnProperty(prefix = "ai", name = "provider", havingValue = "mock")
 public class MockAiClient implements AiClient {
 

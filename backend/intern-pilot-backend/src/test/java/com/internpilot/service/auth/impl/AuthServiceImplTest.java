@@ -1,6 +1,8 @@
 package com.internpilot.service.auth.impl;
 
-import com.internpilot.captcha.CaptchaSender;
+import com.internpilot.captcha.EmailCaptchaSender;
+import com.internpilot.captcha.MockCaptchaSender;
+import com.internpilot.captcha.TencentSmsCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.dto.auth.LoginRequest;
@@ -24,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Duration;
@@ -65,7 +68,13 @@ class AuthServiceImplTest {
     private ValueOperations<String, String> valueOperations;
 
     @Mock
-    private CaptchaSender captchaSender;
+    private MockCaptchaSender mockCaptchaSender;
+
+    @Mock
+    private EmailCaptchaSender emailCaptchaSender;
+
+    @Mock
+    private TencentSmsCaptchaSender tencentSmsCaptchaSender;
 
     private CaptchaProperties captchaProperties;
     private CaptchaService captchaService;
@@ -75,13 +84,19 @@ class AuthServiceImplTest {
     void setUp() {
         captchaProperties = new CaptchaProperties();
         captchaProperties.setMode("mock");
+        captchaProperties.setEmailProvider("mock");
+        captchaProperties.setSmsProvider("mock");
         captchaProperties.setTtlSeconds(300);
         captchaProperties.setCooldownSeconds(60);
         captchaProperties.setMaxFailCount(5);
+        captchaProperties.setDailyLimit(10);
 
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(valueOperations.increment(anyString())).thenReturn(1L);
 
-        captchaService = new CaptchaService(stringRedisTemplate, captchaSender, captchaProperties, userMapper);
+        mockCaptchaSender = spy(new MockCaptchaSender());
+        captchaService = new CaptchaService(stringRedisTemplate, objectProvider(mockCaptchaSender),
+                emailCaptchaSender, tencentSmsCaptchaSender, captchaProperties, userMapper);
         authService = new AuthServiceImpl(userMapper, passwordEncoder, jwtTokenProvider,
                 roleMapper, permissionMapper, userRoleMapper, captchaService);
     }
@@ -101,7 +116,7 @@ class AuthServiceImplTest {
                 eq(TimeUnit.SECONDS));
         verify(valueOperations).set(eq("auth:captcha:cooldown:EMAIL_REGISTER:test@example.com"), eq("1"), eq(60L),
                 eq(TimeUnit.SECONDS));
-        verify(captchaSender).send(eq("test@example.com"), eq("123456"), any());
+        verify(mockCaptchaSender).send(eq("test@example.com"), eq("123456"), any());
     }
 
     @Test
@@ -117,6 +132,69 @@ class AuthServiceImplTest {
 
         verify(valueOperations).set(eq("auth:captcha:PHONE_REGISTER:13800000000"), eq("123456"), eq(300L),
                 eq(TimeUnit.SECONDS));
+        verify(mockCaptchaSender).send(eq("13800000000"), eq("123456"), any());
+    }
+
+    @Test
+    void sendRegisterCaptcha_shouldFail_whenEmailProviderDisabled() {
+        captchaProperties.setEmailProvider("disabled");
+        CaptchaSendRequest request = new CaptchaSendRequest();
+        request.setTarget("test@example.com");
+        request.setType("EMAIL");
+
+        when(userMapper.selectCount(any())).thenReturn(0L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> captchaService.sendRegisterCaptcha(request));
+
+        assertEquals("邮箱注册暂未开放", exception.getMessage());
+        verify(valueOperations, never()).set(startsWith("auth:captcha:EMAIL_REGISTER"), anyString(), anyLong(), any());
+    }
+
+    @Test
+    void sendRegisterCaptcha_shouldFail_whenSmsProviderDisabled() {
+        captchaProperties.setSmsProvider("disabled");
+        CaptchaSendRequest request = new CaptchaSendRequest();
+        request.setTarget("13800000000");
+        request.setType("PHONE");
+
+        when(userMapper.selectCount(any())).thenReturn(0L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> captchaService.sendRegisterCaptcha(request));
+
+        assertEquals("手机号注册暂未开放", exception.getMessage());
+        verify(valueOperations, never()).set(startsWith("auth:captcha:PHONE_REGISTER"), anyString(), anyLong(), any());
+    }
+
+    @Test
+    void sendRegisterCaptcha_shouldNotSaveCaptcha_whenProviderSendFails() {
+        captchaProperties.setEmailProvider("smtp");
+        CaptchaSendRequest request = new CaptchaSendRequest();
+        request.setTarget("test@example.com");
+        request.setType("EMAIL");
+
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        when(stringRedisTemplate.hasKey(anyString())).thenReturn(false);
+        doThrow(new BusinessException("验证码发送失败，请稍后重试"))
+                .when(emailCaptchaSender).send(eq("test@example.com"), anyString(), any());
+
+        assertThrows(BusinessException.class, () -> captchaService.sendRegisterCaptcha(request));
+
+        verify(valueOperations, never()).set(startsWith("auth:captcha:EMAIL_REGISTER"), anyString(), anyLong(), any());
+    }
+
+    @Test
+    void sendRegisterCaptcha_shouldFail_whenDailyLimitExceeded() {
+        CaptchaSendRequest request = new CaptchaSendRequest();
+        request.setTarget("limit@example.com");
+        request.setType("EMAIL");
+
+        when(userMapper.selectCount(any())).thenReturn(0L);
+        when(stringRedisTemplate.hasKey(anyString())).thenReturn(false);
+        when(valueOperations.increment("auth:captcha:daily:EMAIL_REGISTER:limit@example.com")).thenReturn(11L);
+
+        assertThrows(BusinessException.class, () -> captchaService.sendRegisterCaptcha(request));
     }
 
     @Test
@@ -162,10 +240,31 @@ class AuthServiceImplTest {
         AuthUserResponse response = authService.register(request);
 
         assertNotNull(response);
-        assertEquals("test", response.getUsername());
+        assertTrue(response.getUsername().startsWith("test_"));
         assertEquals("test@example.com", response.getEmail());
         verify(userMapper).insert(any(User.class));
         verify(userRoleMapper).insert(any(com.internpilot.entity.UserRole.class));
+    }
+
+    @Test
+    void register_shouldFail_whenUsernameDuplicate() {
+        RegisterRequest request = new RegisterRequest();
+        request.setAccount("test@example.com");
+        request.setAccountType("EMAIL");
+        request.setPassword("123456");
+        request.setConfirmPassword("123456");
+        request.setCaptchaCode("123456");
+        request.setUsername("demo");
+
+        when(userMapper.selectCount(any())).thenReturn(0L).thenReturn(1L);
+        when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
+        when(valueOperations.get("auth:captcha:fail:EMAIL_REGISTER:test@example.com")).thenReturn(null);
+        when(passwordEncoder.encode("123456")).thenReturn("encoded_password");
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
+
+        assertEquals("用户名已被占用，请更换用户名", exception.getMessage());
+        verify(userMapper, never()).insert(any(User.class));
     }
 
     @Test
@@ -282,60 +381,25 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void login_shouldSucceed_withSystemUsername_admin() {
+    void login_shouldFail_withUsernameForSystemAccount() {
         LoginRequest request = new LoginRequest();
         request.setAccount("admin");
         request.setPassword("123456");
 
-        User mockSystemUser = new User();
-        mockSystemUser.setId(2L);
-        mockSystemUser.setUsername("admin");
-        mockSystemUser.setPassword("encoded_password");
-        mockSystemUser.setEmail("admin@internpilot.local");
-        mockSystemUser.setRole("ADMIN");
-        mockSystemUser.setAccountType("SYSTEM");
-        mockSystemUser.setEnabled(1);
+        when(userMapper.selectOne(any())).thenReturn(null);
 
-        User mockUser = mockUser(2L, "admin", "admin@internpilot.local", "ADMIN");
-        when(userMapper.selectOne(any())).thenReturn(null).thenReturn(null).thenReturn(mockSystemUser);
-        when(passwordEncoder.matches("123456", "encoded_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(2L, "admin", "ADMIN")).thenReturn("jwt-token");
-        when(jwtTokenProvider.getExpirationSeconds()).thenReturn(86400L);
-        when(permissionMapper.selectRoleCodesByUserId(2L)).thenReturn(List.of("ADMIN"));
-        when(permissionMapper.selectPermissionCodesByUserId(2L)).thenReturn(Collections.emptyList());
-
-        LoginResponse response = authService.login(request);
-
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getToken());
+        assertThrows(BusinessException.class, () -> authService.login(request));
     }
 
     @Test
-    void login_shouldSucceed_withSystemUsername_demo() {
+    void login_shouldFail_withUsernameForNormalUser() {
         LoginRequest request = new LoginRequest();
         request.setAccount("demo");
         request.setPassword("123456");
 
-        User mockSystemUser = new User();
-        mockSystemUser.setId(1L);
-        mockSystemUser.setUsername("demo");
-        mockSystemUser.setPassword("encoded_password");
-        mockSystemUser.setEmail("demo@internpilot.local");
-        mockSystemUser.setRole("USER");
-        mockSystemUser.setAccountType("SYSTEM");
-        mockSystemUser.setEnabled(1);
+        when(userMapper.selectOne(any())).thenReturn(null);
 
-        when(userMapper.selectOne(any())).thenReturn(null).thenReturn(null).thenReturn(mockSystemUser);
-        when(passwordEncoder.matches("123456", "encoded_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(1L, "demo", "USER")).thenReturn("jwt-token");
-        when(jwtTokenProvider.getExpirationSeconds()).thenReturn(86400L);
-        when(permissionMapper.selectRoleCodesByUserId(1L)).thenReturn(List.of("USER"));
-        when(permissionMapper.selectPermissionCodesByUserId(1L)).thenReturn(Collections.emptyList());
-
-        LoginResponse response = authService.login(request);
-
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getToken());
+        assertThrows(BusinessException.class, () -> authService.login(request));
     }
 
     private Role mockRole() {
@@ -356,5 +420,29 @@ class AuthServiceImplTest {
         user.setRole(role);
         user.setEnabled(1);
         return user;
+    }
+
+    private <T> ObjectProvider<T> objectProvider(T instance) {
+        return new ObjectProvider<>() {
+            @Override
+            public T getObject(Object... args) {
+                return instance;
+            }
+
+            @Override
+            public T getIfAvailable() {
+                return instance;
+            }
+
+            @Override
+            public T getIfUnique() {
+                return instance;
+            }
+
+            @Override
+            public T getObject() {
+                return instance;
+            }
+        };
     }
 }

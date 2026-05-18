@@ -103,7 +103,7 @@ public class AuthServiceImpl implements AuthService {
             user.setPhoneVerified(0);
             user.setUsername(StringUtils.hasText(request.getUsername())
                     ? request.getUsername()
-                    : account.split("@")[0]);
+                    : account.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 6));
         } else {
             user.setPhone(account);
             user.setPhoneVerified(1);
@@ -112,6 +112,14 @@ public class AuthServiceImpl implements AuthService {
                     ? request.getUsername()
                     : "user_" + account.substring(Math.max(0, account.length() - 4)) + "_" + UUID.randomUUID().toString().substring(0, 6);
             user.setUsername(autoUsername);
+        }
+
+        Long usernameCount = userMapper.selectCount(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getUsername, user.getUsername())
+                        .eq(User::getDeleted, 0));
+        if (usernameCount != null && usernameCount > 0) {
+            throw new BusinessException("用户名已被占用，请更换用户名");
         }
 
         user.setSchool(request.getSchool());
@@ -156,14 +164,6 @@ public class AuthServiceImpl implements AuthService {
                             .last("LIMIT 1"));
         }
 
-        if (user == null && "SYSTEM".equals(getAccountTypeIfSystem(account))) {
-            user = userMapper.selectOne(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getUsername, account)
-                            .eq(User::getDeleted, 0)
-                            .last("LIMIT 1"));
-        }
-
         if (user == null) {
             throw new BusinessException("账号或密码错误");
         }
@@ -174,7 +174,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("账号或密码错误");
         }
 
-        user.setLastLoginAt(LocalDateTime.now());
+        user.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(user);
 
         LoginResponse response = new LoginResponse();
@@ -182,16 +182,6 @@ public class AuthServiceImpl implements AuthService {
         response.setExpiresIn(jwtTokenProvider.getExpirationSeconds());
         response.setUser(toAuthUserResponse(user));
         return response;
-    }
-
-    private String getAccountTypeIfSystem(String account) {
-        User systemUser = userMapper.selectOne(
-                new LambdaQueryWrapper<User>()
-                        .eq(User::getUsername, account)
-                        .eq(User::getAccountType, "SYSTEM")
-                        .eq(User::getDeleted, 0)
-                        .last("LIMIT 1"));
-        return systemUser != null ? "SYSTEM" : null;
     }
 
     private AuthUserResponse toAuthUserResponse(User user) {
