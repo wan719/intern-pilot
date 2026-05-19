@@ -1,21 +1,24 @@
 <template>
   <section class="page-container">
-    <div class="page-heading">
-      <div>
-        <h1>{{ title }}</h1>
-        <p v-if="description">{{ description }}</p>
-      </div>
-      <div class="page-actions">
+    <AppPageHeader :title="displayTitle" :description="description">
+      <template v-if="$slots.actions" #actions>
         <slot name="actions" />
-      </div>
-    </div>
+      </template>
+    </AppPageHeader>
     <slot />
   </section>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
+
+const props = defineProps<{
   title: string
   description?: string
 }>()
+
+const route = useRoute()
+const displayTitle = computed(() => props.title || String(route.meta.title || 'InternPilot'))
 </script>

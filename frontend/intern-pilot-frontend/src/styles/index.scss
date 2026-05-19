@@ -119,12 +119,17 @@ a {
   padding: 24px 28px 36px;
 }
 
-.page-heading {
+.page-heading,
+.app-page-header {
   display: flex;
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 18px;
+}
+
+.page-heading,
+.app-page-title {
 
   h1 {
     margin: 0;
@@ -137,8 +142,49 @@ a {
   }
 }
 
-.page-actions {
+.page-actions,
+.app-page-actions {
   flex-shrink: 0;
+}
+
+.app-page-eyebrow {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.app-empty {
+  padding: 34px 12px;
+}
+
+.app-empty-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 26px;
+}
+
+.app-empty-copy {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  color: #667085;
+}
+
+.app-empty-copy strong {
+  color: #172033;
+  font-size: 15px;
+}
+
+.app-empty-copy span {
+  font-size: 13px;
 }
 
 .panel {
@@ -337,6 +383,23 @@ a {
   }
 }
 
+.auth-feature-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.auth-feature-list span {
+  padding: 7px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .auth-demo-hint {
   margin-top: 16px;
   padding: 10px 14px;
@@ -410,6 +473,7 @@ a {
   }
 
   .page-heading,
+  .app-page-header,
   .toolbar {
     flex-direction: column;
     align-items: stretch;

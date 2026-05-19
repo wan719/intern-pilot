@@ -5,6 +5,12 @@
         <span class="eyebrow">InternPilot</span>
         <h1>创建求职工作台账号</h1>
         <p>使用邮箱验证码完成注册，登录后即可管理简历、岗位、分析报告和投递记录。</p>
+        <div class="auth-feature-list">
+          <span>邮箱验证码</span>
+          <span>求职偏好</span>
+          <span>默认简历</span>
+          <span>安全账号</span>
+        </div>
       </div>
 
       <el-form class="auth-form" :model="form" label-position="top">

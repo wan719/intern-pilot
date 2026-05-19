@@ -20,6 +20,13 @@
             <el-tag :type="row.enabled ? 'success' : 'danger'">{{ row.enabled ? '启用' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无权限项"
+            description="当前筛选条件下没有权限记录"
+            hint="可重置资源类型筛选后重新查看。"
+          />
+        </template>
       </el-table>
     </section>
   </PageContainer>
@@ -28,6 +35,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { getAdminPermissionListApi } from '@/api/adminPermission'
 
 const loading = ref(false)

@@ -34,6 +34,15 @@
             <el-button link type="danger" @click="removeApplication(row.applicationId)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无投递记录"
+            description="记录投递状态、面试时间和复盘内容"
+            hint="可以从岗位列表或分析报告开始创建投递记录。"
+          >
+            <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
+          </AppEmpty>
+        </template>
       </el-table>
     </section>
 
@@ -129,6 +138,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { createApplicationApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, updateApplicationNoteApi, updateApplicationStatusApi } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'

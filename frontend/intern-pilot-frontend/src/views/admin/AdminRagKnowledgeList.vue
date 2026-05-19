@@ -42,6 +42,15 @@
             <el-button v-if="canManage" link type="danger" @click="remove(row.documentId)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无 RAG 知识文档"
+            description="维护岗位方向知识后，AI 分析可以引用更稳定的上下文"
+            hint="可先添加技能要求、面试重点或简历优化建议。"
+          >
+            <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
+          </AppEmpty>
+        </template>
       </el-table>
     </section>
 
@@ -141,6 +150,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import {
   createRagKnowledgeApi,
   deleteRagKnowledgeApi,

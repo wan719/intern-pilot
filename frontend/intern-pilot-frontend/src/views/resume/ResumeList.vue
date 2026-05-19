@@ -30,6 +30,15 @@
             <el-button link type="danger" @click="removeResume(row.resumeId)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="还没有上传简历"
+            description="上传简历后即可开始 AI 匹配分析"
+            hint="支持 PDF / DOCX 文件，上传后可查看解析结果并设置默认简历。"
+          >
+            <el-button type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
+          </AppEmpty>
+        </template>
       </el-table>
     </section>
 
@@ -70,6 +79,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { Upload, UploadFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import router from '@/router'
 import { deleteResumeApi, getResumeDetailApi, getResumeListApi, setDefaultResumeApi, uploadResumeApi } from '@/api/resume'
 import { formatDateTime } from '@/utils/format'

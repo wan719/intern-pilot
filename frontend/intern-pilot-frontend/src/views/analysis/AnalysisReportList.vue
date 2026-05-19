@@ -37,6 +37,15 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无 AI 分析报告"
+            description="选择一份简历和目标岗位，生成第一份匹配分析报告"
+            hint="报告会展示匹配分、优势短板、缺失技能和优化建议。"
+          >
+            <el-button type="primary" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
+          </AppEmpty>
+        </template>
       </el-table>
     </section>
 
@@ -77,6 +86,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
+import router from '@/router'
 import { deleteAnalysisReportApi, getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
 import { formatDateTime } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'

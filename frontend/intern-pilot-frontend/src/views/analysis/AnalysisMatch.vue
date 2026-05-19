@@ -53,7 +53,7 @@
       <section class="panel result-panel">
         <div class="panel-header">
           <h3>任务进度</h3>
-          <el-tag v-if="task.taskNo" :type="statusTagType">{{ task.status }}</el-tag>
+          <StatusTag v-if="task.taskNo" :status="task.status" />
         </div>
 
         <template v-if="task.taskNo">
@@ -86,7 +86,12 @@
           </div>
         </template>
 
-        <el-empty v-else description="创建任务后将在这里显示实时进度" />
+        <AppEmpty
+          v-else
+          title="等待发起 AI 匹配分析"
+          description="选择简历和目标岗位后，系统会展示实时进度"
+          hint="答辩演示建议使用一份已解析简历和完整 JD，进度会从解析、上下文构建到报告生成逐步推进。"
+        />
       </section>
     </div>
   </PageContainer>
@@ -99,6 +104,8 @@ import { MagicStick } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import type { Client } from '@stomp/stompjs'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
+import StatusTag from '@/components/common/StatusTag.vue'
 import router from '@/router'
 import { createAnalysisTaskApi, getAnalysisTaskDetailApi } from '@/api/analysisTask'
 import { getJobListApi } from '@/api/job'
@@ -143,13 +150,6 @@ const progressStatus = computed(() => {
   if (task.status === 'FAILED') return 'exception'
   if (task.status === 'COMPLETED') return 'success'
   return undefined
-})
-
-const statusTagType = computed(() => {
-  if (task.status === 'COMPLETED') return 'success'
-  if (task.status === 'FAILED') return 'danger'
-  if (task.status === 'PENDING') return 'info'
-  return 'warning'
 })
 
 async function loadOptions() {

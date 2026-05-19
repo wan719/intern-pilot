@@ -21,6 +21,13 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无角色"
+            description="当前没有可展示的角色数据"
+            hint="请确认后台初始化数据和当前账号权限。"
+          />
+        </template>
       </el-table>
     </section>
 
@@ -47,6 +54,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAdminRoleListApi, updateRolePermissionsApi } from '@/api/adminRole'
 import { getAdminPermissionListApi } from '@/api/adminPermission'

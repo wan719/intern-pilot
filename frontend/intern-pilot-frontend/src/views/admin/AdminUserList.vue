@@ -56,6 +56,13 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="暂无用户"
+            description="当前筛选条件下没有用户记录"
+            hint="可重置筛选条件后重新查询。"
+          />
+        </template>
       </el-table>
 
       <el-pagination
@@ -103,6 +110,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { formatDateTime } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
 import {

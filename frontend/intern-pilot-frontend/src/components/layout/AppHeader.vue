@@ -37,6 +37,10 @@
               <el-icon><User /></el-icon>
               <span>个人中心</span>
             </el-dropdown-item>
+            <el-dropdown-item v-if="showAdminEntry" command="admin">
+              <el-icon><Setting /></el-icon>
+              <span>管理后台</span>
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -48,7 +52,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Refresh, User } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh, Setting, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAiProviderApi } from '@/api/health'
 
@@ -70,6 +74,8 @@ const accountSubtext = computed(() => {
   }
   return '账号设置'
 })
+const adminPermissionKeys = ['admin:dashboard', 'user:read', 'role:read', 'permission:read', 'operation-log:read', 'rag:read']
+const showAdminEntry = computed(() => adminPermissionKeys.some((key) => auth.hasPermission(key)))
 const aiProvider = ref('')
 
 function resolveAvatarUrl(url?: string) {
@@ -88,10 +94,24 @@ function handleCommand(command: string) {
     router.push('/user/center')
     return
   }
+  if (command === 'admin') {
+    router.push(resolveAdminHome())
+    return
+  }
   if (command === 'logout') {
     auth.logout()
     router.push('/login')
   }
+}
+
+function resolveAdminHome() {
+  if (auth.hasPermission('admin:dashboard')) return '/admin/dashboard'
+  if (auth.hasPermission('user:read')) return '/admin/users'
+  if (auth.hasPermission('role:read')) return '/admin/roles'
+  if (auth.hasPermission('permission:read')) return '/admin/permissions'
+  if (auth.hasPermission('operation-log:read')) return '/admin/operation-logs'
+  if (auth.hasPermission('rag:read')) return '/admin/rag-knowledge'
+  return '/403'
 }
 
 onMounted(async () => {

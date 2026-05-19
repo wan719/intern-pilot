@@ -1,6 +1,6 @@
 <template>
   <PageContainer title="" description="基于现有列表接口汇总简历、岗位、分析报告和投递进度。">
-    <div class="stat-grid">
+    <div v-loading="loading" class="stat-grid">
       <StatCard label="简历数量" :value="summary.resumes" :icon="Document" />
       <StatCard label="岗位数量" :value="summary.jobs" :icon="Briefcase" />
       <StatCard label="分析报告" :value="summary.reports" :icon="Tickets" />
@@ -36,6 +36,15 @@
           <el-table-column label="时间" width="150">
             <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
           </el-table-column>
+          <template #empty>
+            <AppEmpty
+              title="暂无分析报告"
+              description="完成一次 AI 匹配后，这里会展示最近报告"
+              hint="答辩演示时可从 AI 分析页发起一轮完整流程。"
+            >
+              <el-button type="primary" @click="router.push('/analysis/match')">开始分析</el-button>
+            </AppEmpty>
+          </template>
         </el-table>
       </section>
       <section class="panel">
@@ -50,6 +59,15 @@
               <el-tag :type="statusTypes[row.status]">{{ statusLabels[row.status] || row.status }}</el-tag>
             </template>
           </el-table-column>
+          <template #empty>
+            <AppEmpty
+              title="暂无投递动态"
+              description="创建投递记录后，这里会展示最近进展"
+              hint="可用于演示从岗位管理到投递跟踪的闭环。"
+            >
+              <el-button @click="router.push('/applications')">管理投递</el-button>
+            </AppEmpty>
+          </template>
         </el-table>
       </section>
     </div>
@@ -61,7 +79,9 @@ import { nextTick, onMounted, reactive, ref } from 'vue'
 import * as echarts from 'echarts'
 import { Briefcase, Document, List, Tickets } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
+import router from '@/router'
 import { getApplicationListApi } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
@@ -71,25 +91,31 @@ import { formatDateTime, statusLabels, statusTypes } from '@/utils/format'
 const summary = reactive({ resumes: 0, jobs: 0, reports: 0, applications: 0 })
 const reports = ref<any[]>([])
 const applications = ref<any[]>([])
+const loading = ref(false)
 const statusChartRef = ref<HTMLDivElement>()
 const scoreChartRef = ref<HTMLDivElement>()
 
 async function loadDashboard() {
-  const [resumeRes, jobRes, reportRes, appRes]: any[] = await Promise.all([
-    getResumeListApi({ pageNum: 1, pageSize: 100 }),
-    getJobListApi({ pageNum: 1, pageSize: 100 }),
-    getAnalysisReportsApi({ pageNum: 1, pageSize: 100 }),
-    getApplicationListApi({ pageNum: 1, pageSize: 100 })
-  ])
+  loading.value = true
+  try {
+    const [resumeRes, jobRes, reportRes, appRes]: any[] = await Promise.all([
+      getResumeListApi({ pageNum: 1, pageSize: 100 }),
+      getJobListApi({ pageNum: 1, pageSize: 100 }),
+      getAnalysisReportsApi({ pageNum: 1, pageSize: 100 }),
+      getApplicationListApi({ pageNum: 1, pageSize: 100 })
+    ])
 
-  summary.resumes = resumeRes.total ?? resumeRes.records?.length ?? 0
-  summary.jobs = jobRes.total ?? jobRes.records?.length ?? 0
-  summary.reports = reportRes.total ?? reportRes.records?.length ?? 0
-  summary.applications = appRes.total ?? appRes.records?.length ?? 0
-  reports.value = reportRes.records || []
-  applications.value = appRes.records || []
-  await nextTick()
-  renderCharts()
+    summary.resumes = resumeRes.total ?? resumeRes.records?.length ?? 0
+    summary.jobs = jobRes.total ?? jobRes.records?.length ?? 0
+    summary.reports = reportRes.total ?? reportRes.records?.length ?? 0
+    summary.applications = appRes.total ?? appRes.records?.length ?? 0
+    reports.value = reportRes.records || []
+    applications.value = appRes.records || []
+    await nextTick()
+    renderCharts()
+  } finally {
+    loading.value = false
+  }
 }
 
 function renderCharts() {

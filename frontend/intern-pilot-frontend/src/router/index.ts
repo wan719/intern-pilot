@@ -22,38 +22,44 @@ const routes = [
       { path: 'interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题' } },
       { path: 'interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情' } },
       { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录' } },
-      { path: 'user/center', component: () => import('@/views/user/UserCenter.vue'), meta: { title: '个人中心' } },
+      { path: 'user/center', component: () => import('@/views/user/UserCenter.vue'), meta: { title: '个人中心' } }
+    ]
+  },
+  {
+    path: '/admin',
+    component: () => import('@/components/layout/AdminLayout.vue'),
+    redirect: '/admin/dashboard',
+    children: [
       {
-        path: 'admin/dashboard',
+        path: 'dashboard',
         component: () => import('@/views/admin/AdminDashboard.vue'),
         meta: { title: '后台看板', permission: 'admin:dashboard' }
       },
       {
-        path: 'admin/users',
+        path: 'users',
         component: () => import('@/views/admin/AdminUserList.vue'),
         meta: { title: '用户管理', permission: 'user:read' }
       },
       {
-        path: 'admin/roles',
+        path: 'roles',
         component: () => import('@/views/admin/AdminRoleList.vue'),
         meta: { title: '角色管理', permission: 'role:read' }
       },
       {
-        path: 'admin/permissions',
+        path: 'permissions',
         component: () => import('@/views/admin/AdminPermissionList.vue'),
         meta: { title: '权限管理', permission: 'permission:read' }
       },
       {
-        path: 'admin/operation-logs',
+        path: 'operation-logs',
         component: () => import('@/views/admin/OperationLogList.vue'),
         meta: { title: '操作日志', permission: 'operation-log:read' }
       },
       {
-        path: 'admin/rag-knowledge',
+        path: 'rag-knowledge',
         component: () => import('@/views/admin/AdminRagKnowledgeList.vue'),
         meta: { title: 'RAG 知识库', permission: 'rag:read' }
       }
-      
     ]
   }
 ]

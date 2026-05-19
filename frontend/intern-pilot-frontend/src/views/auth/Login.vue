@@ -5,6 +5,12 @@
         <span class="eyebrow">InternPilot</span>
         <h1>AI 实习投递与简历优化平台</h1>
         <p>登录后可以上传简历、管理岗位 JD、生成 AI 匹配报告，并跟踪每一次投递进展。</p>
+        <div class="auth-feature-list">
+          <span>简历解析</span>
+          <span>AI 匹配分析</span>
+          <span>面试题生成</span>
+          <span>投递复盘</span>
+        </div>
       </div>
 
       <el-form class="auth-form" :model="form" label-position="top" @keyup.enter="handleLogin">

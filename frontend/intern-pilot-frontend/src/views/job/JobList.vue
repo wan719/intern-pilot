@@ -27,6 +27,15 @@
             <el-button link type="danger" @click="removeJob(row.jobId)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <AppEmpty
+            title="还没有岗位 JD"
+            description="新增岗位后即可用于 AI 匹配分析"
+            hint="建议填写公司、岗位、地点、薪资和完整 JD 内容，答辩演示会更清晰。"
+          >
+            <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
+          </AppEmpty>
+        </template>
       </el-table>
     </section>
 
@@ -89,6 +98,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
 import { formatDateTime } from '@/utils/format'
 
