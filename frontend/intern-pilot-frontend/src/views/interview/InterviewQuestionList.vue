@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="" description="根据简历、岗位和 AI 匹配报告生成定制化面试题。">
+  <PageContainer title="" description="基于简历、岗位 JD 和匹配分析生成专属面试题，辅助面试前复习与答辩演示。">
     <template #actions>
       <el-button type="primary" :icon="Plus" :disabled="!canGenerate" @click="openGenerate">
         生成面试题
@@ -12,13 +12,20 @@
       type="info"
       show-icon
       :closable="false"
-      title="生成面试题前，需要先准备至少一份已解析简历和一个岗位 JD。"
+      title="生成面试题前，需要先准备至少一份简历和一个岗位 JD。"
     >
       <div class="guide-actions">
         <el-button size="small" type="primary" @click="router.push('/resumes')">去上传简历</el-button>
         <el-button size="small" @click="router.push('/jobs')">去新增岗位</el-button>
       </div>
     </el-alert>
+
+    <div v-loading="loading" class="interview-summary-grid">
+      <StatCard label="面试题报告" :value="reportStats.total" :icon="Files" />
+      <StatCard label="题目总数" :value="reportStats.questionTotal" :icon="Tickets" />
+      <StatCard label="关联岗位" :value="reportStats.jobCount" :icon="Briefcase" />
+      <StatCard label="最近生成" :value="reportStats.latestText" :icon="Clock" />
+    </div>
 
     <section class="panel toolbar">
       <el-select v-model="query.resumeId" placeholder="按简历筛选" clearable filterable>
@@ -37,11 +44,11 @@
           :value="item.jobId"
         />
       </el-select>
-      <el-button type="primary" @click="loadReports">筛选</el-button>
+      <el-button type="primary" @click="search">筛选</el-button>
       <el-button @click="resetQuery">重置</el-button>
     </section>
 
-    <section class="panel">
+    <section v-loading="loading" class="interview-library">
       <el-alert
         v-if="loadError"
         class="table-alert"
@@ -53,27 +60,63 @@
         <el-button size="small" type="primary" @click="loadReports">重试</el-button>
       </el-alert>
 
-      <el-table v-else v-loading="loading" :data="reports">
-        <el-table-column prop="title" label="报告标题" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="companyName" label="公司" min-width="120" />
-        <el-table-column prop="jobTitle" label="岗位" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="questionCount" label="题目数" width="90" />
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="goDetail(row.reportId)">练习</el-button>
-            <el-button link type="success" :loading="regeneratingId === row.reportId" @click="regenerateReport(row)">重新生成</el-button>
-            <el-button v-if="authStore.hasPermission('analysis:delete')" link type="danger" :loading="deletingId === row.reportId" @click="removeReport(row)">删除</el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无面试题报告">
-            <el-button type="primary" :disabled="!canGenerate" @click="openGenerate">生成第一套面试题</el-button>
-          </el-empty>
-        </template>
-      </el-table>
+      <AppEmpty
+        v-else-if="!reports.length && !loading"
+        title="还没有 AI 面试题"
+        description="选择简历和岗位后生成专属面试题，用于面试前复盘。"
+        hint="建议先完善岗位 JD 和简历解析结果，生成的问题会更贴合真实面试。"
+      >
+        <el-button type="primary" :icon="Plus" :disabled="!canGenerate" @click="openGenerate">
+          生成第一套面试题
+        </el-button>
+      </AppEmpty>
+
+      <article v-for="item in reports" v-else :key="item.reportId" class="interview-card">
+        <div class="interview-card-main">
+          <div class="interview-card-heading">
+            <div>
+              <span class="eyebrow">AI 面试题报告</span>
+              <h3>{{ item.title || reportTitle(item) }}</h3>
+            </div>
+            <el-tag type="primary" effect="plain">{{ item.questionCount || 0 }} 题</el-tag>
+          </div>
+
+          <div class="interview-meta">
+            <span>{{ item.companyName || '未知公司' }}</span>
+            <span>{{ item.jobTitle || '未知岗位' }}</span>
+            <span>{{ formatDateTime(item.createdAt) }}</span>
+          </div>
+
+          <div class="question-preview">
+            <div>
+              <strong>复习重点</strong>
+              <p>围绕岗位技能、项目经历、简历追问和 HR 表达组织题目，适合面试前快速过一遍。</p>
+            </div>
+            <div>
+              <strong>建议用法</strong>
+              <p>先口述作答，再进入详情页查看参考答案、考察点和追问问题。</p>
+            </div>
+          </div>
+
+          <div class="coverage-tags">
+            <el-tag v-for="tag in coverageTags(item)" :key="tag" effect="plain">{{ tag }}</el-tag>
+          </div>
+        </div>
+
+        <div class="interview-actions">
+          <el-button type="primary" @click="goDetail(item.reportId)">查看详情</el-button>
+          <el-button :loading="regeneratingId === item.reportId" @click="regenerateReport(item)">重新生成</el-button>
+          <el-button
+            v-if="authStore.hasPermission('analysis:delete')"
+            type="danger"
+            plain
+            :loading="deletingId === item.reportId"
+            @click="removeReport(item)"
+          >
+            删除
+          </el-button>
+        </div>
+      </article>
 
       <el-pagination
         v-if="!loadError && total > 0"
@@ -179,13 +222,14 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="生成参考答案">
-          <el-switch v-model="form.includeAnswer" />
-        </el-form-item>
-
-        <el-form-item label="生成追问问题">
-          <el-switch v-model="form.includeFollowUps" />
-        </el-form-item>
+        <div class="switch-row">
+          <el-form-item label="生成参考答案">
+            <el-switch v-model="form.includeAnswer" />
+          </el-form-item>
+          <el-form-item label="生成追问问题">
+            <el-switch v-model="form.includeFollowUps" />
+          </el-form-item>
+        </div>
       </el-form>
 
       <template #footer>
@@ -201,8 +245,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Briefcase, Clock, Files, Plus, Tickets } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import {
@@ -254,11 +300,24 @@ const form = reactive<{
   includeAnswer: boolean
   includeFollowUps: boolean
 }>({
+  questionCount: 8,
   includeAnswer: true,
   includeFollowUps: true
 })
 
 const canGenerate = computed(() => resumes.value.length > 0 && jobs.value.length > 0)
+
+const reportStats = computed(() => {
+  const jobsInReports = new Set(reports.value.map((item) => item.jobId).filter(Boolean))
+  const questionTotal = reports.value.reduce((sum, item) => sum + Number(item.questionCount || 0), 0)
+  const latest = reports.value[0]?.createdAt
+  return {
+    total: total.value || reports.value.length,
+    questionTotal,
+    jobCount: jobsInReports.size,
+    latestText: latest ? formatDateOnly(latest) : '-'
+  }
+})
 
 const categoryOptions = [
   { label: 'Java 基础', value: 'JAVA_BASIC' },
@@ -334,13 +393,18 @@ async function loadReports() {
     const res: any = await getInterviewQuestionReportsApi({ ...query })
     reports.value = res.records || []
     total.value = res.total || 0
-  } catch {
+  } catch (e: any) {
     reports.value = []
     total.value = 0
-    loadError.value = '面试题列表加载失败，请确认数据库表已初始化后重试。'
+    loadError.value = getErrorMessage(e, '面试题列表加载失败，请确认数据表已初始化后重试。')
   } finally {
     loading.value = false
   }
+}
+
+function search() {
+  query.pageNum = 1
+  loadReports()
 }
 
 function resetQuery() {
@@ -364,6 +428,7 @@ function handleSizeChange(size: number) {
 function openGenerate() {
   form.resumeId = resumes.value[0]?.resumeId
   form.jobId = jobs.value[0]?.jobId
+  form.questionCount = form.questionCount || 8
   form.analysisReportId = undefined
   generateVisible.value = true
 }
@@ -395,7 +460,7 @@ function goDetail(reportId: number) {
 
 async function removeReport(row: any) {
   try {
-    await ElMessageBox.confirm(`确认删除「${row.title || '面试题报告'}」？`, '删除确认', {
+    await ElMessageBox.confirm(`确认删除“${row.title || '面试题报告'}”吗？删除后将无法继续查看这套题。`, '删除确认', {
       type: 'warning'
     })
   } catch {
@@ -417,7 +482,7 @@ async function removeReport(row: any) {
 async function regenerateReport(row: any) {
   try {
     await ElMessageBox.confirm(
-      `确认重新生成「${row.title || '面试题报告'}」？旧的题目将被替换。`,
+      `确认重新生成“${row.title || '面试题报告'}”吗？旧的题目将被替换。`,
       '重新生成确认',
       { type: 'warning' }
     )
@@ -438,8 +503,24 @@ async function regenerateReport(row: any) {
   }
 }
 
+function reportTitle(item: any) {
+  return `${item.companyName || '目标岗位'} - ${item.jobTitle || '面试题'}`
+}
+
+function coverageTags(item: any) {
+  const count = Number(item.questionCount || 0)
+  const tags = ['岗位技能', '项目经历', '简历追问']
+  if (count >= 6) tags.push('HR 表达')
+  if (count >= 10) tags.push('进阶追问')
+  return tags
+}
+
 function getErrorMessage(error: any, fallback: string) {
   return error?.message || error?.response?.data?.message || fallback
+}
+
+function formatDateOnly(value?: string) {
+  return value ? formatDateTime(value).slice(0, 10) : '-'
 }
 
 onMounted(async () => {
@@ -461,15 +542,127 @@ onMounted(async () => {
   margin-top: 10px;
 }
 
+.interview-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.interview-library {
+  display: grid;
+  gap: 14px;
+}
+
+.interview-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.interview-card-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.interview-card h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+}
+
+.interview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+  color: var(--color-text-soft);
+  font-size: 13px;
+}
+
+.question-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.question-preview > div {
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.question-preview strong {
+  color: #1e40af;
+  font-size: 13px;
+}
+
+.question-preview p {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.coverage-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interview-actions {
+  display: flex;
+  width: 132px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.interview-actions .el-button {
+  width: 100%;
+  margin-left: 0;
+}
+
 .field-hint {
   margin: 6px 0 0;
-  color: #667085;
+  color: var(--color-text-soft);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.switch-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .pager {
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .interview-summary-grid,
+  .interview-card,
+  .question-preview,
+  .switch-row {
+    grid-template-columns: 1fr;
+  }
+
+  .interview-actions {
+    width: 100%;
+  }
 }
 </style>
