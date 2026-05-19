@@ -45,12 +45,37 @@ export interface GlobalAiTask {
   notified?: boolean
 }
 
+type UpsertTaskOptions = {
+  type: AiTaskType
+  title: string
+  taskNo: string
+  status?: AiTaskStatus | string
+  progress?: number
+  message?: string
+  reportId?: number
+  sourcePath?: string
+  silent?: boolean
+}
+
+type UpdateOptions = {
+  notify?: boolean
+}
+
 const STORAGE_KEY = 'internpilot:ai-task-center'
-const RUNNING_STATUSES = ['PENDING', 'RUNNING', 'PARSING_RESUME', 'BUILDING_CONTEXT', 'CALLING_AI', 'GENERATING_REPORT']
-const TERMINAL_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED']
+const DISMISSED_BACKEND_TASKS_KEY = 'internpilot:ai-task-center:dismissed-backend-task-nos'
+const RUNNING_STATUSES: AiTaskStatus[] = [
+  'PENDING',
+  'RUNNING',
+  'PARSING_RESUME',
+  'BUILDING_CONTEXT',
+  'CALLING_AI',
+  'GENERATING_REPORT'
+]
+const TERMINAL_STATUSES: AiTaskStatus[] = ['COMPLETED', 'FAILED', 'CANCELLED']
 
 export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   const tasks = ref<GlobalAiTask[]>([])
+  const dismissedBackendTaskNos = ref<Set<string>>(new Set())
   const drawerVisible = ref(false)
 
   const visibleTasks = computed(() => tasks.value.filter((task) => task.status !== 'DISMISSED'))
@@ -125,54 +150,62 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     return task.localTaskId
   }
 
-  function upsertByTaskNo(options: {
-    type: AiTaskType
-    title: string
-    taskNo: string
-    status?: AiTaskStatus
-    progress?: number
-    message?: string
-    reportId?: number
-    sourcePath?: string
-  }): string {
+  function upsertByTaskNo(options: UpsertTaskOptions): string {
     const existing = tasks.value.find((task) => task.backendTaskNo === options.taskNo)
+
+    if (dismissedBackendTaskNos.value.has(options.taskNo)) {
+      return existing?.localTaskId || ''
+    }
+
     const resultPath = options.reportId ? `/analysis/reports?reportId=${options.reportId}` : undefined
     if (existing) {
       if (existing.status === 'DISMISSED') {
+        rememberDismissedBackendTask(existing.backendTaskNo)
         return existing.localTaskId
       }
-      updateTask(existing.localTaskId, {
-        type: options.type,
-        title: options.title,
-        status: normalizeStatus(options.status),
-        progress: options.progress ?? existing.progress,
-        message: options.message,
-        resultId: options.reportId,
-        resultPath,
-        sourcePath: options.sourcePath ?? existing.sourcePath
-      })
+      updateTask(
+        existing.localTaskId,
+        {
+          type: options.type,
+          title: options.title,
+          status: normalizeStatus(options.status),
+          progress: options.progress ?? existing.progress,
+          message: options.message,
+          resultId: options.reportId,
+          resultPath,
+          sourcePath: options.sourcePath ?? existing.sourcePath
+        },
+        { notify: options.silent !== true }
+      )
       return existing.localTaskId
     }
 
+    const initialStatus = normalizeStatus(options.status)
     const task = createLocalTask({
       type: options.type,
       title: options.title,
       description: options.message,
       sourcePath: options.sourcePath,
-      cancellable: true,
+      cancellable: RUNNING_STATUSES.includes(initialStatus),
       dismissible: true
     })
-    updateTask(task.localTaskId, {
-      backendTaskNo: options.taskNo,
-      status: normalizeStatus(options.status),
-      progress: options.progress ?? 0,
-      resultId: options.reportId,
-      resultPath
-    })
+    updateTask(
+      task.localTaskId,
+      {
+        backendTaskNo: options.taskNo,
+        status: initialStatus,
+        progress: options.progress ?? 0,
+        message: options.message,
+        resultId: options.reportId,
+        resultPath,
+        notified: options.silent && TERMINAL_STATUSES.includes(initialStatus)
+      },
+      { notify: options.silent !== true }
+    )
     return task.localTaskId
   }
 
-  function updateTask(localTaskId: string, updates: Partial<GlobalAiTask>): void {
+  function updateTask(localTaskId: string, updates: Partial<GlobalAiTask>, options: UpdateOptions = {}): void {
     const index = tasks.value.findIndex((task) => task.localTaskId === localTaskId)
     if (index < 0) return
 
@@ -196,7 +229,8 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     tasks.value[index] = next
     saveToStorage()
 
-    if (!previous.notified && !next.notified && TERMINAL_STATUSES.includes(next.status)) {
+    const shouldNotify = options.notify !== false
+    if (shouldNotify && !previous.notified && !next.notified && TERMINAL_STATUSES.includes(next.status)) {
       notifyTask(next)
       tasks.value[index] = { ...tasks.value[index], notified: true }
       saveToStorage()
@@ -222,7 +256,15 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   }
 
   function dismissTask(localTaskId: string): void {
-    updateTask(localTaskId, { status: 'DISMISSED', dismissible: false })
+    const task = tasks.value.find((item) => item.localTaskId === localTaskId)
+    if (!task) return
+    rememberDismissedBackendTask(task.backendTaskNo)
+    updateTask(localTaskId, {
+      status: 'DISMISSED',
+      dismissible: false,
+      cancellable: false,
+      notified: true
+    })
   }
 
   async function cancelBackendTask(localTaskId: string): Promise<void> {
@@ -241,6 +283,7 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   }
 
   function updateFromBackend(taskNo: string, status: AiTaskStatus, progress: number, message: string, reportId?: number): void {
+    if (dismissedBackendTaskNos.value.has(taskNo)) return
     const task = tasks.value.find((item) => item.backendTaskNo === taskNo)
     if (!task) return
     updateTask(task.localTaskId, {
@@ -257,6 +300,7 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
       const backendTasks = await listRunningTasksApi()
       if (!Array.isArray(backendTasks)) return
       backendTasks.forEach((backendTask: any) => {
+        if (dismissedBackendTaskNos.value.has(backendTask.taskNo)) return
         upsertByTaskNo({
           type: 'ANALYSIS_MATCH',
           title: 'AI 简历岗位匹配分析',
@@ -265,7 +309,8 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
           progress: backendTask.progress || 0,
           message: backendTask.message,
           reportId: backendTask.reportId,
-          sourcePath: '/analysis/match'
+          sourcePath: '/analysis/match',
+          silent: true
         })
       })
     } catch (error) {
@@ -278,15 +323,22 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
       const backendTasks = await listRecentTasksApi(5)
       if (!Array.isArray(backendTasks)) return
       backendTasks.forEach((backendTask: any) => {
+        if (dismissedBackendTaskNos.value.has(backendTask.taskNo)) return
+
+        const status = normalizeStatus(backendTask.status)
+        const hasLocalTask = tasks.value.some((task) => task.backendTaskNo === backendTask.taskNo)
+        if (TERMINAL_STATUSES.includes(status) && !hasLocalTask) return
+
         upsertByTaskNo({
           type: 'ANALYSIS_MATCH',
           title: 'AI 简历岗位匹配分析',
           taskNo: backendTask.taskNo,
-          status: backendTask.status,
+          status,
           progress: backendTask.progress || 0,
           message: backendTask.message,
           reportId: backendTask.reportId,
-          sourcePath: '/analysis/match'
+          sourcePath: '/analysis/match',
+          silent: true
         })
       })
     } catch (error) {
@@ -300,6 +352,11 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     try {
       const storedTasks = JSON.parse(stored) as GlobalAiTask[]
       tasks.value = storedTasks
+      storedTasks.forEach((task) => {
+        if (task.status === 'DISMISSED') {
+          rememberDismissedBackendTask(task.backendTaskNo)
+        }
+      })
     } catch {
       localStorage.removeItem(STORAGE_KEY)
     }
@@ -329,6 +386,27 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeTasks))
   }
 
+  function restoreDismissedBackendTasks(): void {
+    const stored = localStorage.getItem(DISMISSED_BACKEND_TASKS_KEY)
+    if (!stored) return
+    try {
+      const taskNos = JSON.parse(stored) as string[]
+      dismissedBackendTaskNos.value = new Set(taskNos.filter(Boolean))
+    } catch {
+      localStorage.removeItem(DISMISSED_BACKEND_TASKS_KEY)
+    }
+  }
+
+  function saveDismissedBackendTasks(): void {
+    localStorage.setItem(DISMISSED_BACKEND_TASKS_KEY, JSON.stringify(Array.from(dismissedBackendTaskNos.value).slice(-100)))
+  }
+
+  function rememberDismissedBackendTask(taskNo?: string): void {
+    if (!taskNo) return
+    dismissedBackendTaskNos.value.add(taskNo)
+    saveDismissedBackendTasks()
+  }
+
   function openDrawer(): void {
     drawerVisible.value = true
   }
@@ -356,6 +434,7 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   }
 
   function initialize(): void {
+    restoreDismissedBackendTasks()
     restoreFromStorage()
     syncRunningAnalysisTasks()
     loadRecentTasks()
@@ -364,13 +443,19 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   function notifyTask(task: GlobalAiTask): void {
     const notificationType = task.status === 'COMPLETED' ? 'success' : task.status === 'FAILED' ? 'error' : 'info'
     const title = task.status === 'COMPLETED' ? `${task.title}完成` : task.status === 'FAILED' ? `${task.title}失败` : `${task.title}已取消`
-    const message = task.status === 'COMPLETED' ? task.message || '结果已生成，可在任务中心查看' : task.errorMessage || task.message || '请打开任务中心查看详情'
+    const message =
+      task.status === 'COMPLETED'
+        ? task.message || '结果已生成，可在任务中心查看'
+        : task.errorMessage || task.message || '请打开任务中心查看详情'
     ElNotification({
       title,
       message: h('span', { style: 'cursor:pointer;' }, message),
       type: notificationType,
       duration: 0,
-      onClick: openDrawer
+      onClick: openDrawer,
+      onClose: () => {
+        dismissTask(task.localTaskId)
+      }
     })
   }
 
