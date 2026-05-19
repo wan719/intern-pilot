@@ -138,6 +138,9 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     const existing = tasks.value.find((task) => task.backendTaskNo === options.taskNo)
     const resultPath = options.reportId ? `/analysis/reports?reportId=${options.reportId}` : undefined
     if (existing) {
+      if (existing.status === 'DISMISSED') {
+        return existing.localTaskId
+      }
       updateTask(existing.localTaskId, {
         type: options.type,
         title: options.title,
@@ -174,6 +177,9 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     if (index < 0) return
 
     const previous = tasks.value[index]
+    if (previous.status === 'DISMISSED') {
+      return
+    }
     const nextStatus = normalizeStatus(updates.status)
     const next: GlobalAiTask = {
       ...previous,
@@ -293,7 +299,7 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     if (!stored) return
     try {
       const storedTasks = JSON.parse(stored) as GlobalAiTask[]
-      tasks.value = storedTasks.filter((task) => task.status !== 'DISMISSED')
+      tasks.value = storedTasks
     } catch {
       localStorage.removeItem(STORAGE_KEY)
     }
