@@ -1,14 +1,21 @@
 <template>
-  <PageContainer title="" description="查看系统关键操作、执行结果、请求来源和耗时。">
+  <PageContainer title="操作日志" description="查看系统关键操作、执行结果、请求来源和耗时，辅助定位后台风险。">
+    <div class="stat-grid compact-stats">
+      <StatCard label="当前结果总数" :value="total" :icon="Files" />
+      <StatCard label="本页成功" :value="successCount" :icon="CircleCheck" />
+      <StatCard label="本页失败" :value="failureCount" :icon="Warning" />
+      <StatCard label="平均耗时" :value="averageCostText" :icon="Clock" />
+    </div>
+
     <section class="panel toolbar">
-      <el-input v-model="query.module" placeholder="模块" clearable />
+      <el-input v-model="query.module" placeholder="模块，例如 用户管理" clearable />
       <el-select v-model="query.operationType" placeholder="操作类型" clearable>
         <el-option label="新增" value="CREATE" />
         <el-option label="修改" value="UPDATE" />
         <el-option label="删除" value="DELETE" />
         <el-option label="登录" value="LOGIN" />
         <el-option label="上传" value="UPLOAD" />
-        <el-option label="AI操作" value="AI" />
+        <el-option label="AI 操作" value="AI" />
         <el-option label="授权" value="GRANT" />
       </el-select>
       <el-input v-model="query.username" placeholder="操作人" clearable />
@@ -16,27 +23,38 @@
         <el-option label="成功" :value="1" />
         <el-option label="失败" :value="0" />
       </el-select>
-      <el-button type="primary" @click="search">查询</el-button>
+      <el-button type="primary" :loading="loading" @click="search">查询</el-button>
       <el-button @click="resetQuery">重置</el-button>
     </section>
 
     <section class="panel">
       <el-table v-loading="loading" :data="logs">
         <el-table-column prop="logId" label="ID" width="80" />
-        <el-table-column prop="operatorUsername" label="操作人" width="130" show-overflow-tooltip />
-        <el-table-column prop="module" label="模块" width="120" />
-        <el-table-column prop="operation" label="操作" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="operationType" label="类型" width="100" />
-        <el-table-column prop="requestMethod" label="方法" width="90" />
-        <el-table-column prop="requestUri" label="路径" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="operatorUsername" label="操作人" width="140" show-overflow-tooltip />
+        <el-table-column prop="module" label="模块" width="130" show-overflow-tooltip />
+        <el-table-column prop="operation" label="操作" min-width="170" show-overflow-tooltip />
+        <el-table-column label="类型" width="110">
+          <template #default="{ row }">
+            <el-tag effect="plain">{{ operationTypeLabel(row.operationType) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="请求" min-width="260" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="request-line">{{ row.requestMethod || '-' }} {{ row.requestUri || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="结果" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.success === 1 ? 'success' : 'danger'">
+            <el-tag :type="row.success === 1 ? 'success' : 'danger'" effect="plain">
               {{ row.success === 1 ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="costTime" label="耗时(ms)" width="100" />
+        <el-table-column label="耗时" width="110">
+          <template #default="{ row }">
+            <span :class="{ slow: Number(row.costTime || 0) >= 1000 }">{{ row.costTime || 0 }} ms</span>
+          </template>
+        </el-table-column>
         <el-table-column label="时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -47,7 +65,11 @@
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无操作日志" />
+          <AppEmpty
+            title="暂无操作日志"
+            description="当前筛选条件下没有操作日志"
+            hint="可以重置筛选条件，或稍后在系统产生操作后再查看。"
+          />
         </template>
       </el-table>
 
@@ -69,25 +91,28 @@
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <div v-else-if="detail" class="detail-stack">
         <section class="panel flat">
-          <h4>基本信息</h4>
+          <div class="panel-header">
+            <h3>基本信息</h3>
+            <el-tag :type="detail.success === 1 ? 'success' : 'danger'" effect="plain">
+              {{ detail.success === 1 ? '执行成功' : '执行失败' }}
+            </el-tag>
+          </div>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="日志ID">{{ detail.logId }}</el-descriptions-item>
+            <el-descriptions-item label="日志 ID">{{ detail.logId }}</el-descriptions-item>
             <el-descriptions-item label="操作人">{{ detail.operatorUsername || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="模块">{{ detail.module }}</el-descriptions-item>
-            <el-descriptions-item label="操作">{{ detail.operation }}</el-descriptions-item>
-            <el-descriptions-item label="类型">{{ detail.operationType }}</el-descriptions-item>
-            <el-descriptions-item label="结果">
-              <el-tag :type="detail.success === 1 ? 'success' : 'danger'">
-                {{ detail.success === 1 ? '成功' : '失败' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="耗时">{{ detail.costTime }} ms</el-descriptions-item>
+            <el-descriptions-item label="模块">{{ detail.module || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="操作">{{ detail.operation || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="类型">{{ operationTypeLabel(detail.operationType) }}</el-descriptions-item>
+            <el-descriptions-item label="耗时">{{ detail.costTime || 0 }} ms</el-descriptions-item>
             <el-descriptions-item label="时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
           </el-descriptions>
         </section>
 
         <section class="panel flat">
-          <h4>请求信息</h4>
+          <div class="panel-header">
+            <h3>请求信息</h3>
+            <span>敏感字段已在前端展示时脱敏</span>
+          </div>
           <el-descriptions :column="1" border>
             <el-descriptions-item label="请求方法">{{ detail.requestMethod || '-' }}</el-descriptions-item>
             <el-descriptions-item label="请求路径">{{ detail.requestUri || '-' }}</el-descriptions-item>
@@ -97,13 +122,13 @@
         </section>
 
         <section class="panel flat">
-          <h4>参数摘要</h4>
-          <pre class="log-text">{{ detail.requestParams || '未记录请求参数' }}</pre>
+          <h3>参数摘要</h3>
+          <pre class="log-text">{{ maskSensitive(detail.requestParams) || '未记录请求参数' }}</pre>
         </section>
 
         <section v-if="detail.errorMessage" class="panel flat">
-          <h4>错误信息</h4>
-          <pre class="log-text error">{{ detail.errorMessage }}</pre>
+          <h3>错误信息</h3>
+          <pre class="log-text error">{{ maskSensitive(detail.errorMessage) }}</pre>
         </section>
       </div>
     </el-drawer>
@@ -111,9 +136,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { CircleCheck, Clock, Files, Warning } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import {
   deleteOperationLogApi,
   getOperationLogDetailApi,
@@ -144,12 +172,24 @@ const query = reactive<{
   pageSize: 10
 })
 
+const successCount = computed(() => logs.value.filter((item) => item.success === 1).length)
+const failureCount = computed(() => logs.value.filter((item) => item.success === 0).length)
+const averageCostText = computed(() => {
+  if (!logs.value.length) return '0 ms'
+  const totalCost = logs.value.reduce((sum, item) => sum + Number(item.costTime || 0), 0)
+  return `${Math.round(totalCost / logs.value.length)} ms`
+})
+
 async function loadList() {
   loading.value = true
   try {
     const res: any = await getOperationLogListApi({ ...query })
     logs.value = res.records || []
     total.value = res.total || 0
+  } catch (error: any) {
+    logs.value = []
+    total.value = 0
+    ElMessage.error(error?.message || '操作日志加载失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -186,13 +226,15 @@ async function openDetail(id: number) {
   detail.value = null
   try {
     detail.value = await getOperationLogDetailApi(id)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '日志详情加载失败')
   } finally {
     detailLoading.value = false
   }
 }
 
 async function removeLog(row: any) {
-  await ElMessageBox.confirm(`确认删除日志 #${row.logId}？`, '删除确认', {
+  await ElMessageBox.confirm(`确认删除日志 #${row.logId}？删除后无法在后台页面恢复。`, '删除确认', {
     type: 'warning'
   })
   await deleteOperationLogApi(row.logId)
@@ -200,13 +242,47 @@ async function removeLog(row: any) {
   loadList()
 }
 
+function operationTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    CREATE: '新增',
+    UPDATE: '修改',
+    DELETE: '删除',
+    LOGIN: '登录',
+    UPLOAD: '上传',
+    AI: 'AI 操作',
+    GRANT: '授权'
+  }
+  return labels[value] || value || '-'
+}
+
+function maskSensitive(value?: string) {
+  if (!value) return ''
+  return String(value)
+    .replace(/("(?:password|token|authorization|apiKey|secret)"\s*:\s*)"[^"]*"/gi, '$1"******"')
+    .replace(/((?:password|token|authorization|apiKey|secret)=)[^&\s]+/gi, '$1******')
+}
+
 onMounted(loadList)
 </script>
 
 <style scoped>
+.compact-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .pager {
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.request-line {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+
+.slow {
+  color: var(--color-warning);
+  font-weight: 700;
 }
 
 .log-text {
@@ -221,5 +297,11 @@ onMounted(loadList)
 
 .log-text.error {
   color: #b42318;
+}
+
+@media (max-width: 900px) {
+  .compact-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

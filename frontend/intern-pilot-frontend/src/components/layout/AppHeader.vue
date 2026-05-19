@@ -5,7 +5,7 @@
       <h2>求职工作台</h2>
     </div>
     <div class="header-user">
-      <el-tag v-if="aiProvider" size="small" :type="aiProvider === 'deepseek' ? '' : 'warning'" effect="plain">
+      <el-tag v-if="aiProvider" size="small" :type="aiProvider === 'deepseek' ? 'primary' : 'warning'" effect="plain">
         {{ aiProvider === 'deepseek' ? 'DeepSeek' : 'Mock AI' }}
       </el-tag>
       <el-button :icon="Refresh" circle @click="$emit('refresh')" />
