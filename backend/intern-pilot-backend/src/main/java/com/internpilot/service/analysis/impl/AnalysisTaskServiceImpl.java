@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -51,7 +52,8 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
 
         analysisTaskMapper.insert(task);
 
-        progressPublisher.publish(task.getTaskNo(), currentUserId, task.getStatus(), task.getProgress(), task.getMessage(), null, null);
+        progressPublisher.publish(task.getTaskNo(), currentUserId, task.getStatus(), task.getProgress(),
+                task.getMessage(), null, null);
         analysisTaskExecutor.execute(() -> executeTask(task.getTaskNo(), currentUserId));
 
         return toCreateResponse(task);
@@ -66,8 +68,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
                         .eq(AnalysisTask::getTaskNo, taskNo)
                         .eq(AnalysisTask::getUserId, currentUserId)
                         .eq(AnalysisTask::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (task == null) {
             throw new BusinessException("分析任务不存在或无权限访");
@@ -82,18 +83,25 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
                         .eq(AnalysisTask::getTaskNo, taskNo)
                         .eq(AnalysisTask::getUserId, userId)
                         .eq(AnalysisTask::getDeleted, 0)
-                        .last("LIMIT 1")
-        );
+                        .last("LIMIT 1"));
 
         if (task == null) {
             return;
         }
 
         try {
+            if (isCancelled(taskNo, userId))
+                return;
             updateProgress(task, userId, AnalysisTaskStatusEnum.PARSING_RESUME.getCode(),
                     AnalysisTaskStatusEnum.PARSING_RESUME.getDefaultProgress(), "正在解析简历内", null, null);
+
+            if (isCancelled(taskNo, userId))
+                return;
             updateProgress(task, userId, AnalysisTaskStatusEnum.BUILDING_CONTEXT.getCode(),
                     AnalysisTaskStatusEnum.BUILDING_CONTEXT.getDefaultProgress(), "正在构建岗位与知识库上下", null, null);
+
+            if (isCancelled(taskNo, userId))
+                return;
             updateProgress(task, userId, AnalysisTaskStatusEnum.CALLING_AI.getCode(),
                     AnalysisTaskStatusEnum.CALLING_AI.getDefaultProgress(), "正在调用 AI 模型生成分析", null, null);
 
@@ -104,6 +112,9 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
             matchRequest.setForceRefresh(task.getForceRefresh() != null && task.getForceRefresh() == 1);
 
             AnalysisResultResponse result = analysisService.matchForUser(matchRequest, userId);
+
+            if (isCancelled(taskNo, userId))
+                return;
 
             if (Boolean.TRUE.equals(result.getCacheHit())) {
                 updateProgress(task, userId, AnalysisTaskStatusEnum.COMPLETED.getCode(),
@@ -125,8 +136,7 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
                     task.getProgress() == null ? 0 : task.getProgress(),
                     "分析失败",
                     null,
-                    e.getMessage()
-            );
+                    e.getMessage());
         }
     }
 
@@ -137,8 +147,19 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
             Integer progress,
             String message,
             Long reportId,
-            String errorMessage
-    ) {
+            String errorMessage) {
+        // 先从数据库获取最新状态，防止并发状态覆盖
+        AnalysisTask latest = getTaskByTaskNoAndUserId(task.getTaskNo(), userId);
+        if (latest == null) {
+            return;
+        }
+
+        // 如果任务已经是终止状态，则不再更新
+        AnalysisTaskStatusEnum currentStatus = AnalysisTaskStatusEnum.fromCode(latest.getStatus());
+        if (currentStatus != null && currentStatus.isTerminal()) {
+            return;
+        }
+
         AnalysisTask update = new AnalysisTask();
         update.setId(task.getId());
         update.setStatus(status);
@@ -169,13 +190,81 @@ public class AnalysisTaskServiceImpl implements AnalysisTaskService {
             task.setReportId(reportId);
         }
 
-        progressPublisher.publish(task.getTaskNo(), userId, status, progress, message, task.getReportId(), errorMessage);
+        progressPublisher.publish(task.getTaskNo(), userId, status, progress, message, task.getReportId(),
+                errorMessage);
     }
 
     private String generateTaskNo() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return "TASK_" + date + "_" + random;
+    }
+
+    @Override
+    public List<AnalysisTaskDetailResponse> listRunningTasks() {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<AnalysisTask> tasks = analysisTaskMapper.selectList(
+                new LambdaQueryWrapper<AnalysisTask>()
+                        .eq(AnalysisTask::getUserId, currentUserId)
+                        .eq(AnalysisTask::getDeleted, 0)
+                        .notIn(AnalysisTask::getStatus, AnalysisTaskStatusEnum.COMPLETED.getCode(),
+                                AnalysisTaskStatusEnum.FAILED.getCode(), AnalysisTaskStatusEnum.CANCELLED.getCode()));
+        return tasks.stream().map(this::toDetailResponse).toList();
+    }
+
+    @Override
+    public AnalysisTaskDetailResponse cancelTask(String taskNo) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        AnalysisTask task = getTaskByTaskNoAndUserId(taskNo, currentUserId);
+        if (task == null) {
+            throw new BusinessException("分析任务不存在或无权限访问");
+        }
+        AnalysisTaskStatusEnum statusEnum = AnalysisTaskStatusEnum.fromCode(task.getStatus());
+        if (statusEnum != null && statusEnum.isTerminal()) {
+            throw new BusinessException("任务已完成、已失败或已取消，无法再次取消");
+        }
+        AnalysisTask update = new AnalysisTask();
+        update.setId(task.getId());
+        update.setStatus(AnalysisTaskStatusEnum.CANCELLED.getCode());
+        update.setProgress(AnalysisTaskStatusEnum.CANCELLED.getDefaultProgress());
+        update.setMessage("任务已被用户取消");
+        update.setFinishedAt(LocalDateTime.now());
+        analysisTaskMapper.updateById(update);
+
+        task.setStatus(AnalysisTaskStatusEnum.CANCELLED.getCode());
+        task.setProgress(AnalysisTaskStatusEnum.CANCELLED.getDefaultProgress());
+        task.setMessage("任务已被用户取消");
+
+        progressPublisher.publish(task.getTaskNo(), currentUserId, task.getStatus(), task.getProgress(),
+                task.getMessage(), task.getReportId(), null);
+        return toDetailResponse(task);
+    }
+
+    @Override
+    public List<AnalysisTaskDetailResponse> listRecentTasks(Integer limit) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        int queryLimit = limit == null || limit <= 0 ? 10 : limit;
+        List<AnalysisTask> tasks = analysisTaskMapper.selectList(
+                new LambdaQueryWrapper<AnalysisTask>()
+                        .eq(AnalysisTask::getUserId, currentUserId)
+                        .eq(AnalysisTask::getDeleted, 0)
+                        .orderByDesc(AnalysisTask::getCreatedAt)
+                        .last("LIMIT " + queryLimit));
+        return tasks.stream().map(this::toDetailResponse).toList();
+    }
+
+    private AnalysisTask getTaskByTaskNoAndUserId(String taskNo, Long userId) {
+        return analysisTaskMapper.selectOne(
+                new LambdaQueryWrapper<AnalysisTask>()
+                        .eq(AnalysisTask::getTaskNo, taskNo)
+                        .eq(AnalysisTask::getUserId, userId)
+                        .eq(AnalysisTask::getDeleted, 0)
+                        .last("LIMIT 1"));
+    }
+
+    private boolean isCancelled(String taskNo, Long userId) {
+        AnalysisTask latest = getTaskByTaskNoAndUserId(taskNo, userId);
+        return latest != null && AnalysisTaskStatusEnum.CANCELLED.getCode().equals(latest.getStatus());
     }
 
     private AnalysisTaskCreateResponse toCreateResponse(AnalysisTask task) {

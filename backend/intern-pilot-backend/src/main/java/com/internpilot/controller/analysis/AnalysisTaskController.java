@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Tag(name = "AI 分析任务接口")
 @RestController
@@ -32,8 +35,7 @@ public class AnalysisTaskController {
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping
     public Result<AnalysisTaskCreateResponse> createTask(
-            @RequestBody @Valid AnalysisTaskCreateRequest request
-    ) {
+            @RequestBody @Valid AnalysisTaskCreateRequest request) {
         return Result.success(analysisTaskService.createTask(request));
     }
 
@@ -42,5 +44,27 @@ public class AnalysisTaskController {
     @GetMapping("/{taskNo}")
     public Result<AnalysisTaskDetailResponse> getTaskDetail(@PathVariable String taskNo) {
         return Result.success(analysisTaskService.getTaskDetail(taskNo));
+    }
+
+    @Operation(summary = "查询当前用户运行中任务", description = "查询当前用户正在执行的 AI 分析任务")
+    @PreAuthorize("hasAuthority('analysis:read')")
+    @GetMapping("/running")
+    public Result<List<AnalysisTaskDetailResponse>> listRunningTasks() {
+        return Result.success(analysisTaskService.listRunningTasks());
+    }
+
+    @Operation(summary = "取消 AI 分析任务", description = "取消正在执行的 AI 分析任务")
+    @PreAuthorize("hasAuthority('analysis:write')")
+    @PostMapping("/{taskNo}/cancel")
+    public Result<AnalysisTaskDetailResponse> cancelTask(@PathVariable String taskNo) {
+        return Result.success(analysisTaskService.cancelTask(taskNo));
+    }
+
+    @Operation(summary = "查询最近任务", description = "查询当前用户最近的 AI 分析任务")
+    @PreAuthorize("hasAuthority('analysis:read')")
+    @GetMapping("/recent")
+    public Result<List<AnalysisTaskDetailResponse>> listRecentTasks(
+            @RequestParam(defaultValue = "10") Integer limit) {
+        return Result.success(analysisTaskService.listRecentTasks(limit));
     }
 }

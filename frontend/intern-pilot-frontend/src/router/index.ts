@@ -59,6 +59,11 @@ const routes = [
         path: 'rag-knowledge',
         component: () => import('@/views/admin/AdminRagKnowledgeList.vue'),
         meta: { title: 'RAG 知识库', permission: 'rag:read' }
+      },
+      {
+        path: 'feedback',
+        component: () => import('@/views/admin/AdminFeedbackList.vue'),
+        meta: { title: '用户反馈', permission: 'feedback:read' }
       }
     ]
   }

@@ -34,6 +34,10 @@
           <el-icon><Tickets /></el-icon>
           <span>RAG 知识库</span>
         </el-menu-item>
+        <el-menu-item v-if="hasPermission('feedback:read')" index="/admin/feedback" @click="go('/admin/feedback')">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>用户反馈</span>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -57,7 +61,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Back, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
+import { Avatar, Back, ChatDotRound, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 

@@ -262,7 +262,9 @@ import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
+const aiTaskCenter = useAiTaskCenterStore()
 const reports = ref<any[]>([])
 const resumes = ref<any[]>([])
 const jobs = ref<any[]>([])
@@ -440,14 +442,30 @@ async function generate() {
   }
 
   generating.value = true
+
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'INTERVIEW_QUESTION',
+    title: '面试题生成',
+    message: '正在生成面试题...',
+    resumeId: form.resumeId,
+    jobId: form.jobId,
+    reportId: form.analysisReportId
+  })
+
   try {
     const res: any = await generateInterviewQuestionsApi(form)
+    aiTaskCenter.completeTask(localTaskId, {
+      resultId: res.reportId,
+      resultPath: `/interview-questions/${res.reportId}`,
+      message: '面试题生成完成'
+    })
     ElMessage.success('面试题生成成功')
     generateVisible.value = false
     query.pageNum = 1
     await loadReports()
     router.push(`/interview-questions/${res.reportId}`)
   } catch (e: any) {
+    aiTaskCenter.failTask(localTaskId, '面试题生成失败')
     ElMessage.error(getErrorMessage(e, '面试题生成失败，请检查简历、岗位和 AI 服务配置。'))
   } finally {
     generating.value = false
@@ -490,13 +508,26 @@ async function regenerateReport(row: any) {
     return
   }
 
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'INTERVIEW_REGENERATE',
+    title: '面试题重新生成',
+    message: '正在重新生成面试题...',
+    reportId: row.reportId
+  })
+
   regeneratingId.value = row.reportId
   try {
     const res: any = await regenerateInterviewQuestionsApi(row.reportId)
+    aiTaskCenter.completeTask(localTaskId, {
+      resultId: res.reportId,
+      resultPath: `/interview-questions/${res.reportId}`,
+      message: '面试题重新生成完成'
+    })
     ElMessage.success('面试题重新生成成功')
     await loadReports()
     router.push(`/interview-questions/${res.reportId}`)
   } catch (e: any) {
+    aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
     ElMessage.error(getErrorMessage(e, '重新生成失败，请稍后重试'))
   } finally {
     regeneratingId.value = null

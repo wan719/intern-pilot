@@ -124,7 +124,9 @@ import {
 import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
+const aiTaskCenter = useAiTaskCenterStore()
 const resumes = ref<any[]>([])
 const versions = ref<any[]>([])
 const history = ref<any[]>([])
@@ -216,13 +218,26 @@ async function generateRecommendation() {
     return
   }
   generating.value = true
+
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'JOB_RECOMMENDATION',
+    title: '岗位推荐',
+    message: '正在生成岗位推荐...',
+    resumeId: form.resumeId
+  })
+
   try {
     const res: any = await generateJobRecommendationApi(form)
+    aiTaskCenter.completeTask(localTaskId, {
+      resultId: res.batchId,
+      resultPath: `/job-recommendations/${res.batchId}`,
+      message: '岗位推荐生成完成'
+    })
     ElMessage.success('推荐生成成功')
     await loadHistory()
     viewDetail(res.batchId)
   } catch {
-    // Error message is already shown by the request interceptor.
+    aiTaskCenter.failTask(localTaskId, '推荐生成失败')
   } finally {
     generating.value = false
   }

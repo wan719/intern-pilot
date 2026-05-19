@@ -1,37 +1,52 @@
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 import { getCurrentUserApi } from '@/api/auth'
 import { getToken, removeToken, setToken } from '@/utils/token'
 
-export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    token: getToken(),
-    user: null as any
-  }),
-  actions: {
-    setLogin(token: string, user: any) {
-      this.token = token
-      this.user = user
-      setToken(token)
-    },
-    setUser(user: any) {
-      this.user = user
-    },
-    async fetchCurrentUser() {
-      if (!getToken()) {
-        this.user = null
-        return null
-      }
-      const user = await getCurrentUserApi()
-      this.user = user
-      return user
-    },
-    hasPermission(permission: string) {
-      return this.user?.permissions?.includes(permission) ?? false
-    },
-    logout() {
-      this.token = null
-      this.user = null
-      removeToken()
+export const useAuthStore = defineStore('auth', () => {
+  const token = ref(getToken())
+  const user = ref(null as any)
+
+  const isLoggedIn = computed(() => !!token.value && !!user.value)
+
+  function setLogin(newToken: string, newUser: any) {
+    token.value = newToken
+    user.value = newUser
+    setToken(newToken)
+  }
+
+  function setUser(newUser: any) {
+    user.value = newUser
+  }
+
+  async function fetchCurrentUser() {
+    if (!getToken()) {
+      user.value = null
+      return null
     }
+    const currentUser = await getCurrentUserApi()
+    user.value = currentUser
+    return currentUser
+  }
+
+  function hasPermission(permission: string) {
+    return user.value?.permissions?.includes(permission) ?? false
+  }
+
+  function logout() {
+    token.value = null
+    user.value = null
+    removeToken()
+  }
+
+  return {
+    token,
+    user,
+    isLoggedIn,
+    setLogin,
+    setUser,
+    fetchCurrentUser,
+    hasPermission,
+    logout
   }
 })

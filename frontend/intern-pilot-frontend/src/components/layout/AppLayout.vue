@@ -5,6 +5,10 @@
       <AppHeader @refresh="refreshPage" />
       <router-view :key="refreshKey" />
     </main>
+    <AiTaskFloat v-if="auth.isLoggedIn" />
+    <AiTaskDrawer />
+    <FeedbackFloat v-if="auth.isLoggedIn" />
+    <FeedbackDrawer />
   </div>
 </template>
 
@@ -12,10 +16,16 @@
 import { onMounted, ref } from 'vue'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
+import AiTaskFloat from '@/components/ai/AiTaskFloat.vue'
+import AiTaskDrawer from '@/components/ai/AiTaskDrawer.vue'
+import FeedbackFloat from '@/components/feedback/FeedbackFloat.vue'
+import FeedbackDrawer from '@/components/feedback/FeedbackDrawer.vue'
 import { getCurrentUserApi } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
 const auth = useAuthStore()
+const aiTaskCenter = useAiTaskCenterStore()
 const refreshKey = ref(0)
 
 function refreshPage() {
@@ -28,5 +38,6 @@ onMounted(async () => {
   } catch {
     // Request interceptor handles invalid sessions.
   }
+  aiTaskCenter.initialize()
 })
 </script>

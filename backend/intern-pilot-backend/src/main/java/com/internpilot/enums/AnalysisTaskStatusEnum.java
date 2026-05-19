@@ -5,8 +5,8 @@ import lombok.Getter;
 
 @Getter
 @Schema(description = "分析任务状态枚举，定义简历分析任务的不同状态，每个状态对应一个唯一的code、描述和默认进度值")
-public enum AnalysisTaskStatusEnum {//分析任务状态枚举，定义简历分析任务的不同状态，
-// 每个状态对应一个唯一的code、描述和默认进度值
+public enum AnalysisTaskStatusEnum {// 分析任务状态枚举，定义简历分析任务的不同状态，
+    // 每个状态对应一个唯一的code、描述和默认进度值
 
     PENDING("PENDING", "等待执行", 0),
     PARSING_RESUME("PARSING_RESUME", "正在解析简历", 15),
@@ -14,7 +14,8 @@ public enum AnalysisTaskStatusEnum {//分析任务状态枚举，定义简历分
     CALLING_AI("CALLING_AI", "正在调用 AI", 60),
     GENERATING_REPORT("GENERATING_REPORT", "正在生成报告", 85),
     COMPLETED("COMPLETED", "分析完成", 100),
-    FAILED("FAILED", "分析失败", 100);
+    FAILED("FAILED", "分析失败", 100),
+    CANCELLED("CANCELLED", "任务已取消", 100);
 
     private final String code;
     private final String description;
@@ -25,6 +26,7 @@ public enum AnalysisTaskStatusEnum {//分析任务状态枚举，定义简历分
         this.description = description;
         this.defaultProgress = defaultProgress;
     }
+
     // 这个静态方法根据输入的code返回对应的枚举实例，如果code是"SUCCESS"，
     // 则返回COMPLETED状态，
     public static AnalysisTaskStatusEnum fromCode(String code) {
@@ -38,8 +40,9 @@ public enum AnalysisTaskStatusEnum {//分析任务状态枚举，定义简历分
         }
         return null;
     }
+
     // 这个方法判断当前状态是否是一个终止状态，COMPLETED和FAILED都被认为是终止状态，
     public boolean isTerminal() {
-        return this == COMPLETED || this == FAILED;
+        return this == COMPLETED || this == FAILED || this == CANCELLED;
     }
 }

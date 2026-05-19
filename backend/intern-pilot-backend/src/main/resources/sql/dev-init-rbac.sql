@@ -45,7 +45,10 @@ VALUES
 ('operation-log:delete', 'Operation log delete', 'SYSTEM_LOG', 'Delete system logs', 1, 0),
 ('admin:dashboard', 'Admin dashboard read', 'DASHBOARD', 'Read admin dashboard', 1, 0),
 ('rag:read', 'RAG knowledge read', 'RAG', 'Read RAG knowledge documents', 1, 0),
-('rag:manage', 'RAG knowledge manage', 'RAG', 'Create, update, rebuild, and delete RAG knowledge documents', 1, 0);
+('rag:manage', 'RAG knowledge manage', 'RAG', 'Create, update, rebuild, and delete RAG knowledge documents', 1, 0),
+('feedback:read', 'Feedback read', 'FEEDBACK', 'Read user feedback', 1, 0),
+('feedback:write', 'Feedback write', 'FEEDBACK', 'Update status and reply feedback', 1, 0),
+('feedback:delete', 'Feedback delete', 'FEEDBACK', 'Delete feedback records', 1, 0);
 
 INSERT INTO role_permission (role_id, permission_id, deleted)
 SELECT r.id, p.id, 0

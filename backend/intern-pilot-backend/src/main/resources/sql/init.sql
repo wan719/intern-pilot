@@ -328,7 +328,10 @@ VALUES
 ('operation-log:delete', '删除系统日志', 'SYSTEM_LOG', 'Delete system logs', 1),
 ('admin:dashboard', '查看管理看板', 'DASHBOARD', 'Read admin dashboard', 1),
 ('rag:read', '查看RAG知识库', 'RAG', '查看RAG岗位知识库文档和检索结果', 1),
-('rag:manage', '管理RAG知识库', 'RAG', '创建、修改、重建、删除RAG知识库文档', 1);
+('rag:manage', '管理RAG知识库', 'RAG', '创建、修改、重建、删除RAG知识库文档', 1),
+('feedback:read', '查看反馈', 'FEEDBACK', '查看用户反馈', 1),
+('feedback:write', '处理反馈', 'FEEDBACK', '更新反馈状态、回复反馈', 1),
+('feedback:delete', '删除反馈', 'FEEDBACK', '删除反馈记录', 1);
 INSERT IGNORE INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -778,3 +781,25 @@ JOIN role r ON r.role_code = 'ADMIN'
 WHERE u.email = '3425446714@qq.com'
   AND u.deleted = 0
   AND r.deleted = 0;
+
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '反馈ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    type VARCHAR(32) NOT NULL COMMENT '反馈类型',
+    title VARCHAR(120) NOT NULL COMMENT '反馈标题',
+    content TEXT NOT NULL COMMENT '反馈内容',
+    page_url VARCHAR(255) DEFAULT NULL COMMENT '反馈发生页面',
+    contact VARCHAR(100) DEFAULT NULL COMMENT '联系方式',
+    allow_contact TINYINT DEFAULT 0 COMMENT '是否允许联系',
+    browser_info VARCHAR(500) DEFAULT NULL COMMENT '浏览器信息',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '处理状态',
+    admin_reply TEXT DEFAULT NULL COMMENT '管理员回复',
+    handled_by BIGINT DEFAULT NULL COMMENT '处理人ID',
+    handled_at DATETIME DEFAULT NULL COMMENT '处理时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    KEY idx_user_feedback_user_id (user_id),
+    KEY idx_user_feedback_status (status),
+    KEY idx_user_feedback_type (type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户反馈表';

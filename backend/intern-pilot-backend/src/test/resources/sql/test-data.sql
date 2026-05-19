@@ -30,7 +30,10 @@ MERGE INTO permission (id, permission_code, permission_name, resource_type, desc
 (25, 'operation-log:delete', '删除系统日志', 'SYSTEM_LOG', 'Delete system logs', 1),
 (26, 'admin:dashboard', '查看管理看板', 'DASHBOARD', 'Read admin dashboard', 1),
 (27, 'rag:read', '查看RAG知识库', 'RAG', '查看RAG岗位知识库文档和检索结果', 1),
-(28, 'rag:manage', '管理RAG知识库', 'RAG', '创建、修改、重建、删除RAG知识库文档', 1);
+(28, 'rag:manage', '管理RAG知识库', 'RAG', '创建、修改、重建、删除RAG知识库文档', 1),
+(29, 'feedback:read', '查看反馈', 'FEEDBACK', '查看用户反馈', 1),
+(30, 'feedback:write', '处理反馈', 'FEEDBACK', '更新反馈状态、回复反馈', 1),
+(31, 'feedback:delete', '删除反馈', 'FEEDBACK', '删除反馈记录', 1);
 
 MERGE INTO role_permission (role_id, permission_id) KEY(role_id, permission_id)
 SELECT 1, id FROM permission WHERE permission_code IN (

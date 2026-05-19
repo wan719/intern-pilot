@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AnalysisTaskStatusEnumTest {
 
     @Test
-    void shouldHaveSevenStatuses() {
-        assertEquals(7, AnalysisTaskStatusEnum.values().length);
+    void shouldHaveEightStatuses() {
+        assertEquals(8, AnalysisTaskStatusEnum.values().length);
     }
 
     @Test
@@ -50,6 +50,11 @@ class AnalysisTaskStatusEnumTest {
     }
 
     @Test
+    void cancelledShouldBeTerminal() {
+        assertTrue(AnalysisTaskStatusEnum.CANCELLED.isTerminal());
+    }
+
+    @Test
     void fromCodeShouldReturnCorrectEnum() {
         assertEquals(AnalysisTaskStatusEnum.PENDING, AnalysisTaskStatusEnum.fromCode("PENDING"));
         assertEquals(AnalysisTaskStatusEnum.PARSING_RESUME, AnalysisTaskStatusEnum.fromCode("PARSING_RESUME"));
@@ -59,6 +64,7 @@ class AnalysisTaskStatusEnumTest {
         assertEquals(AnalysisTaskStatusEnum.COMPLETED, AnalysisTaskStatusEnum.fromCode("COMPLETED"));
         assertEquals(AnalysisTaskStatusEnum.COMPLETED, AnalysisTaskStatusEnum.fromCode("SUCCESS"));
         assertEquals(AnalysisTaskStatusEnum.FAILED, AnalysisTaskStatusEnum.fromCode("FAILED"));
+        assertEquals(AnalysisTaskStatusEnum.CANCELLED, AnalysisTaskStatusEnum.fromCode("CANCELLED"));
     }
 
     @Test
@@ -76,6 +82,7 @@ class AnalysisTaskStatusEnumTest {
         assertEquals(85, AnalysisTaskStatusEnum.GENERATING_REPORT.getDefaultProgress());
         assertEquals(100, AnalysisTaskStatusEnum.COMPLETED.getDefaultProgress());
         assertEquals(100, AnalysisTaskStatusEnum.FAILED.getDefaultProgress());
+        assertEquals(100, AnalysisTaskStatusEnum.CANCELLED.getDefaultProgress());
     }
 
     @Test

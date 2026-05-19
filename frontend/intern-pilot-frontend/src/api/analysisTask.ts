@@ -7,3 +7,15 @@ export function createAnalysisTaskApi(data: any) {
 export function getAnalysisTaskDetailApi(taskNo: string) {
   return request.get(`/api/analysis/tasks/${taskNo}`)
 }
+
+export function listRunningTasksApi() {
+  return request.get('/api/analysis/tasks/running')
+}
+
+export function cancelTaskApi(taskNo: string) {
+  return request.post(`/api/analysis/tasks/${taskNo}/cancel`)
+}
+
+export function listRecentTasksApi(limit?: number) {
+  return request.get('/api/analysis/tasks/recent', { params: { limit } })
+}

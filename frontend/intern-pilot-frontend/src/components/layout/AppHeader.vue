@@ -72,7 +72,7 @@ const accountSubtext = computed(() => {
   }
   return '账号设置'
 })
-const adminPermissionKeys = ['admin:dashboard', 'user:read', 'role:read', 'permission:read', 'operation-log:read', 'rag:read']
+const adminPermissionKeys = ['admin:dashboard', 'user:read', 'role:read', 'permission:read', 'operation-log:read', 'rag:read', 'feedback:read']
 const showAdminEntry = computed(() => adminPermissionKeys.some((key) => auth.hasPermission(key)))
 const aiProvider = ref('')
 
@@ -109,6 +109,7 @@ function resolveAdminHome() {
   if (auth.hasPermission('permission:read')) return '/admin/permissions'
   if (auth.hasPermission('operation-log:read')) return '/admin/operation-logs'
   if (auth.hasPermission('rag:read')) return '/admin/rag-knowledge'
+  if (auth.hasPermission('feedback:read')) return '/admin/feedback'
   return '/403'
 }
 

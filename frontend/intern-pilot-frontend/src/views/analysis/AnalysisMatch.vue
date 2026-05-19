@@ -200,7 +200,9 @@ import { getJobDetailApi, getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import type { AnalysisProgressMessage } from '@/utils/analysisSocket'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
+const aiTaskCenter = useAiTaskCenterStore()
 const resumes = ref<any[]>([])
 const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
@@ -211,6 +213,7 @@ const route = useRoute()
 const TASK_STORAGE_KEY = 'internpilot:analysis:lastTaskNo'
 let stompClient: Client | null = null
 let pollingTimer: number | undefined
+let currentLocalTaskId = ''
 
 const analysisModeOptions = [
   { label: '快速分析', value: 'quick' },
@@ -361,12 +364,24 @@ async function startTask() {
 
   try {
     const res: any = await createAnalysisTaskApi(form)
+    
+    currentLocalTaskId = aiTaskCenter.upsertByTaskNo({
+      type: 'ANALYSIS_MATCH',
+      title: 'AI 简历匹配分析',
+      message: '正在创建分析任务...',
+      taskNo: res.taskNo,
+      status: res.status as any,
+      progress: res.progress || 0,
+      sourcePath: '/analysis/match'
+    })
+
     applyTaskMessage(res)
     localStorage.setItem(TASK_STORAGE_KEY, res.taskNo)
     connectSocket(res.taskNo)
     startPolling(res.taskNo)
   } catch {
     running.value = false
+    aiTaskCenter.updateTask(currentLocalTaskId, { status: 'FAILED', errorMessage: '任务创建失败' })
   }
 }
 
@@ -405,17 +420,32 @@ function applyTaskMessage(message: AnalysisProgressMessage) {
     localStorage.setItem(TASK_STORAGE_KEY, message.taskNo)
   }
 
+  const updates: any = {
+    backendTaskNo: message.taskNo,
+    status: message.status as any,
+    progress: message.progress || 0,
+    message: message.message || '',
+    resultId: message.reportId,
+    errorMessage: message.errorMessage || ''
+  }
+  
+  if (message.reportId) {
+    updates.resultPath = `/analysis/reports/${message.reportId}`
+  }
+  
+  aiTaskCenter.updateTask(currentLocalTaskId, updates)
+
   if (isTerminalStatus(message.status)) {
     running.value = false
     cleanupTaskWatchers()
-  }
-
-  if (message.status === 'COMPLETED') {
-    ElMessage.success('AI 分析完成')
-  }
-
-  if (message.status === 'FAILED') {
-    ElMessage.error(message.errorMessage || 'AI 分析失败')
+    
+    if (message.status === 'COMPLETED') {
+      ElMessage.success('AI 分析完成')
+    } else if (message.status === 'FAILED') {
+      ElMessage.error(message.errorMessage || 'AI 分析失败')
+    } else if (message.status === 'CANCELLED') {
+      ElMessage.info('任务已取消')
+    }
   }
 }
 
@@ -427,21 +457,43 @@ async function restoreLastTask() {
 
   try {
     const detail: any = await getAnalysisTaskDetailApi(taskNo)
-    if (isTerminalStatus(detail.status)) {
-      localStorage.removeItem(TASK_STORAGE_KEY)
-      return
+    
+    if (detail.resumeId && !form.resumeId) {
+      form.resumeId = detail.resumeId
+      await loadVersions()
     }
+    if (detail.jobId && !form.jobId) {
+      form.jobId = detail.jobId
+      await loadSelectedJobDetail()
+    }
+    
+    currentLocalTaskId = aiTaskCenter.upsertByTaskNo({
+      type: 'ANALYSIS_MATCH',
+      title: 'AI 简历匹配分析',
+      taskNo: detail.taskNo,
+      status: detail.status as any,
+      progress: detail.progress || 0,
+      message: detail.message || '',
+      reportId: detail.reportId,
+      sourcePath: '/analysis/match'
+    })
+
     applyTaskMessage(detail)
-    running.value = true
-    connectSocket(detail.taskNo)
-    startPolling(detail.taskNo)
+    
+    if (!isTerminalStatus(detail.status)) {
+      running.value = true
+      connectSocket(detail.taskNo)
+      startPolling(detail.taskNo)
+    } else {
+      running.value = false
+    }
   } catch {
     localStorage.removeItem(TASK_STORAGE_KEY)
   }
 }
 
 function isTerminalStatus(status: string) {
-  return status === 'COMPLETED' || status === 'FAILED'
+  return status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED'
 }
 
 function cleanupTaskWatchers() {
