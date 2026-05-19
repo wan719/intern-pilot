@@ -8,8 +8,12 @@
 
     <section class="panel">
       <el-table v-loading="loading" :data="versions">
-        <el-table-column prop="versionName" label="版本名称" min-width="180" />
-        <el-table-column prop="versionType" label="类型" width="130" />
+        <el-table-column label="版本名称" min-width="180">
+          <template #default="{ row }">{{ displayVersionName(row) }}</template>
+        </el-table-column>
+        <el-table-column label="类型" width="130">
+          <template #default="{ row }">{{ versionTypeLabel(row.versionType) }}</template>
+        </el-table-column>
         <el-table-column label="目标岗位" min-width="180">
           <template #default="{ row }">
             {{ row.targetJobTitle ? `${row.targetCompanyName || ''} ${row.targetJobTitle}` : '-' }}
@@ -66,8 +70,8 @@
     <el-drawer v-model="detailVisible" title="版本详情" size="52%">
       <div v-if="detail" class="detail-stack">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="版本名称">{{ detail.versionName }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ detail.versionType }}</el-descriptions-item>
+          <el-descriptions-item label="版本名称">{{ displayVersionName(detail) }}</el-descriptions-item>
+          <el-descriptions-item label="类型">{{ versionTypeLabel(detail.versionType) }}</el-descriptions-item>
           <el-descriptions-item label="目标岗位">{{ detail.targetJobTitle || '-' }}</el-descriptions-item>
           <el-descriptions-item label="当前">{{ detail.isCurrent === 1 ? '是' : '否' }}</el-descriptions-item>
         </el-descriptions>
@@ -79,12 +83,12 @@
       <el-form class="compare-picker" label-position="top">
         <el-form-item label="旧版本">
           <el-select v-model="compareForm.oldVersionId" filterable>
-            <el-option v-for="item in versions" :key="item.versionId" :label="item.versionName" :value="item.versionId" />
+            <el-option v-for="item in versions" :key="item.versionId" :label="displayVersionName(item)" :value="item.versionId" />
           </el-select>
         </el-form-item>
         <el-form-item label="新版本">
           <el-select v-model="compareForm.newVersionId" filterable>
-            <el-option v-for="item in versions" :key="item.versionId" :label="item.versionName" :value="item.versionId" />
+            <el-option v-for="item in versions" :key="item.versionId" :label="displayVersionName(item)" :value="item.versionId" />
           </el-select>
         </el-form-item>
         <el-button type="primary" @click="loadCompare">开始对比</el-button>
@@ -107,7 +111,7 @@
       <el-form :model="optimizeForm" label-position="top">
         <el-form-item label="来源版本">
           <el-select v-model="optimizeForm.sourceVersionId" filterable>
-            <el-option v-for="item in versions" :key="item.versionId" :label="item.versionName" :value="item.versionId" />
+            <el-option v-for="item in versions" :key="item.versionId" :label="displayVersionName(item)" :value="item.versionId" />
           </el-select>
         </el-form-item>
         <el-form-item label="目标岗位">
@@ -253,7 +257,7 @@ async function setCurrent(row: any) {
 }
 
 async function removeVersion(row: any) {
-  await ElMessageBox.confirm(`确认删除「${row.versionName}」？`, '删除版本', { type: 'warning' })
+  await ElMessageBox.confirm(`确认删除「${displayVersionName(row)}」？`, '删除版本', { type: 'warning' })
   await deleteResumeVersionApi(resumeId, row.versionId)
   ElMessage.success('删除成功')
   loadData()
@@ -297,6 +301,34 @@ async function optimizeVersion() {
   } finally {
     optimizing.value = false
   }
+}
+
+function displayVersionName(row: any) {
+  if (!row) {
+    return '-'
+  }
+  if (String(row.versionType || '').toUpperCase() === 'ORIGINAL' && isLikelyMojibake(row.versionName)) {
+    return '原始版本'
+  }
+  return row.versionName || versionTypeLabel(row.versionType)
+}
+
+function versionTypeLabel(type?: string) {
+  const labels: Record<string, string> = {
+    ORIGINAL: '原始版本',
+    MANUAL: '手动编辑',
+    JOB_TARGETED: '岗位定制',
+    IMPORTED: '导入版本',
+    AI_OPTIMIZED: 'AI 优化'
+  }
+  return labels[String(type || '').toUpperCase()] || type || '-'
+}
+
+function isLikelyMojibake(value?: string) {
+  if (!value) {
+    return false
+  }
+  return /[鐟鐢闂濞婵閭绠鍘宀椾綅]/.test(value)
 }
 
 onMounted(loadData)
