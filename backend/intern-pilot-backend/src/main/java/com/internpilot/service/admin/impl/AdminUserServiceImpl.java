@@ -54,7 +54,11 @@ public class AdminUserServiceImpl implements AdminUserService {
         wrapper.eq(User::getDeleted, 0);
 
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(User::getUsername, keyword.trim()).or().like(User::getEmail, keyword.trim()));
+            wrapper.and(w -> w.like(User::getUsername, keyword.trim())
+                    .or()
+                    .like(User::getRealName, keyword.trim())
+                    .or()
+                    .like(User::getEmail, keyword.trim()));
         }
         if (enabled != null) {
             wrapper.eq(User::getEnabled, enabled);
@@ -86,6 +90,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             AdminUserListResponse item = new AdminUserListResponse();
             item.setUserId(user.getId());
             item.setUsername(user.getUsername());
+            item.setNickname(user.getRealName());
             item.setEmail(user.getEmail());
             item.setSchool(user.getSchool());
             item.setMajor(user.getMajor());
@@ -106,6 +111,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         AdminUserDetailResponse detail = new AdminUserDetailResponse();
         detail.setUserId(user.getId());
         detail.setUsername(user.getUsername());
+        detail.setNickname(user.getRealName());
         detail.setEmail(user.getEmail());
         detail.setSchool(user.getSchool());
         detail.setMajor(user.getMajor());

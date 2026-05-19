@@ -1,7 +1,7 @@
 <template>
   <PageContainer title="用户管理" description="查询用户、启用禁用用户并维护用户角色。">
     <section class="panel toolbar">
-      <el-input v-model="query.keyword" placeholder="用户名 / 邮箱" clearable />
+      <el-input v-model="query.keyword" placeholder="昵称 / 用户名 / 邮箱" clearable />
       <el-input v-model="query.roleCode" placeholder="角色编码，如 ADMIN" clearable />
       <el-select v-model="query.enabled" placeholder="状态" clearable>
         <el-option label="启用" :value="1" />
@@ -14,7 +14,14 @@
     <section class="panel">
       <el-table v-loading="loading" :data="users">
         <el-table-column prop="userId" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="130" />
+        <el-table-column label="用户" min-width="170">
+          <template #default="{ row }">
+            <div class="user-cell">
+              <strong>{{ row.nickname || row.username || '-' }}</strong>
+              <span v-if="row.username && row.nickname !== row.username">@{{ row.username }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="email" label="邮箱" min-width="180" />
         <el-table-column prop="school" label="学校" min-width="130" />
         <el-table-column prop="major" label="专业" min-width="120" />
@@ -81,7 +88,8 @@
 
     <el-drawer v-model="detailVisible" title="用户详情" size="45%">
       <el-descriptions v-if="detail" :column="2" border>
-        <el-descriptions-item label="用户名">{{ detail.username }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ detail.nickname || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="登录用户名">{{ detail.username }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ detail.email || '-' }}</el-descriptions-item>
         <el-descriptions-item label="角色">{{ (detail.roles || []).join(', ') || '-' }}</el-descriptions-item>
         <el-descriptions-item label="权限数">{{ (detail.permissions || []).length }}</el-descriptions-item>
@@ -226,6 +234,27 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.user-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-cell strong,
+.user-cell span {
+  overflow-wrap: anywhere;
+}
+
+.user-cell strong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.user-cell span {
+  color: var(--color-text-soft);
+  font-size: 12px;
+}
+
 .pager {
   justify-content: flex-end;
   margin-top: 16px;
