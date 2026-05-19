@@ -78,7 +78,7 @@ ON DUPLICATE KEY UPDATE deleted = 0;
 INSERT INTO user (username, password, email, phone, real_name, school, major, grade, role, account_type, phone_verified, email_verified, enabled, deleted)
 VALUES (
     'admin',
-    '$2a$10$ZV3jkByDqvMmusH8GcxwPOeV2XxMmNPwW7mOkhCgdnfMHw6Osnhge',
+    '$2a$10$T6XhB6hsozua.k9fJCwQSeqUEzsPLDUbFh23TDoareYatLp09S286',
     '3425446714@qq.com',
     NULL,
     '系统管理员',
