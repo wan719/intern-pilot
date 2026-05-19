@@ -153,9 +153,11 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import { getInterviewQuestionDetailApi, regenerateInterviewQuestionsApi } from '@/api/interviewQuestion'
 import { formatDateTime } from '@/utils/format'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
 const route = useRoute()
 const router = useRouter()
+const aiTaskCenter = useAiTaskCenterStore()
 const detail = ref<any>(null)
 const loading = ref(false)
 const errorText = ref('')
@@ -290,15 +292,29 @@ async function regenerate() {
   const id = Number(route.params.id)
   if (!Number.isFinite(id)) return
 
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'INTERVIEW_REGENERATE',
+    title: '面试题重新生成',
+    message: '正在重新生成面试题...',
+    reportId: id,
+    sourcePath: `/interview-questions/${id}`
+  })
+
   regenerating.value = true
   try {
     const res: any = await regenerateInterviewQuestionsApi(id)
+    aiTaskCenter.completeTask(localTaskId, {
+      resultId: res?.reportId || id,
+      resultPath: `/interview-questions/${res?.reportId || id}`,
+      message: '面试题重新生成完成'
+    })
     ElMessage.success('面试题重新生成成功')
     if (res?.reportId && res.reportId !== id) {
       await router.replace(`/interview-questions/${res.reportId}`)
     }
     await loadDetail()
   } catch (e: any) {
+    aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
     ElMessage.error(e?.message || e?.response?.data?.message || '重新生成失败，请稍后重试')
   } finally {
     regenerating.value = false

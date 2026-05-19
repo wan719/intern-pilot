@@ -41,8 +41,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -280,11 +282,14 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 resumeText,
                 job.getJdContent(),
                 analysisReportText,
-                regenerateRequest);
+                regenerateRequest)
+                + buildRegenerateInstruction(oldQuestions)
+                + "\n【生成批次】" + System.currentTimeMillis() + "\n";
 
         String rawResponse = aiClient.chat(prompt);
 
         AiInterviewQuestionResult aiResult = parseInterviewQuestions(rawResponse, job, regenerateRequest);
+        aiResult = ensureRegeneratedQuestionsDiffer(aiResult, oldQuestions, job, regenerateRequest);
 
         if (aiResult.getQuestions() == null || aiResult.getQuestions().isEmpty()) {
             throw new BusinessException("AI 未生成有效面试题");
@@ -630,6 +635,128 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
                 item.setFollowUps(Collections.emptyList());
             }
         }
+    }
+
+    private String buildRegenerateInstruction(List<InterviewQuestion> oldQuestions) {
+        if (oldQuestions == null || oldQuestions.isEmpty()) {
+            return "\n\n【重新生成要求】\n本次是重新生成，请换一套新的提问角度，避免与旧题重复。\n";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("\n\n【重新生成要求】\n");
+        builder.append("本次是重新生成，请不要复用旧题题干、旧题顺序和旧题考察角度。\n");
+        builder.append("新题应覆盖同一岗位能力，但要换成新的追问方式、项目切入点或场景化问题。\n");
+        builder.append("以下是旧题，请主动避开：\n");
+        int index = 1;
+        for (InterviewQuestion question : oldQuestions) {
+            if (!StringUtils.hasText(question.getQuestion())) {
+                continue;
+            }
+            builder.append(index++)
+                    .append(". ")
+                    .append(question.getQuestion())
+                    .append("\n");
+            if (index > 11) {
+                break;
+            }
+        }
+        builder.append("请输出一套明显不同的新面试题。\n");
+        return builder.toString();
+    }
+
+    private AiInterviewQuestionResult ensureRegeneratedQuestionsDiffer(
+            AiInterviewQuestionResult result,
+            List<InterviewQuestion> oldQuestions,
+            JobDescription job,
+            InterviewQuestionGenerateRequest request) {
+        if (result == null || result.getQuestions() == null || result.getQuestions().isEmpty()
+                || oldQuestions == null || oldQuestions.isEmpty()) {
+            return result;
+        }
+
+        Set<String> oldQuestionTexts = new HashSet<>();
+        for (InterviewQuestion oldQuestion : oldQuestions) {
+            String normalized = normalizeQuestionText(oldQuestion.getQuestion());
+            if (StringUtils.hasText(normalized)) {
+                oldQuestionTexts.add(normalized);
+            }
+        }
+        if (oldQuestionTexts.isEmpty()) {
+            return result;
+        }
+
+        List<AiInterviewQuestionResult.QuestionItem> nextQuestions = new java.util.ArrayList<>();
+        int replacedCount = 0;
+        for (int i = 0; i < result.getQuestions().size(); i++) {
+            AiInterviewQuestionResult.QuestionItem item = result.getQuestions().get(i);
+            String normalized = normalizeQuestionText(item.getQuestion());
+            if (oldQuestionTexts.contains(normalized)) {
+                replacedCount++;
+                nextQuestions.add(regeneratedFallbackBySpec(
+                        normalizeQuestionType(item.getQuestionType()),
+                        normalizeDifficulty(item.getDifficulty()),
+                        i + 1));
+            } else {
+                nextQuestions.add(item);
+            }
+        }
+
+        if (replacedCount > 0) {
+            log.warn("Regenerated interview questions contained duplicate old questions, replacedCount={}, oldQuestionCount={}",
+                    replacedCount, oldQuestions.size());
+            result.setQuestions(nextQuestions);
+            return normalizeQuestionResult(result, job, request);
+        }
+
+        return result;
+    }
+
+    private AiInterviewQuestionResult.QuestionItem regeneratedFallbackBySpec(String category, String difficulty, int index) {
+        return switch (category) {
+            case "JAVA_BASIC" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：请结合项目里的集合、异常或并发使用场景，说明你如何定位并修复一个 Java 基础问题",
+                    "回答时先说明问题现象，再解释底层原因，最后结合项目代码讲清楚排查步骤、修复方案和验证方式。",
+                    List.of("Java 基础", "问题排查", "项目实践"));
+            case "SPRING_BOOT" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：如果 Spring Boot 项目启动或接口响应变慢，你会从哪些配置和代码路径排查",
+                    "可以从配置加载、Bean 初始化、数据库连接、日志、慢接口调用链和监控指标几个角度展开，并结合项目模块举例。",
+                    List.of("Spring Boot", "性能排查", "配置管理"));
+            case "SPRING_SECURITY" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：如果某个接口明明已登录却返回 403，你会如何排查认证和授权链路",
+                    "可以按请求头、Token 解析、SecurityContext、权限注解、角色权限数据和前端路由权限逐层排查。",
+                    List.of("Spring Security", "403 排查", "权限链路"));
+            case "MYSQL" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：如果列表查询分页越来越慢，你会如何分析 SQL、索引和数据量问题",
+                    "回答时建议从 explain、索引命中、where 条件、排序字段、分页方式和数据归档策略展开。",
+                    List.of("MySQL", "分页优化", "索引设计"));
+            case "REDIS" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：如果 AI 任务进度使用 Redis 保存，你会如何设计 key、过期时间和一致性策略",
+                    "可以说明任务状态 key 的命名、TTL、失败重试、数据库最终状态同步，以及前端轮询或 WebSocket 的状态一致性。",
+                    List.of("Redis", "任务状态", "一致性"));
+            case "PROJECT" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：请选一个你在 InternPilot 中做过的功能，说明需求变化时你如何调整设计",
+                    "回答可以按原始需求、变化点、影响范围、代码改动、测试验证和复盘收益来组织。",
+                    List.of("项目经验", "需求变化", "工程落地"));
+            case "HR" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：如果实习中遇到进度压力和不确定需求，你会如何沟通优先级",
+                    "建议结合具体场景说明如何拆任务、确认交付标准、同步风险、争取反馈并保证阶段性产出。",
+                    List.of("沟通能力", "优先级", "执行力"));
+            case "RESUME" -> fallbackItem(category, difficulty,
+                    "重新生成第 " + index + " 题：请从简历中挑一个最能体现后端能力的经历，讲清楚你的真实贡献",
+                    "回答时突出自己负责的模块、技术选择、遇到的问题、解决过程、最终效果和可量化结果。",
+                    List.of("简历深挖", "个人贡献", "项目复盘"));
+            default -> fallbackItem("JOB_SKILL", difficulty,
+                    "重新生成第 " + index + " 题：针对目标岗位 JD 中的核心技能，请设计一个实际业务场景并说明你的实现方案",
+                    "可以先识别 JD 关键能力，再结合业务场景讲接口设计、数据模型、异常处理、性能和安全考虑。",
+                    List.of("岗位技能", "场景设计", "实现方案"));
+        };
+    }
+
+    private String normalizeQuestionText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.replaceAll("\\s+", "").trim();
     }
 
     private InterviewQuestionGenerateRequest buildRegenerateRequest(
