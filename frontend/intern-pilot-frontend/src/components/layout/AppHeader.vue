@@ -131,9 +131,9 @@ onMounted(async () => {
   height: 42px;
   padding: 4px 10px 4px 6px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: #172033;
+  color: var(--color-text);
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -141,8 +141,8 @@ onMounted(async () => {
 }
 
 .account-trigger:hover {
-  border-color: #d9e2ef;
-  background: #f8fafc;
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
 }
 
 .account-avatar,
@@ -152,7 +152,7 @@ onMounted(async () => {
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--color-primary);
   color: #fff;
   font-weight: 700;
 }
@@ -194,7 +194,7 @@ onMounted(async () => {
 .account-meta small {
   overflow: hidden;
   margin-top: 2px;
-  color: #667085;
+  color: var(--color-text-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -206,7 +206,7 @@ onMounted(async () => {
   align-items: center;
   width: 240px;
   padding: 12px 14px;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .account-card strong {
@@ -221,7 +221,7 @@ onMounted(async () => {
   max-width: 160px;
   margin: 4px 0 0;
   overflow: hidden;
-  color: #667085;
+  color: var(--color-text-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -119,7 +119,7 @@ function go(path: string) {
 
 .nav-section-title {
   padding: 10px 12px 7px;
-  color: #7b8798;
+  color: var(--color-text-soft);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -143,14 +143,14 @@ function go(path: string) {
 
 .sidebar-menu :deep(.el-menu-item:hover),
 .sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background: #f1f5f9;
-  color: #1d4ed8;
+  background: var(--color-surface-muted);
+  color: var(--color-primary-hover);
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active) {
   position: relative;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active::before) {
@@ -160,7 +160,7 @@ function go(path: string) {
   left: 4px;
   width: 3px;
   border-radius: 99px;
-  background: #2563eb;
+  background: var(--color-primary);
   content: "";
 }
 

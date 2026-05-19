@@ -94,15 +94,15 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
   min-height: 100vh;
-  background: #f4f7fb;
+  background: var(--color-bg);
 }
 
 .admin-sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
-  border-right: 1px solid #d9e2ef;
-  background: #ffffff;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .admin-main {
@@ -118,7 +118,7 @@ onMounted(async () => {
   justify-content: space-between;
   height: 72px;
   padding: 0 28px;
-  border-bottom: 1px solid #d9e2ef;
+  border-bottom: 1px solid var(--color-border);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(10px);
 }
