@@ -41,7 +41,7 @@
       <header class="admin-header">
         <div>
           <span class="eyebrow">Admin Console</span>
-          <h2>{{ title }}</h2>
+          <h2>管理后台</h2>
         </div>
         <div class="admin-header-actions">
           <el-button :icon="Refresh" circle @click="refreshPage" />
@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Back, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/user'
@@ -65,7 +65,6 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const refreshKey = ref(0)
-const title = computed(() => route.meta.title || '管理后台')
 
 function hasPermission(permission: string) {
   return auth.hasPermission(permission)

@@ -2,7 +2,7 @@
   <header class="app-header">
     <div>
       <span class="eyebrow">InternPilot</span>
-      <h2>{{ title }}</h2>
+      <h2>求职工作台</h2>
     </div>
     <div class="header-user">
       <el-tag v-if="aiProvider" size="small" :type="aiProvider === 'deepseek' ? '' : 'warning'" effect="plain">
@@ -51,17 +51,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ArrowDown, Refresh, Setting, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAiProviderApi } from '@/api/health'
 
 defineEmits<{ refresh: [] }>()
 
-const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const title = computed(() => route.meta.title || '数据看板')
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '已登录用户')
 const avatarUrl = computed(() => resolveAvatarUrl(auth.user?.avatarUrl))
 const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase())
