@@ -77,7 +77,7 @@
       </article>
     </section>
 
-    <el-dialog v-model="createVisible" title="创建投递记录" width="620px">
+    <el-dialog v-model="createVisible" title="创建投递记录" :width="createDialogWidth">
       <el-form :model="createForm" label-position="top">
         <el-form-item label="岗位">
           <el-select v-model="createForm.jobId" filterable placeholder="请选择岗位">
@@ -123,7 +123,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="statusVisible" title="修改投递状态" width="360px">
+    <el-dialog v-model="statusVisible" title="修改投递状态" :width="statusDialogWidth">
       <el-select v-model="statusForm.status">
         <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
@@ -133,7 +133,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="noteVisible" title="备注与复盘" width="560px">
+    <el-dialog v-model="noteVisible" title="备注与复盘" :width="noteDialogWidth">
       <el-form label-position="top">
         <el-form-item label="备注"><el-input v-model="noteForm.note" type="textarea" :rows="3" placeholder="记录投递渠道、HR 沟通和下一步事项" /></el-form-item>
         <el-form-item label="复盘"><el-input v-model="noteForm.review" type="textarea" :rows="4" placeholder="记录笔试、面试反馈和改进点" /></el-form-item>
@@ -147,7 +147,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="投递详情" size="52%">
+    <el-drawer v-model="detailVisible" title="投递详情" :size="detailDrawerSize">
       <div v-if="detail" class="detail-stack">
         <section class="detail-hero">
           <div>
@@ -206,6 +206,7 @@ import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
 import { formatDateTime, statusLabels, statusOptions, statusTypes } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const applications = ref<any[]>([])
 const jobs = ref<any[]>([])
@@ -224,6 +225,11 @@ const query = reactive({ keyword: '', status: '' })
 const createForm = reactive<any>({ jobId: undefined, resumeId: undefined, reportId: undefined, status: 'TO_APPLY', priority: 'MEDIUM', applyDate: '', note: '' })
 const statusForm = reactive({ status: 'TO_APPLY' })
 const noteForm = reactive({ note: '', review: '', interviewDate: '' })
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const createDialogWidth = responsiveDialogWidth('620px')
+const statusDialogWidth = responsiveDialogWidth('360px')
+const noteDialogWidth = responsiveDialogWidth('560px')
+const detailDrawerSize = responsiveDrawerSize('52%')
 
 const filteredApplications = computed(() => {
   if (!priorityFilter.value) return applications.value

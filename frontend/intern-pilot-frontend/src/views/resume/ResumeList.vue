@@ -56,7 +56,7 @@
       </article>
     </section>
 
-    <el-dialog v-model="uploadVisible" title="上传简历" width="520px">
+    <el-dialog v-model="uploadVisible" title="上传简历" :width="uploadDialogWidth">
       <el-alert
         class="upload-tip"
         type="info"
@@ -83,7 +83,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="简历详情" size="48%">
+    <el-drawer v-model="detailVisible" title="简历详情" :size="detailDrawerSize">
       <div v-if="detail" class="detail-stack">
         <section class="panel flat">
           <div class="panel-header">
@@ -134,11 +134,15 @@ import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { deleteResumeApi, getResumeDetailApi, getResumeListApi, setDefaultResumeApi, uploadResumeApi } from '@/api/resume'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const loading = ref(false)
 const uploading = ref(false)
 const uploadVisible = ref(false)
 const detailVisible = ref(false)
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const uploadDialogWidth = responsiveDialogWidth('520px')
+const detailDrawerSize = responsiveDrawerSize('48%')
 const resumes = ref<any[]>([])
 const detail = ref<any>(null)
 const selectedFile = ref<File>()

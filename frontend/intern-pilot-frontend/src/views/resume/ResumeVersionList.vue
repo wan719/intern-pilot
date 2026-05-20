@@ -45,7 +45,7 @@
       </el-table>
     </section>
 
-    <el-dialog v-model="editVisible" :title="editingVersionId ? '编辑版本' : '创建版本'" width="720px">
+    <el-dialog v-model="editVisible" :title="editingVersionId ? '编辑版本' : '创建版本'" :width="editDialogWidth">
       <el-form :model="editForm" label-position="top">
         <el-form-item label="版本名称">
           <el-input v-model="editForm.versionName" placeholder="例如：Java 后端实习优化版" />
@@ -67,7 +67,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="版本详情" size="52%">
+    <el-drawer v-model="detailVisible" title="版本详情" :size="detailDrawerSize">
       <div v-if="detail" class="detail-stack">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="版本名称">{{ displayVersionName(detail) }}</el-descriptions-item>
@@ -79,7 +79,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog v-model="compareVisible" title="版本对比" width="880px">
+    <el-dialog v-model="compareVisible" title="版本对比" :width="compareDialogWidth">
       <el-form class="compare-picker" label-position="top">
         <el-form-item label="旧版本">
           <el-select v-model="compareForm.oldVersionId" filterable>
@@ -106,7 +106,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="optimizeVisible" title="AI 优化简历版本" width="620px">
+    <el-dialog v-model="optimizeVisible" title="AI 优化简历版本" :width="optimizeDialogWidth">
       <el-alert class="dialog-alert" type="warning" :closable="false" title="AI 优化结果仅供参考，投递前请自行核对真实性。" />
       <el-form :model="optimizeForm" label-position="top">
         <el-form-item label="来源版本">
@@ -158,6 +158,7 @@ import {
   updateResumeVersionApi
 } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,6 +174,11 @@ const editVisible = ref(false)
 const detailVisible = ref(false)
 const compareVisible = ref(false)
 const optimizeVisible = ref(false)
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const editDialogWidth = responsiveDialogWidth('720px')
+const compareDialogWidth = responsiveDialogWidth('880px')
+const optimizeDialogWidth = responsiveDialogWidth('620px')
+const detailDrawerSize = responsiveDrawerSize('52%')
 const detail = ref<any>(null)
 const compareResult = ref<any>(null)
 const editingVersionId = ref<number>()

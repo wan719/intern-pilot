@@ -84,4 +84,34 @@ const badgeText = computed(() => store.badgeText)
 .fade-leave-to {
   opacity: 0;
 }
+
+@media (max-width: 640px) {
+  .ai-task-float {
+    right: 14px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 28px);
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .ai-task-float-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ai-task-float-text {
+    max-width: 180px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  .ai-task-float {
+    padding-right: 10px;
+  }
+
+  .ai-task-float-text {
+    max-width: 128px;
+  }
+}
 </style>

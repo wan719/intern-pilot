@@ -132,7 +132,7 @@
       />
     </section>
 
-    <el-dialog v-model="generateVisible" title="生成 AI 面试题" width="560px">
+    <el-dialog v-model="generateVisible" title="生成 AI 面试题" :width="generateDialogWidth">
       <el-alert
         v-if="!canGenerate"
         class="dialog-alert"
@@ -261,6 +261,7 @@ import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
@@ -274,6 +275,8 @@ const loading = ref(false)
 const loadingOptions = ref(false)
 const generating = ref(false)
 const generateVisible = ref(false)
+const { responsiveDialogWidth } = useResponsiveSize()
+const generateDialogWidth = responsiveDialogWidth('560px')
 const loadError = ref('')
 const total = ref(0)
 const regeneratingId = ref<number | null>(null)

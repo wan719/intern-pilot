@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" title="AI 任务中心" direction="rtl" size="420px">
+  <el-drawer v-model="drawerVisible" title="AI 任务中心" direction="rtl" :size="drawerSize" class="ai-task-drawer">
     <AppEmpty
       v-if="allTasks.length === 0"
       title="暂无 AI 任务"
@@ -54,9 +54,12 @@ import { ElMessageBox } from 'element-plus'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 import type { GlobalAiTask } from '@/stores/aiTaskCenter'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import AiTaskItem from './AiTaskItem.vue'
 
 const store = useAiTaskCenterStore()
+const { responsiveDrawerSize } = useResponsiveSize()
+const drawerSize = responsiveDrawerSize('420px', '72%')
 const drawerVisible = computed({
   get: () => store.drawerVisible,
   set: (value) => {
@@ -98,5 +101,20 @@ function handleDismiss(task: GlobalAiTask) {
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  :deep(.ai-task-drawer .el-drawer__header) {
+    margin-bottom: 10px;
+    padding: 16px 16px 8px;
+  }
+
+  :deep(.ai-task-drawer .el-drawer__body) {
+    padding: 0 14px 16px;
+  }
+
+  .task-list {
+    gap: 16px;
+  }
 }
 </style>

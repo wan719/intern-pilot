@@ -95,7 +95,7 @@
       </article>
     </section>
 
-    <el-drawer v-model="detailVisible" title="分析报告详情" size="62%">
+    <el-drawer v-model="detailVisible" title="分析报告详情" :size="detailDrawerSize">
       <section v-if="detailLoading" class="panel flat">
         <el-skeleton :rows="8" animated />
       </section>
@@ -205,6 +205,7 @@ import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { deleteAnalysisReportApi, getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -212,6 +213,8 @@ const authStore = useAuthStore()
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
 const detailVisible = ref(false)
+const { responsiveDrawerSize } = useResponsiveSize()
+const detailDrawerSize = responsiveDrawerSize('62%', '78%')
 const loading = ref(false)
 const loadError = ref('')
 const detailLoading = ref(false)

@@ -65,7 +65,7 @@
       </article>
     </section>
 
-    <el-dialog v-model="formVisible" :title="form.jobId ? '编辑岗位' : '新建岗位'" width="720px">
+    <el-dialog v-model="formVisible" :title="form.jobId ? '编辑岗位' : '新建岗位'" :width="formDialogWidth">
       <el-form :model="form" label-position="top">
         <div class="form-grid two">
           <el-form-item label="公司"><el-input v-model="form.companyName" placeholder="例如：腾讯 / 字节跳动" /></el-form-item>
@@ -105,7 +105,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="岗位详情" size="48%">
+    <el-drawer v-model="detailVisible" title="岗位详情" :size="detailDrawerSize">
       <div v-if="detail" class="detail-stack">
         <section class="panel flat">
           <div class="panel-header">
@@ -157,6 +157,7 @@ import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const jobs = ref<any[]>([])
 const detail = ref<any>(null)
@@ -164,6 +165,9 @@ const loading = ref(false)
 const saving = ref(false)
 const formVisible = ref(false)
 const detailVisible = ref(false)
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const formDialogWidth = responsiveDialogWidth('720px')
+const detailDrawerSize = responsiveDrawerSize('48%')
 const query = reactive({ keyword: '', jobType: '', location: '' })
 const emptyForm = () => ({
   jobId: undefined as number | undefined,

@@ -18,7 +18,7 @@
       <el-button @click="resetQuery">重置</el-button>
     </section>
 
-    <section class="panel">
+    <section class="panel admin-table-panel">
       <el-table v-loading="loading" :data="users">
         <el-table-column prop="userId" label="ID" width="80" />
         <el-table-column label="用户" min-width="190">
@@ -86,6 +86,64 @@
         </template>
       </el-table>
 
+      <div v-loading="loading" class="mobile-card-list">
+        <AppEmpty
+          v-if="!users.length && !loading"
+          title="暂无用户"
+          description="当前筛选条件下没有用户记录"
+          hint="可以重置筛选条件，或确认当前账号是否拥有用户读取权限。"
+        />
+        <article v-for="row in users" v-else :key="row.userId" class="mobile-card">
+          <div class="mobile-card-head">
+            <div>
+              <span>用户 ID #{{ row.userId }}</span>
+              <h3>{{ row.nickname || row.username || '-' }}</h3>
+              <p v-if="row.email">{{ row.email }}</p>
+            </div>
+            <el-tag :type="row.enabled === 1 ? 'success' : 'danger'" effect="plain">
+              {{ row.enabled === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </div>
+
+          <div class="mobile-meta-grid">
+            <div><span>学校</span><strong>{{ row.school || '-' }}</strong></div>
+            <div><span>专业</span><strong>{{ row.major || '-' }}</strong></div>
+            <div><span>年级</span><strong>{{ row.grade || '-' }}</strong></div>
+            <div><span>注册时间</span><strong>{{ formatDateTime(row.createdAt) }}</strong></div>
+          </div>
+
+          <div class="role-tags">
+            <el-tag v-for="role in row.roles || []" :key="role" :type="role === 'ADMIN' ? 'warning' : 'primary'" effect="plain">
+              {{ role }}
+            </el-tag>
+            <span v-if="!(row.roles || []).length" class="muted">暂无角色</span>
+          </div>
+
+          <div class="mobile-actions">
+            <el-button type="primary" plain @click="showDetail(row.userId)">详情</el-button>
+            <el-button v-if="hasPermission('user:update')" type="warning" plain @click="openRoleDialog(row)">
+              分配角色
+            </el-button>
+            <el-button
+              v-if="hasPermission('user:update') && row.enabled === 1"
+              type="danger"
+              plain
+              @click="changeEnabled(row, false)"
+            >
+              禁用
+            </el-button>
+            <el-button
+              v-else-if="hasPermission('user:update')"
+              type="success"
+              plain
+              @click="changeEnabled(row, true)"
+            >
+              启用
+            </el-button>
+          </div>
+        </article>
+      </div>
+
       <el-pagination
         v-if="total > 0"
         class="pager"
@@ -100,7 +158,7 @@
       />
     </section>
 
-    <el-drawer v-model="detailVisible" title="用户详情" size="48%">
+    <el-drawer v-model="detailVisible" title="用户详情" :size="detailDrawerSize">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <div v-else-if="detail" class="detail-stack">
         <section class="panel flat">
@@ -152,7 +210,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog v-model="roleDialogVisible" title="分配角色" width="440px">
+    <el-dialog v-model="roleDialogVisible" title="分配角色" :width="roleDialogWidth">
       <div class="role-dialog-tip">
         正在为 <strong>{{ currentUser?.nickname || currentUser?.username }}</strong> 分配角色。请谨慎授予 ADMIN。
       </div>
@@ -179,6 +237,7 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 import {
   disableUserApi,
@@ -198,6 +257,9 @@ const total = ref(0)
 const detailVisible = ref(false)
 const detail = ref<any>(null)
 const roleDialogVisible = ref(false)
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const detailDrawerSize = responsiveDrawerSize('48%')
+const roleDialogWidth = responsiveDialogWidth('440px')
 const selectedRoleIds = ref<number[]>([])
 const currentUser = ref<any>(null)
 const roles = ref<any[]>([])
@@ -361,6 +423,10 @@ onMounted(async () => {
   margin-top: 16px;
 }
 
+.mobile-card-list {
+  display: none;
+}
+
 .profile-head {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -435,6 +501,99 @@ onMounted(async () => {
   .asset-grid,
   .profile-head {
     grid-template-columns: 1fr;
+  }
+
+  .admin-table-panel :deep(.el-table) {
+    display: none;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .mobile-card-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mobile-card-head span,
+  .mobile-card-head p {
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-card-head h3 {
+    margin: 4px 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .mobile-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-meta-grid div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .mobile-meta-grid span,
+  .mobile-meta-grid strong {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-meta-grid span {
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-meta-grid strong {
+    margin-top: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+  }
+
+  .mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobile-card-head,
+  .mobile-meta-grid,
+  .mobile-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-card-head {
+    display: grid;
   }
 }
 </style>

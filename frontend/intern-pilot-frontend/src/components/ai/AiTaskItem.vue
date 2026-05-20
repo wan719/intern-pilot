@@ -165,4 +165,39 @@ const timeText = computed(() => {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.task-actions .el-button {
+  margin-left: 0;
+}
+
+@media (max-width: 640px) {
+  .ai-task-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .task-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .task-heading {
+    align-items: flex-start;
+  }
+
+  .task-heading h5 {
+    white-space: normal;
+  }
+
+  .task-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-actions .el-button {
+    width: 100%;
+  }
+}
 </style>

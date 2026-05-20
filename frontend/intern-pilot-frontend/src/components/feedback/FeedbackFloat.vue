@@ -50,4 +50,27 @@ const store = useFeedbackStore()
 .feedback-float span:last-child {
   font-weight: 700;
 }
+
+@media (max-width: 640px) {
+  .feedback-float {
+    right: 14px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    gap: 0;
+    padding: 10px;
+  }
+
+  .feedback-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .feedback-float span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
 </style>

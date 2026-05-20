@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" title="意见反馈" direction="rtl" size="430px">
+  <el-drawer v-model="drawerVisible" title="意见反馈" direction="rtl" :size="drawerSize" class="feedback-drawer">
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="feedback-form">
       <el-alert
         class="feedback-tip"
@@ -10,7 +10,7 @@
       />
 
       <el-form-item label="反馈类型" prop="type">
-        <el-select v-model="form.type" placeholder="请选择反馈类型">
+        <el-select v-model="form.type" placeholder="请选择反馈类型" class="full-control">
           <el-option label="功能异常" value="BUG" />
           <el-option label="使用建议" value="SUGGESTION" />
           <el-option label="页面体验问题" value="UI_UX" />
@@ -62,11 +62,14 @@ import { useRoute } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useFeedbackStore } from '@/stores/feedback'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const store = useFeedbackStore()
 const route = useRoute()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+const { responsiveDrawerSize } = useResponsiveSize({ tabletBreakpoint: 900 })
+const drawerSize = responsiveDrawerSize('430px', '78%')
 
 const drawerVisible = computed({
   get: () => store.drawerVisible,
@@ -129,6 +132,10 @@ function resetForm() {
   padding-bottom: 20px;
 }
 
+.full-control {
+  width: 100%;
+}
+
 .feedback-tip {
   margin-bottom: 16px;
 }
@@ -160,5 +167,42 @@ function resetForm() {
   gap: 10px;
   padding-top: 16px;
   border-top: 1px solid var(--color-border-soft);
+}
+
+@media (max-width: 640px) {
+  :deep(.feedback-drawer .el-drawer__header) {
+    margin-bottom: 12px;
+    padding: 16px 16px 10px;
+  }
+
+  :deep(.feedback-drawer .el-drawer__body) {
+    padding: 0 16px 16px;
+  }
+
+  .feedback-form {
+    min-height: 100%;
+    padding-bottom: 84px;
+  }
+
+  .feedback-tip {
+    margin-bottom: 12px;
+  }
+
+  .form-actions {
+    position: sticky;
+    bottom: -16px;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0 -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--color-surface);
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.08);
+  }
+
+  .form-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 </style>

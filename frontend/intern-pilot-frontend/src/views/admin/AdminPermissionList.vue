@@ -15,7 +15,7 @@
       <el-button @click="resetFilter">重置</el-button>
     </section>
 
-    <section class="panel">
+    <section class="panel admin-table-panel">
       <el-table v-loading="loading" :data="permissions">
         <el-table-column prop="permissionId" label="ID" width="80" />
         <el-table-column label="权限" min-width="260">
@@ -41,6 +41,29 @@
           />
         </template>
       </el-table>
+
+      <div v-loading="loading" class="mobile-card-list">
+        <AppEmpty
+          v-if="!permissions.length && !loading"
+          title="暂无权限项"
+          description="当前筛选条件下没有权限记录"
+          hint="可以重置资源类型筛选后重新查看。"
+        />
+        <article v-for="row in permissions" v-else :key="row.permissionId" class="mobile-card">
+          <div class="mobile-card-head">
+            <div>
+              <span>权限 ID #{{ row.permissionId }}</span>
+              <h3>{{ row.permissionName || row.permissionCode }}</h3>
+              <p>{{ row.permissionCode }}</p>
+            </div>
+            <el-tag :type="row.enabled ? 'success' : 'danger'" effect="plain">{{ row.enabled ? '启用' : '停用' }}</el-tag>
+          </div>
+          <div class="mobile-meta-grid">
+            <div><span>资源类型</span><strong>{{ row.resourceType || '-' }}</strong></div>
+          </div>
+          <p class="mobile-card-desc">{{ row.description || '暂无描述' }}</p>
+        </article>
+      </div>
     </section>
   </PageContainer>
 </template>
@@ -101,9 +124,88 @@ onMounted(loadData)
   font-size: 12px;
 }
 
+.mobile-card-list {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .compact-stats {
     grid-template-columns: 1fr;
+  }
+
+  .admin-table-panel :deep(.el-table) {
+    display: none;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .mobile-card-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mobile-card-head span,
+  .mobile-card-head p,
+  .mobile-card-desc {
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-card-head h3 {
+    margin: 4px 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .mobile-card-desc {
+    color: var(--color-text-muted);
+    line-height: 1.7;
+  }
+
+  .mobile-meta-grid div {
+    padding: 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .mobile-meta-grid span,
+  .mobile-meta-grid strong {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-meta-grid span {
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-meta-grid strong {
+    margin-top: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobile-card-head {
+    display: grid;
   }
 }
 </style>

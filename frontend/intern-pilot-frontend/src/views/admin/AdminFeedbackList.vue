@@ -7,7 +7,7 @@
       <StatCard label="已解决" :value="statusCount.RESOLVED" :icon="CircleCheck" />
     </div>
 
-    <section class="panel toolbar">
+    <section class="panel toolbar feedback-toolbar">
       <el-select v-model="query.type" placeholder="反馈类型" clearable>
         <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
@@ -18,7 +18,7 @@
       <el-button @click="resetQuery">重置</el-button>
     </section>
 
-    <section class="panel">
+    <section class="panel feedback-table-panel">
       <el-table v-loading="loading" :data="feedbacks">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column label="反馈" min-width="260">
@@ -63,9 +63,39 @@
           <AppEmpty title="暂无反馈" description="当前筛选条件下没有用户反馈" hint="用户提交反馈后会显示在这里。" />
         </template>
       </el-table>
+
+      <div v-loading="loading" class="feedback-mobile-list">
+        <AppEmpty
+          v-if="!feedbacks.length && !loading"
+          title="暂无反馈"
+          description="当前筛选条件下没有用户反馈"
+          hint="用户提交反馈后会显示在这里。"
+        />
+        <article v-for="row in feedbacks" v-else :key="row.id" class="feedback-mobile-card">
+          <div class="mobile-card-head">
+            <div>
+              <span>#{{ row.id }} · {{ typeLabel(row.type) }}</span>
+              <h3>{{ row.title }}</h3>
+            </div>
+            <el-tag :type="statusTagType(row.status)" effect="plain">{{ statusLabel(row.status) }}</el-tag>
+          </div>
+          <p>{{ row.content }}</p>
+          <div class="mobile-meta">
+            <span>{{ row.userName || `用户 #${row.userId}` }}</span>
+            <span>{{ row.userEmail || '-' }}</span>
+            <span>{{ formatDateTime(row.createdAt) }}</span>
+          </div>
+          <div class="mobile-actions">
+            <el-button type="primary" plain @click="openDetail(row)">详情</el-button>
+            <el-button v-if="auth.hasPermission('feedback:write')" plain type="warning" @click="openStatus(row)">状态</el-button>
+            <el-button v-if="auth.hasPermission('feedback:write')" plain type="primary" @click="openReply(row)">回复</el-button>
+            <el-button v-if="auth.hasPermission('feedback:delete')" plain type="danger" @click="remove(row)">删除</el-button>
+          </div>
+        </article>
+      </div>
     </section>
 
-    <el-drawer v-model="detailVisible" title="反馈详情" size="48%">
+    <el-drawer v-model="detailVisible" title="反馈详情" :size="detailDrawerSize" class="feedback-detail-drawer">
       <div v-if="selected" class="detail-stack">
         <section class="panel flat">
           <div class="panel-header">
@@ -96,7 +126,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog v-model="statusVisible" title="更新处理状态" width="420px">
+    <el-dialog v-model="statusVisible" title="更新处理状态" :width="dialogWidth">
       <el-form :model="statusForm" label-position="top">
         <el-form-item label="处理状态">
           <el-select v-model="statusForm.status">
@@ -110,7 +140,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="replyVisible" title="回复反馈" width="560px">
+    <el-dialog v-model="replyVisible" title="回复反馈" :width="dialogWidth">
       <el-form :model="replyForm" label-position="top">
         <el-form-item label="回复内容">
           <el-input v-model="replyForm.reply" type="textarea" :rows="5" placeholder="请输入处理说明或回复内容" />
@@ -134,6 +164,7 @@ import StatCard from '@/components/common/StatCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore, type Feedback, type FeedbackStatus } from '@/stores/feedback'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const auth = useAuthStore()
 const store = useFeedbackStore()
@@ -144,6 +175,9 @@ const statusVisible = ref(false)
 const replyVisible = ref(false)
 const saving = ref(false)
 const selected = ref<Feedback | null>(null)
+const { responsiveDrawerSize, responsiveDialogWidth } = useResponsiveSize()
+const detailDrawerSize = responsiveDrawerSize('48%')
+const dialogWidth = responsiveDialogWidth('560px')
 
 const query = reactive({ type: '', status: '' })
 const statusForm = reactive<{ status: FeedbackStatus }>({ status: 'PENDING' })
@@ -250,12 +284,33 @@ function statusTagType(value: string) {
   return 'info'
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
 .compact-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.feedback-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(180px, 240px) auto auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.feedback-toolbar .el-button {
+  margin-left: 0;
+}
+
+.feedback-table-panel {
+  overflow: hidden;
+}
+
+.feedback-mobile-list {
+  display: none;
 }
 
 .feedback-cell,
@@ -285,9 +340,116 @@ onMounted(loadData)
   line-height: 1.8;
 }
 
+@media (max-width: 1180px) {
+  .compact-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .feedback-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .compact-stats {
     grid-template-columns: 1fr;
+  }
+
+  .feedback-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .feedback-toolbar .el-select,
+  .feedback-toolbar .el-button {
+    width: 100%;
+  }
+
+  .feedback-table-panel :deep(.el-table) {
+    display: none;
+  }
+
+  .feedback-mobile-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .feedback-mobile-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .mobile-card-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mobile-card-head span {
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-card-head h3 {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .feedback-mobile-card p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+  }
+
+  .mobile-meta {
+    display: grid;
+    gap: 4px;
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-meta span {
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  :deep(.feedback-detail-drawer .el-drawer__header) {
+    margin-bottom: 12px;
+    padding: 16px 16px 10px;
+  }
+
+  :deep(.feedback-detail-drawer .el-drawer__body) {
+    padding: 0 16px 16px;
+  }
+
+  :deep(.el-dialog) {
+    margin-top: 8vh;
+  }
+
+  .mobile-card-head {
+    display: grid;
   }
 }
 </style>

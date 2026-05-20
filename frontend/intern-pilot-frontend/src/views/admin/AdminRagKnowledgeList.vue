@@ -25,7 +25,7 @@
       <el-button :icon="Search" @click="openSearch">测试检索</el-button>
     </section>
 
-    <section class="panel">
+    <section class="panel admin-table-panel">
       <el-table v-loading="loading" :data="documents">
         <el-table-column label="知识文档" min-width="250">
           <template #default="{ row }">
@@ -70,9 +70,42 @@
           </AppEmpty>
         </template>
       </el-table>
+
+      <div v-loading="loading" class="mobile-card-list">
+        <AppEmpty
+          v-if="!documents.length && !loading"
+          title="暂无 RAG 知识文档"
+          description="维护岗位方向知识后，AI 分析可以引用更稳定的上下文"
+          hint="建议先添加技能要求、面试重点、简历优化建议或学习路线。"
+        >
+          <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
+        </AppEmpty>
+        <article v-for="row in documents" v-else :key="row.documentId" class="mobile-card">
+          <div class="mobile-card-head">
+            <div>
+              <span>{{ row.direction || '-' }} · {{ typeLabel(row.knowledgeType) }}</span>
+              <h3>{{ row.title }}</h3>
+            </div>
+            <el-tag :type="row.enabled === 1 ? 'success' : 'info'" effect="plain">
+              {{ row.enabled === 1 ? '启用' : '停用' }}
+            </el-tag>
+          </div>
+          <p class="mobile-card-desc">{{ row.summary || '暂无摘要' }}</p>
+          <div class="mobile-meta-grid">
+            <div><span>切片数</span><strong>{{ row.chunkCount || 0 }}</strong></div>
+            <div><span>更新时间</span><strong>{{ formatDateTime(row.updatedAt) }}</strong></div>
+          </div>
+          <div class="mobile-actions">
+            <el-button type="primary" plain @click="openDetail(row.documentId)">详情</el-button>
+            <el-button v-if="canManage" type="primary" plain @click="openEdit(row.documentId)">编辑</el-button>
+            <el-button v-if="canManage" type="warning" plain @click="rebuild(row)">重建</el-button>
+            <el-button v-if="canManage" type="danger" plain @click="remove(row)">删除</el-button>
+          </div>
+        </article>
+      </div>
     </section>
 
-    <el-dialog v-model="formVisible" :title="editingId ? '编辑知识文档' : '新增知识文档'" width="760px">
+    <el-dialog v-model="formVisible" :title="editingId ? '编辑知识文档' : '新增知识文档'" :width="formDialogWidth">
       <el-form :model="form" label-position="top">
         <el-form-item label="标题">
           <el-input v-model="form.title" placeholder="例如：Java 后端实习岗位能力模型" />
@@ -108,7 +141,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="知识文档详情" size="52%">
+    <el-drawer v-model="detailVisible" title="知识文档详情" :size="detailDrawerSize">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <div v-else-if="detail" class="detail-stack">
         <section class="panel flat">
@@ -145,7 +178,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog v-model="searchVisible" title="测试 RAG 检索" width="760px">
+    <el-dialog v-model="searchVisible" title="测试 RAG 检索" :width="searchDialogWidth">
       <el-form :model="searchForm" label-position="top">
         <div class="form-grid three">
           <el-form-item label="方向">
@@ -196,6 +229,7 @@ import {
   updateRagKnowledgeApi
 } from '@/api/adminRagKnowledge'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -219,6 +253,10 @@ const detailLoading = ref(false)
 const formVisible = ref(false)
 const detailVisible = ref(false)
 const searchVisible = ref(false)
+const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const formDialogWidth = responsiveDialogWidth('760px')
+const searchDialogWidth = responsiveDialogWidth('760px')
+const detailDrawerSize = responsiveDrawerSize('52%')
 const editingId = ref<number>()
 
 const query = reactive<any>({ direction: '', knowledgeType: '', enabled: undefined })
@@ -393,8 +431,111 @@ onMounted(loadDocuments)
   margin-top: 16px;
 }
 
+.mobile-card-list {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .compact-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-table-panel :deep(.el-table) {
+    display: none;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .mobile-card-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mobile-card-head span,
+  .mobile-card-desc {
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-card-head h3 {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .mobile-card-desc {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .mobile-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-meta-grid div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .mobile-meta-grid span,
+  .mobile-meta-grid strong {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-meta-grid span {
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-meta-grid strong {
+    margin-top: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+  }
+
+  .mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobile-card-head,
+  .mobile-meta-grid,
+  .mobile-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 }

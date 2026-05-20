@@ -27,7 +27,7 @@
       <el-button @click="resetQuery">重置</el-button>
     </section>
 
-    <section class="panel">
+    <section class="panel admin-table-panel">
       <el-table v-loading="loading" :data="logs">
         <el-table-column prop="logId" label="ID" width="80" />
         <el-table-column prop="operatorUsername" label="操作人" width="140" show-overflow-tooltip />
@@ -73,6 +73,39 @@
         </template>
       </el-table>
 
+      <div v-loading="loading" class="mobile-card-list">
+        <AppEmpty
+          v-if="!logs.length && !loading"
+          title="暂无操作日志"
+          description="当前筛选条件下没有操作日志"
+          hint="可以重置筛选条件，或稍后在系统产生操作后再查看。"
+        />
+        <article v-for="row in logs" v-else :key="row.logId" class="mobile-card">
+          <div class="mobile-card-head">
+            <div>
+              <span>日志 ID #{{ row.logId }} · {{ operationTypeLabel(row.operationType) }}</span>
+              <h3>{{ row.operation || '-' }}</h3>
+              <p>{{ row.module || '-' }} / {{ row.operatorUsername || '-' }}</p>
+            </div>
+            <el-tag :type="row.success === 1 ? 'success' : 'danger'" effect="plain">
+              {{ row.success === 1 ? '成功' : '失败' }}
+            </el-tag>
+          </div>
+
+          <div class="request-line mobile-request">{{ row.requestMethod || '-' }} {{ row.requestUri || '-' }}</div>
+
+          <div class="mobile-meta-grid">
+            <div><span>耗时</span><strong :class="{ slow: Number(row.costTime || 0) >= 1000 }">{{ row.costTime || 0 }} ms</strong></div>
+            <div><span>时间</span><strong>{{ formatDateTime(row.createdAt) }}</strong></div>
+          </div>
+
+          <div class="mobile-actions">
+            <el-button type="primary" plain @click="openDetail(row.logId)">详情</el-button>
+            <el-button type="danger" plain @click="removeLog(row)">删除</el-button>
+          </div>
+        </article>
+      </div>
+
       <el-pagination
         v-if="total > 0"
         class="pager"
@@ -87,7 +120,7 @@
       />
     </section>
 
-    <el-drawer v-model="detailVisible" title="操作日志详情" size="54%">
+    <el-drawer v-model="detailVisible" title="操作日志详情" :size="detailDrawerSize">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <div v-else-if="detail" class="detail-stack">
         <section class="panel flat">
@@ -148,6 +181,7 @@ import {
   getOperationLogListApi
 } from '@/api/adminOperationLog'
 import { formatDateTime } from '@/utils/format'
+import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const logs = ref<any[]>([])
 const total = ref(0)
@@ -155,6 +189,8 @@ const loading = ref(false)
 const detailLoading = ref(false)
 const detailVisible = ref(false)
 const detail = ref<any>(null)
+const { responsiveDrawerSize } = useResponsiveSize()
+const detailDrawerSize = responsiveDrawerSize('54%')
 
 const query = reactive<{
   module: string
@@ -275,6 +311,10 @@ onMounted(loadList)
   margin-top: 16px;
 }
 
+.mobile-card-list {
+  display: none;
+}
+
 .request-line {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
@@ -301,6 +341,104 @@ onMounted(loadList)
 
 @media (max-width: 900px) {
   .compact-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-table-panel :deep(.el-table) {
+    display: none;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .mobile-card-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .mobile-card-head span,
+  .mobile-card-head p {
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-card-head h3 {
+    margin: 4px 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .mobile-request {
+    overflow-wrap: anywhere;
+    padding: 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .mobile-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-meta-grid div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+  }
+
+  .mobile-meta-grid span,
+  .mobile-meta-grid strong {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-meta-grid span {
+    color: var(--color-text-soft);
+    font-size: 12px;
+  }
+
+  .mobile-meta-grid strong {
+    margin-top: 4px;
+    color: var(--color-text);
+    font-size: 13px;
+  }
+
+  .mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-actions .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobile-card-head,
+  .mobile-meta-grid,
+  .mobile-actions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 }

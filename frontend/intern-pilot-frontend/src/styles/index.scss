@@ -695,3 +695,66 @@ a {
     padding: 28px;
   }
 }
+
+@media (max-width: 640px) {
+  .application-actions,
+  .job-actions,
+  .resume-actions,
+  .report-actions,
+  .interview-actions,
+  .batch-actions,
+  .card-actions,
+  .detail-actions,
+  .hero-actions,
+  .quick-actions,
+  .failed-actions,
+  .success-actions,
+  .guide-actions,
+  .question-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100% !important;
+    gap: 8px;
+  }
+
+  .application-actions .el-button,
+  .job-actions .el-button,
+  .resume-actions .el-button,
+  .report-actions .el-button,
+  .interview-actions .el-button,
+  .batch-actions .el-button,
+  .card-actions .el-button,
+  .detail-actions .el-button,
+  .hero-actions .el-button,
+  .quick-actions .el-button,
+  .failed-actions .el-button,
+  .success-actions .el-button,
+  .guide-actions .el-button,
+  .question-actions .el-button {
+    width: 100%;
+    min-height: 36px;
+    margin-left: 0;
+    padding-right: 10px;
+    padding-left: 10px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .application-actions,
+  .job-actions,
+  .resume-actions,
+  .report-actions,
+  .interview-actions,
+  .batch-actions,
+  .card-actions,
+  .detail-actions,
+  .hero-actions,
+  .quick-actions,
+  .failed-actions,
+  .success-actions,
+  .guide-actions,
+  .question-actions {
+    grid-template-columns: 1fr;
+  }
+}
