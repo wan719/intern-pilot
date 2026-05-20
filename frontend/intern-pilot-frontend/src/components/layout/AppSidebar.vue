@@ -1,10 +1,10 @@
 <template>
   <aside class="app-sidebar">
     <div class="brand">
-      <div class="brand-mark">IP</div>
+      <img class="brand-logo" :src="brandLogo" alt="InternPilot logo">
       <div>
         <strong>InternPilot</strong>
-        <span>AI 求职工作台</span>
+        <span>求职工作台</span>
       </div>
     </div>
 
@@ -99,6 +99,7 @@ import {
   QuestionFilled,
   Tickets
 } from '@element-plus/icons-vue'
+import brandLogo from '@/assets/brand-logo.png'
 
 const route = useRoute()
 const router = useRouter()

@@ -2,8 +2,10 @@
   <div class="auth-page">
     <section class="auth-panel">
       <div class="auth-copy">
-        <span class="eyebrow">InternPilot</span>
-        <h1>求职工作台</h1>
+        <div class="auth-brand">
+          <img class="auth-brand-logo" :src="brandLogo" alt="InternPilot logo">
+          <span class="eyebrow">InternPilot</span>
+        </div>
         <p>从简历、岗位 JD 到 AI 匹配分析和投递跟进，一站式管理你的实习求职流程。</p>
 
         <div class="auth-flow">
@@ -59,6 +61,7 @@ import { Briefcase, Document, List, Lock, MagicStick, Message } from '@element-p
 import { useRouter } from 'vue-router'
 import { loginApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import brandLogo from '@/assets/brand-logo.png'
 
 const router = useRouter()
 const auth = useAuthStore()

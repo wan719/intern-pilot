@@ -2,7 +2,7 @@
   <div class="admin-shell">
     <aside class="admin-sidebar">
       <div class="brand">
-        <div class="brand-mark">IP</div>
+        <img class="brand-logo" :src="brandLogo" alt="InternPilot logo">
         <div>
           <strong>管理后台</strong>
           <span>系统配置与运营管理</span>
@@ -49,7 +49,10 @@
         </div>
         <div class="admin-header-actions">
           <el-button :icon="Refresh" circle @click="refreshPage" />
-          <el-button :icon="Back" @click="router.push('/dashboard')">返回用户工作台</el-button>
+          <el-button class="admin-workbench-button" @click="router.push('/dashboard')">
+            <img class="admin-action-logo" :src="brandLogo" alt="">
+            <span>返回用户工作台</span>
+          </el-button>
         </div>
       </header>
 
@@ -61,9 +64,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Back, ChatDotRound, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
+import { Avatar, ChatDotRound, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
+import brandLogo from '@/assets/brand-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -137,6 +141,17 @@ onMounted(async () => {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.admin-workbench-button {
+  gap: 8px;
+}
+
+.admin-action-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 @media (max-width: 900px) {
