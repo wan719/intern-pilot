@@ -316,7 +316,7 @@ http://localhost:5173
 
 线上系统不公开默认账号和管理员密码。`init.sql` 只初始化一个管理员邮箱账号 `3425446714@qq.com`，密码仅以 BCrypt 哈希形式保存，仓库和 README 不记录明文密码。
 
-本阶段不再初始化 `demo / 123456` 或旧 `admin / 123456` 演示账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
+本阶段不再初始化公开演示账号或旧默认管理员账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
 系统启动时会执行 `src/main/resources/sql/init.sql`，包含：
 
 - 基础角色：`USER`、`ADMIN`
@@ -615,6 +615,7 @@ server {
 - 生产环境必须修改 `JWT_SECRET`
 - `DEEPSEEK_API_KEY` 不要提交到 GitHub 或 Gitee
 - MySQL 建议使用 `utf8mb4`
+- Docker MySQL volume 只会在首次初始化时执行 `init.sql`。如果线上库已经存在，请先备份数据库，再手动执行 `backend/intern-pilot-backend/src/main/resources/sql/migration/V40__final_release_update.sql`，用于补齐 `user_feedback` 表和 `feedback:*` 权限。
 - Redis 未设置密码时只建议用于本地开发
 - 当前 RAG 使用 MySQL JSON 存储向量和内存相似度计算，适合课程项目和小规模演示；生产大规模知识库建议替换为 Qdrant、Milvus、pgvector 或 Elasticsearch 向量检索
 
