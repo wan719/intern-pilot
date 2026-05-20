@@ -241,6 +241,7 @@ intern-pilot
 │  ├─ 38-frontend-ui-polish-and-user-experience-design.md
 │  ├─ 39-ai-task-center-and-feedback-design.md
 │  ├─ 40-final-acceptance-release-and-deployment.md
+│  ├─ 41-project-architecture-review-and-interview-preparation.md
 │  └─ assets/screenshots/
 └─ README.md
 ```
