@@ -3,11 +3,11 @@
 ![CI](https://github.com/wan719/intern-pilot/actions/workflows/ci.yml/badge.svg)
 ![Docker Build](https://github.com/wan719/intern-pilot/actions/workflows/docker-build.yml/badge.svg)
 
-> 面向大学生实习求职场景的 AI 简历优化、岗位匹配与面试准备平台
+> 面向大学生实习求职场景的 AI 简历优化、岗位匹配、面试准备与投递管理平台
 
-InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。系统支持简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 实时进度展示、AI 面试题生成、岗位推荐、投递记录、RAG 岗位知识库、RBAC 权限管理和管理员后台。
+InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。系统支持简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 实时进度展示、AI 任务中心、AI 面试题生成、岗位推荐、投递记录、用户反馈、RAG 岗位知识库、RBAC 权限管理和管理员后台。
 
-项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis 和 DeepSeek API，前端基于 Vue 3、TypeScript、Element Plus、Vue Router 和 Axios。
+项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、TypeScript、Element Plus、Vue Router、Pinia、Axios 和 ECharts。
 
 ## 项目概述
 
@@ -19,19 +19,22 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 - 不知道岗位要求背后真正考察哪些能力
 - 面试准备缺少针对性
 - 投递记录分散，难以管理
-- 缺少一个能把"简历、岗位、分析、面试题、投递"串起来的工具
+- AI 分析任务耗时较长，缺少清晰的进度与结果入口
+- 缺少一个能把“简历、岗位、分析、面试题、推荐、投递”串起来的工具
 
-InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
+InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，并为课程答辩展示提供完整、稳定、可演示的业务闭环。
 
 ### 核心价值与创新点
 
 - **AI 简历匹配分析**：根据简历和岗位 JD 输出匹配分、优势、短板、缺失技能和改进建议
 - **WebSocket 实时进度**：异步分析任务进度实时推送，支持刷新恢复
+- **全局 AI 任务中心**：统一展示长任务状态、完成提醒、结果入口和红点提示
 - **AI 面试题生成**：结合分析报告、岗位信息和 RAG 知识库上下文，生成分类、难度、答案、追问的结构化面试题
 - **RAG 岗位知识库**：管理员维护岗位方向知识，系统自动切片、生成 Embedding，在分析和面试题生成时检索相关知识增强 AI 输出
 - **DeepSeek + Mock AI 双模式**：线上默认使用 DeepSeek 真实 API，Mock AI 仅保留给 test / CI
-- **RBAC 管理后台**：用户、角色、权限、操作日志、仪表盘和知识库管理
+- **RBAC 管理后台**：用户、角色、权限、操作日志、RAG 知识库、用户反馈和后台看板管理
 - **岗位推荐闭环**：从岗位库、推荐批次、推荐理由到投递记录形成完整求职链路
+- **产品级前端体验**：用户工作台与管理员后台分离，统一页面标题、卡片布局、空状态、loading、错误提示、删除确认和多端适配
 - **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2 和前端类型检查覆盖核心链路
 - **GitHub Actions CI**：推送或 PR 时自动运行后端测试和前端构建
 
@@ -47,6 +50,9 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
 
 | 版本 | 日期 | 更新内容 |
 | --- | --- | --- |
+| v1.0.0 | 2026-05-20 | 根据 `40-final-acceptance-release-and-deployment.md` 完成最终验收、发布收尾、README 更新、Docker 部署说明、数据库迁移说明和安全检查 |
+| v0.7.0 | 2026-05-20 | 根据 `39-ai-task-center-and-feedback-design.md` 完成 AI 任务中心、右下角结果提醒、用户反馈入口和管理员反馈管理 |
+| v0.6.0 | 2026-05-20 | 根据 `38-frontend-ui-polish-and-user-experience-design.md` 完成前端 UI 统一、管理员独立后台、多端适配和品牌图标替换 |
 | v0.5.0 | 2026-05-15 | 根据 `34-product-experience-bugfix-and-acceptance-design.md` 完成产品体验验收与 P0/P1 Bug 修复，根据 `35-readme-demo-script-and-project-packaging-design.md` 整理 README 与项目最终包装 |
 | v0.4.0 | 2026-05-13 | 根据 `28-testing-enhancement.md` 增强测试体系：补充 RAG 服务测试、测试运行配置、前端 `type-check` 脚本、GitHub Actions CI |
 | v0.3.0 | 2026-05-12 | 根据 `27-rag-job-knowledge-base-design.md` 接入 RAG 岗位知识库，新增知识文档、切片、Embedding、检索、管理页面和 AI 上下文增强 |
@@ -99,21 +105,24 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
 
 | 模块 | 功能说明 |
 | --- | --- |
-| 用户认证 | 注册、登录、JWT 鉴权、当前用户信息 |
+| 用户认证 | 邮箱验证码注册、登录、JWT 鉴权、当前用户信息 |
+| 用户中心 | 昵称、学校、专业、年级等个人资料维护 |
 | RBAC 权限 | 用户、角色、权限、菜单和按钮权限控制 |
-| 简历管理 | 简历上传、解析、默认简历、版本管理 |
-| 岗位 JD 管理 | 岗位创建、编辑、删除、JD 内容维护 |
+| 简历管理 | 简历上传、解析、默认简历、版本管理、AI 优化 |
+| 岗位 JD 管理 | 岗位创建、编辑、删除、技能要求、JD 内容维护 |
 | AI 匹配分析 | 根据简历和岗位生成匹配分数、优势、短板和建议 |
 | WebSocket 进度 | 实时展示 AI 分析任务进度，支持刷新恢复 |
+| AI 任务中心 | 展示长任务状态、完成提醒、结果入口和红点 |
 | AI 缓存 | 使用 Redis 缓存分析结果，避免重复调用 AI |
 | DeepSeek 接入 | 支持 deepseek-v4-flash 和 deepseek-v4-pro |
 | Mock AI | 仅用于 test / CI，线上不允许启用 |
 | AI 面试题 | 生成分类、难度、答案、追问、关键词 |
 | 岗位推荐 | 根据用户简历和岗位信息生成推荐结果 |
 | 投递记录 | 管理投递状态、备注和时间线 |
+| 用户反馈 | 用户提交问题反馈，管理员处理、回复和删除 |
 | RAG 知识库 | 管理岗位知识，支持上下文增强 |
 | 操作日志 | 记录系统关键操作 |
-| 管理员后台 | 用户、角色、权限、RAG、日志管理 |
+| 管理员后台 | 后台看板、用户、角色、权限、RAG、日志、反馈管理 |
 
 ## 技术架构
 
@@ -122,7 +131,9 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备。
 ```mermaid
 flowchart LR
     User["学生 / 管理员"] --> Web["Vue 3 + Element Plus"]
-    Web --> Api["Spring Boot REST API"]
+    Web --> Nginx["Nginx / Vite Proxy"]
+    Nginx --> Api["Spring Boot REST API"]
+    Nginx --> WS["WebSocket 进度推送"]
     Api --> Security["JWT + Spring Security + RBAC"]
     Api --> Service["业务服务层"]
     Service --> MySQL[("MySQL 8")]
@@ -134,8 +145,7 @@ flowchart LR
     RAG --> Embedding["Mock / Real Embedding"]
     RAG --> MySQL
     Api --> Docs["Knife4j API 文档"]
-    Service --> WS["WebSocket 进度推送"]
-    WS --> Web
+    WS --> Service
 ```
 
 ### 测试架构图
@@ -174,7 +184,7 @@ sequenceDiagram
 
 | 层级 | 技术 |
 | --- | --- |
-| 后端框架 | Java 17、Spring Boot 3.3.5、Spring Security、Spring AOP、Validation |
+| 后端框架 | Java 17、Spring Boot 3.3.5、Spring Security、Spring AOP、Validation、WebSocket |
 | 数据访问 | MyBatis-Plus 3.5.9、MySQL Connector/J |
 | API 文档 | Knife4j OpenAPI 3 4.5.0 |
 | AI 能力 | DeepSeek 兼容接口、PromptUtils、MockAiClient、MockEmbeddingClient |
@@ -182,7 +192,8 @@ sequenceDiagram
 | 文件解析 | Apache PDFBox、Apache POI |
 | 后端测试 | JUnit 5、Mockito、Spring Boot Test、MockMvc、spring-security-test、H2 |
 | 前端框架 | Vue 3.5、Vite 6、TypeScript 5.7、Vue Router 4、Pinia |
-| UI 与图表 | Element Plus 2.11、ECharts 5.6、Dayjs |
+| UI 与图表 | Element Plus 2.11、ECharts 5.6、Dayjs、Sass |
+| 部署 | Docker、Docker Compose、Nginx |
 | CI | GitHub Actions |
 
 ### 目录结构
@@ -205,25 +216,31 @@ intern-pilot
 │     │  ├─ security/         # JWT 与权限控制
 │     │  ├─ runner/           # 启动补偿任务
 │     │  └─ util/             # Prompt、文本切片、向量、JSON 工具
+│     ├─ src/main/resources/sql/
+│     │  ├─ init.sql
+│     │  ├─ prod-single-admin-reset.sql
+│     │  └─ migration/
+│     │     └─ V40__final_release_update.sql
 │     ├─ src/test/java/       # JUnit / Mockito / MockMvc 测试
 │     └─ src/test/resources/  # application-test.yml 与测试 SQL
 ├─ frontend/
 │  └─ intern-pilot-frontend/
+│     ├─ public/              # favicon 等静态资源
 │     ├─ src/api/             # Axios 接口封装
+│     ├─ src/assets/          # 品牌图标资源
 │     ├─ src/views/           # 页面视图
 │     ├─ src/components/      # 通用组件与布局
 │     ├─ src/router/          # 路由与权限元信息
-│     └─ src/stores/          # Pinia 状态管理
+│     ├─ src/stores/          # Pinia 状态管理
+│     ├─ src/styles/          # 全局样式
+│     └─ src/utils/           # 通用工具
 ├─ deploy/
 │  ├─ docker-compose.yml
 │  └─ .env.example
 ├─ docs/
-│  ├─ 30-rbac-permission-enhancement-local-dev-design.md
-│  ├─ 31-websocket-ai-progress-enhancement-test-design.md
-│  ├─ 32-ai-analysis-cache-and-mock-ai-enhancement-design.md
-│  ├─ 33-interview-question-enhancement-test-design.md
-│  ├─ 34-product-experience-bugfix-and-acceptance-design.md
-│  ├─ 35-readme-demo-script-and-project-packaging-design.md
+│  ├─ 38-frontend-ui-polish-and-user-experience-design.md
+│  ├─ 39-ai-task-center-and-feedback-design.md
+│  ├─ 40-final-acceptance-release-and-deployment.md
 │  └─ assets/screenshots/
 └─ README.md
 ```
@@ -252,7 +269,7 @@ cd intern-pilot
 Gitee 同步仓库：
 
 ```bash
-git clone https://gitee.com/你的用户名/intern-pilot.git
+git clone https://gitee.com/li-hong2006/intern-pilot.git
 cd intern-pilot
 ```
 
@@ -274,10 +291,11 @@ CREATE DATABASE intern_pilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 | `MYSQL_PORT` | `3306` | MySQL 端口 |
 | `MYSQL_DATABASE` | `intern_pilot` | 数据库名 |
 | `MYSQL_USERNAME` | `root` | 数据库用户 |
-| `MYSQL_PASSWORD` | `root` | 数据库密码 |
+| `MYSQL_PASSWORD` | 本地自定义 | 数据库密码，不要提交真实值 |
 | `REDIS_HOST` | `localhost` | Redis 主机 |
 | `REDIS_PORT` | `6379` | Redis 端口 |
-| `JWT_SECRET` | 开发默认值 | 生产环境必须替换 |
+| `REDIS_PASSWORD` | 本地自定义 | Redis 密码，不要提交真实值 |
+| `JWT_SECRET` | 开发默认值 | 生产环境必须替换为强随机值 |
 | `AI_PROVIDER` | `deepseek` | AI 提供方，线上必须使用 `deepseek`，`mock` 仅用于 test / CI |
 | `DEEPSEEK_API_KEY` | 空 | DeepSeek API Key，**不要写入仓库** |
 | `AI_BASE_URL` | `https://api.deepseek.com` | AI 接口地址 |
@@ -314,13 +332,14 @@ http://localhost:5173
 
 ### 默认账号与线上管理员
 
-线上系统不公开默认账号和管理员密码。`init.sql` 只初始化一个管理员邮箱账号 `3425446714@qq.com`，密码仅以 BCrypt 哈希形式保存，仓库和 README 不记录明文密码。
+线上系统不公开默认账号和管理员密码。管理员账号与初始密码由部署人员在安全渠道中维护，README、截图、提交记录和示例配置中不记录明文密码。
 
 本阶段不再初始化公开演示账号或旧默认管理员账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
+
 系统启动时会执行 `src/main/resources/sql/init.sql`，包含：
 
 - 基础角色：`USER`、`ADMIN`
-- 权限数据：用户、角色、岗位、简历、分析、推荐、投递、面试题、RAG 知识库等权限
+- 权限数据：用户、角色、岗位、简历、分析、推荐、投递、面试题、RAG 知识库、用户反馈等权限
 - 管理员角色授权：`ADMIN` 默认拥有全部权限
 - RAG 示例知识文档：`Java后端实习岗位能力模型`、`AI应用开发实习岗位知识`
 
@@ -335,14 +354,17 @@ PowerShell 示例：
 ```powershell
 $env:AI_PROVIDER="deepseek"
 $env:AI_BASE_URL="https://api.deepseek.com"
-$env:DEEPSEEK_API_KEY="你的Key"
+# 按需填写 DeepSeek API Key，不要提交到仓库
+$env:DEEPSEEK_API_KEY = ""
 $env:AI_MODEL="deepseek-v4-flash"
 $env:AI_PRO_MODEL="deepseek-v4-pro"
 ```
 
 - `deepseek-v4-flash` 是默认模型，用于简历岗位分析、面试题生成、简历优化、岗位推荐等常规生成任务
 - `deepseek-v4-pro` 用于 RAG_QA 或复杂深度分析场景
-- Mock 模式仍然保留，但仅适合 test / CI；线上环境不允许运行 `AI_PROVIDER=mock`：
+- Mock 模式仍然保留，但仅适合 test / CI；线上环境不允许运行 `AI_PROVIDER=mock`
+
+测试环境示例：
 
 ```powershell
 $env:AI_PROVIDER="mock"
@@ -365,13 +387,13 @@ AUTH_SMS_CAPTCHA_PROVIDER=disabled
 MAIL_HOST=smtp.qq.com
 MAIL_PORT=465
 MAIL_USERNAME=你的邮箱
-MAIL_PASSWORD=QQ邮箱SMTP授权码
+MAIL_PASSWORD=
 MAIL_FROM=你的邮箱
 MAIL_SSL_ENABLED=true
 MAIL_STARTTLS_ENABLED=false
 ```
 
-`MAIL_PASSWORD` 是 QQ 邮箱 SMTP 授权码，不是邮箱登录密码。不要把真实授权码写入代码、README、提交记录或截图。
+`MAIL_PASSWORD` 是邮箱 SMTP 授权码，不是邮箱登录密码。不要把真实授权码写入代码、README、提交记录或截图。
 
 测试环境使用：
 
@@ -381,6 +403,7 @@ AUTH_SMS_CAPTCHA_PROVIDER=disabled
 ```
 
 不要把 `MAIL_PASSWORD` 或真实 API Key 写入代码、README 或提交记录。
+
 ### API 文档
 
 后端启动后访问：
@@ -397,6 +420,7 @@ http://localhost:8080/doc.html
 | 认证 | `POST /api/auth/register` | 用户注册 |
 | 认证 | `POST /api/auth/login` | 用户登录 |
 | 当前用户 | `GET /api/user/me` | 获取当前用户信息 |
+| 用户反馈 | `POST /api/feedback` | 提交用户反馈 |
 | 简历 | `POST /api/resumes/upload` | 上传简历 |
 | 岗位 | `GET /api/jobs` | 查询岗位列表 |
 | AI 分析 | `POST /api/analysis/match` | 生成简历岗位匹配分析 |
@@ -404,6 +428,7 @@ http://localhost:8080/doc.html
 | 面试题 | `POST /api/interview-questions/generate` | 生成面试题 |
 | RAG 知识库 | `GET /api/admin/rag/knowledge` | 查询知识文档 |
 | RAG 检索 | `POST /api/admin/rag/knowledge/search` | 测试知识检索 |
+| 反馈管理 | `GET /api/admin/feedback` | 管理员查询用户反馈 |
 
 ### 数据库设计
 
@@ -419,6 +444,7 @@ erDiagram
     job_description ||--o{ analysis_report : analyzed
     resume ||--o{ analysis_report : used_by
     user ||--o{ application_record : tracks
+    user ||--o{ user_feedback : submits
     job_description ||--o{ application_record : target
     user ||--o{ job_recommendation_batch : owns
     job_recommendation_batch ||--o{ job_recommendation_item : contains
@@ -443,18 +469,26 @@ erDiagram
 | `system_operation_log` | 管理端操作日志 |
 | `rag_knowledge_document` | RAG 知识文档 |
 | `rag_knowledge_chunk` | RAG 知识切片与向量 |
+| `user_feedback` | 用户反馈与管理员处理记录 |
 
 ### 前端组件说明
 
 | 文件 | 说明 |
 | --- | --- |
-| `src/components/layout/AppLayout.vue` | 主布局容器 |
-| `src/components/layout/AppSidebar.vue` | 侧边栏菜单与权限控制 |
-| `src/components/layout/AppHeader.vue` | 顶部栏，含 AI 模式指示器 |
+| `src/components/layout/AppLayout.vue` | 用户工作台主布局容器 |
+| `src/components/layout/AppSidebar.vue` | 用户工作台侧边栏菜单与权限控制 |
+| `src/components/layout/AppHeader.vue` | 顶部栏，含用户入口、管理后台入口和 AI 模式指示 |
+| `src/components/layout/AdminLayout.vue` | 独立管理员后台布局 |
 | `src/components/common/PageContainer.vue` | 页面标题与内容容器 |
+| `src/components/common/AppPageHeader.vue` | 页面标题、说明和操作区 |
+| `src/components/common/AppEmpty.vue` | 通用空状态 |
+| `src/components/common/StatusTag.vue` | 状态标签 |
+| `src/components/common/AppConfirmButton.vue` | 带确认的操作按钮 |
+| `src/components/ai-task/AiTaskFloat.vue` | AI 任务中心浮动入口 |
 | `src/views/analysis/AnalysisMatch.vue` | 简历匹配分析页面 |
 | `src/views/recommendation/JobRecommendationList.vue` | 岗位推荐页面 |
 | `src/views/admin/AdminRagKnowledgeList.vue` | RAG 知识库管理页面 |
+| `src/views/admin/AdminFeedbackList.vue` | 用户反馈管理页面 |
 | `src/api/*.ts` | 后端接口封装 |
 | `src/stores/auth.ts` | 登录态、Token、权限状态 |
 
@@ -473,6 +507,7 @@ erDiagram
 | WebSocket AI 进度测试 | 异步任务进度推送、状态流转、Redis 进度恢复 |
 | AI 底座测试 | MockAiClient 多场景返回、缓存 key 版本化、AI 异常处理 |
 | AI 面试题测试 | Prompt 构建、响应解析、分类/难度规范化、regenerate |
+| 用户反馈测试 | 反馈表结构、权限、管理员处理接口 |
 | Mock AI 测试 | 测试环境注入 MockAiClient，避免调用真实 AI API |
 | 前端验证 | `vue-tsc` 类型检查、Vite 构建 |
 | CI | GitHub Actions 自动执行后端测试和前端构建 |
@@ -496,16 +531,18 @@ cd backend/intern-pilot-backend
 
 ```powershell
 cd frontend/intern-pilot-frontend
-npm run type-check
+npm install
 npm run build
 ```
+
+`npm run build` 内部会执行 `vue-tsc -b && vite build`。Vite 如果提示部分 chunk 大于 500 kB，属于构建体积提醒，不等同于构建失败。
 
 ### GitHub Actions
 
 CI 配置文件：
 
 ```text
-.github/workflows/ci.yml          # 后端测试 + 前端构建
+.github/workflows/ci.yml           # 后端测试 + 前端构建
 .github/workflows/docker-build.yml # Docker 镜像构建检查
 ```
 
@@ -524,7 +561,7 @@ CI 执行内容：
 
 ### Docker Compose 一键部署
 
-项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端四个服务，可一键启动。
+项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端 Nginx 四个服务，可一键启动。
 
 **前置要求：**
 
@@ -541,16 +578,16 @@ cd intern-pilot
 # 2. 配置环境变量
 cd deploy
 cp .env.example .env
-# 编辑 .env，填入真实的密码和 AI API Key
+# 编辑 .env，填入真实的数据库密码、Redis 密码、JWT_SECRET、DeepSeek API Key 和邮箱 SMTP 配置
 
 # 3. 一键启动
-docker compose up -d --build
+docker compose --env-file .env -f docker-compose.yml up -d --build
 
 # 4. 查看服务状态
-docker compose ps
+docker compose --env-file .env -f docker-compose.yml ps
 
 # 5. 查看后端日志
-docker compose logs -f backend
+docker compose --env-file .env -f docker-compose.yml logs -f backend
 ```
 
 **服务端口：**
@@ -566,7 +603,7 @@ docker compose logs -f backend
 **停止服务：**
 
 ```bash
-docker compose down
+docker compose --env-file .env -f docker-compose.yml down
 ```
 
 ### 后端打包运行
@@ -588,12 +625,14 @@ npm run build
 
 ### Nginx 配置示例
 
+项目 Docker 前端镜像使用 `frontend/intern-pilot-frontend/nginx.conf`。核心代理规则如下：
+
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name _;
 
-    root /var/www/intern-pilot/dist;
+    root /usr/share/nginx/html;
     index index.html;
 
     location / {
@@ -601,11 +640,25 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:8080/api/;
+        proxy_pass http://backend:8080/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads/ {
+        proxy_pass http://backend:8080/uploads/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /ws/ {
+        proxy_pass http://backend:8080/ws/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
     }
 }
 ```
@@ -613,9 +666,14 @@ server {
 ### 部署注意事项
 
 - 生产环境必须修改 `JWT_SECRET`
+- 生产环境必须使用 `SPRING_PROFILES_ACTIVE=prod`
+- 生产环境必须使用 `AI_PROVIDER=deepseek`，不要使用 Mock AI 作为正式演示
 - `DEEPSEEK_API_KEY` 不要提交到 GitHub 或 Gitee
+- `MAIL_PASSWORD` 是 SMTP 授权码，不要提交到 GitHub 或 Gitee
+- `.env` 只保留在服务器，不要提交到仓库
 - MySQL 建议使用 `utf8mb4`
-- Docker MySQL volume 只会在首次初始化时执行 `init.sql`。如果线上库已经存在，请先备份数据库，再手动执行 `backend/intern-pilot-backend/src/main/resources/sql/migration/V40__final_release_update.sql`，用于补齐 `user_feedback` 表和 `feedback:*` 权限。
+- Docker MySQL volume 只会在首次初始化时执行 `init.sql`
+- 如果线上库已经存在，请先备份数据库，再手动执行 `backend/intern-pilot-backend/src/main/resources/sql/migration/V40__final_release_update.sql`，用于补齐 `user_feedback` 表和 `feedback:*` 权限
 - Redis 未设置密码时只建议用于本地开发
 - 当前 RAG 使用 MySQL JSON 存储向量和内存相似度计算，适合课程项目和小规模演示；生产大规模知识库建议替换为 Qdrant、Milvus、pgvector 或 Elasticsearch 向量检索
 
@@ -634,6 +692,17 @@ server {
 | `feature/*` | 功能开发分支 |
 
 项目开发过程中按照功能模块进行提交，避免期末一次性提交。
+
+发布建议：
+
+```text
+dev 完成本地验收
+  -> 合并 main
+  -> 打正式 tag
+  -> 推送 GitHub / Gitee
+  -> 服务器执行 Docker Compose 部署
+  -> 线上验收核心链路
+```
 
 ## GitHub 主仓库 / Gitee 同步仓库说明
 
@@ -681,17 +750,18 @@ git push gitee dev
 - [ ] README 在 Gitee 上显示正常
 - [ ] README 中截图路径正常
 - [ ] README 中启动方式准确
-- [ ] README 中测试数据和默认账号清楚
+- [ ] README 不公开默认账号密码或管理员明文密码
 - [ ] 后端测试通过
 - [ ] 前端构建通过
 - [ ] 没有真实 API Key 泄露
+- [ ] 没有邮箱 SMTP 授权码泄露
 - [ ] 没有 `.env`、`node_modules`、`dist`、`build` 被提交
 
 ## 后续规划
 
 - 面试题收藏与刷题记录
 - AI 评分与多轮模拟面试
-- RAG 检索增强
+- RAG 向量检索引擎替换
 - AI 调用日志和失败重试
 - 前端分包优化
 - 线上演示和 CI/CD
