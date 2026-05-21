@@ -1,5 +1,6 @@
 package com.internpilot.controller.analysis;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
@@ -33,6 +34,7 @@ public class AnalysisController {
 
     @Operation(summary = "简历岗位匹配分", description = "根据用户简历和岗位 JD 生成 AI 匹配分析报告")
     @OperationLog(module = "AI分析", operation = "发起简历岗位匹配分", type = OperationTypeEnum.AI, recordParams = false)
+    @LogExecutionTime("AI简历岗位分析")
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/match")
     public Result<AnalysisResultResponse> match(@RequestBody @Valid AnalysisMatchRequest request) {

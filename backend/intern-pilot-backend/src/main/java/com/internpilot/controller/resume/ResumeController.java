@@ -1,5 +1,6 @@
 package com.internpilot.controller.resume;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
@@ -32,6 +33,7 @@ public class ResumeController {
 
     @Operation(summary = "上传简", description = "上传 PDF DOCX 简历，并解析文本内")
     @OperationLog(module = "简历管", operation = "上传简", type = OperationTypeEnum.UPLOAD, recordParams = false)
+    @LogExecutionTime("简历上传解析")
     @PreAuthorize("hasAuthority('resume:write')")
     @PostMapping("/upload")
     public Result<ResumeUploadResponse> upload(

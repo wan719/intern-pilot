@@ -1,5 +1,6 @@
 package com.internpilot.controller.resume;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.dto.resume.ResumeVersionCreateRequest;
@@ -91,6 +92,7 @@ public class ResumeVersionController {
 
     @Operation(summary = "AI优化生成简历版")
     @OperationLog(module = "简历版", operation = "AI优化简历版", type = OperationTypeEnum.AI, recordParams = false)
+    @LogExecutionTime("AI优化简历版本")
     @PreAuthorize("hasAuthority('resume:write')")
     @PostMapping("/optimize")
     public Result<ResumeVersionCreateResponse> optimize(

@@ -1,5 +1,6 @@
 package com.internpilot.controller.interview;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
@@ -26,6 +27,7 @@ public class InterviewQuestionController {
 
     @Operation(summary = "生成 AI 面试", description = "根据简历、岗位和分析报告生成岗位定制化面试题")
     @OperationLog(module = "AI面试", operation = "生成AI面试", type = OperationTypeEnum.AI, recordParams = false)
+    @LogExecutionTime("生成AI面试题")
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/generate")
     public Result<InterviewQuestionGenerateResponse> generate(
@@ -63,6 +65,7 @@ public class InterviewQuestionController {
 
     @Operation(summary = "重新生成面试", description = "基于已有报告重新生成面试")
     @OperationLog(module = "AI面试", operation = "重新生成AI面试", type = OperationTypeEnum.AI, recordParams = false)
+    @LogExecutionTime("重新生成AI面试题")
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/{reportId}/regenerate")
     public Result<InterviewQuestionGenerateResponse> regenerate(@PathVariable Long reportId) {

@@ -1,8 +1,10 @@
 package com.internpilot.controller.admin;
 
+import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.dto.feedback.FeedbackReplyRequest;
 import com.internpilot.dto.feedback.FeedbackStatusUpdateRequest;
+import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.feedback.FeedbackService;
 import com.internpilot.vo.feedback.FeedbackResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +50,7 @@ public class AdminFeedbackController {
 
     @Operation(summary = "更新反馈状态", description = "更新反馈处理状态")
     @PreAuthorize("hasAuthority('feedback:write')")
+    @OperationLog(module = "用户反馈", operation = "更新反馈状态", type = OperationTypeEnum.UPDATE)
     @PutMapping("/{id}/status")
     public Result<FeedbackResponse> updateStatus(
             @PathVariable Long id,
@@ -58,6 +61,7 @@ public class AdminFeedbackController {
 
     @Operation(summary = "回复反馈", description = "管理员回复用户反馈")
     @PreAuthorize("hasAuthority('feedback:write')")
+    @OperationLog(module = "用户反馈", operation = "回复反馈", type = OperationTypeEnum.UPDATE, recordParams = false)
     @PutMapping("/{id}/reply")
     public Result<FeedbackResponse> reply(
             @PathVariable Long id,
@@ -68,6 +72,7 @@ public class AdminFeedbackController {
 
     @Operation(summary = "删除反馈", description = "删除反馈记录")
     @PreAuthorize("hasAuthority('feedback:delete')")
+    @OperationLog(module = "用户反馈", operation = "删除反馈", type = OperationTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> deleteFeedback(@PathVariable Long id) {
         feedbackService.deleteFeedback(id);

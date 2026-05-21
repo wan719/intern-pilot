@@ -1,5 +1,6 @@
 package com.internpilot.controller.recommendation;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
@@ -25,6 +26,7 @@ public class JobRecommendationController {
 
     @Operation(summary = "生成岗位推荐")
     @OperationLog(module = "岗位推荐", operation = "生成岗位推荐", type = OperationTypeEnum.AI, recordParams = false)
+    @LogExecutionTime("生成岗位推荐")
     @PreAuthorize("hasAuthority('analysis:write')")
     @PostMapping("/generate")
     public Result<JobRecommendationGenerateResponse> generate(

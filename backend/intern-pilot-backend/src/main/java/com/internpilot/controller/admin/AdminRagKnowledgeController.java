@@ -1,5 +1,6 @@
 package com.internpilot.controller.admin;
 
+import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
@@ -29,6 +30,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "创建RAG知识文档")
     @OperationLog(module = "RAG知识", operation = "创建知识文档", type = OperationTypeEnum.CREATE, recordParams = false)
+    @LogExecutionTime("创建RAG知识")
     @PreAuthorize("hasAuthority('rag:manage')")
     @PostMapping
     public Result<Long> create(@RequestBody @Valid RagKnowledgeCreateRequest request) {
@@ -37,6 +39,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "修改RAG知识文档")
     @OperationLog(module = "RAG知识", operation = "修改知识文档", type = OperationTypeEnum.UPDATE, recordParams = false)
+    @LogExecutionTime("修改RAG知识")
     @PreAuthorize("hasAuthority('rag:manage')")
     @PutMapping("/{documentId}")
     public Result<Boolean> update(
@@ -56,6 +59,7 @@ public class AdminRagKnowledgeController {
 
     @Operation(summary = "重建知识文档切片和向")
     @OperationLog(module = "RAG知识", operation = "重建知识向量", type = OperationTypeEnum.UPDATE)
+    @LogExecutionTime("重建RAG知识向量")
     @PreAuthorize("hasAuthority('rag:manage')")
     @PostMapping("/{documentId}/rebuild")
     public Result<Boolean> rebuild(@PathVariable Long documentId) {
@@ -85,6 +89,7 @@ public class AdminRagKnowledgeController {
     }
 
     @Operation(summary = "测试RAG知识检")
+    @LogExecutionTime("RAG知识检索")
     @PreAuthorize("hasAuthority('rag:read')")
     @PostMapping("/search")
     public Result<List<RagSearchResultResponse>> search(@RequestBody @Valid RagSearchRequest request) {

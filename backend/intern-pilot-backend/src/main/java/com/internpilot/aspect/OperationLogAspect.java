@@ -5,94 +5,86 @@ import com.internpilot.annotation.OperationLog;
 import com.internpilot.entity.SystemOperationLog;
 import com.internpilot.mapper.SystemOperationLogMapper;
 import com.internpilot.security.CustomUserDetails;
-
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.*;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
 
-@Aspect//这个注解表示OperationLogAspect是一个切面类，使用Spring AOP实现对标记了@OperationLog注解的方法进行切面处理，记录操作日志到数据库
-@Component//这个注解表示OperationLogAspect是一个Spring组件，会被Spring容器管理和自动扫描到
+@Slf4j
+@Aspect
+@Component
 @RequiredArgsConstructor
-@Schema(description = "操作日志切面类，使用Spring AOP实现对标记了@OperationLog注解的方法进行切面处理，记录操作日志到数据库")//这个注解用于Swagger API文档生成，提供了对该类的描述信息
 public class OperationLogAspect {
 
-    private static final int MAX_PARAM_LENGTH = 1000;//请求参数最大长度，
-    // 超过该长度的参数会被截断，以避免日志表中存储过长的数据
-    private static final int MAX_ERROR_LENGTH = 2000;//错误信息最大长度，
-    // 超过该长度的错误信息会被截断，以避免日志表中存储过长的数据
+    private static final int MAX_PARAM_LENGTH = 1000;
+    private static final int MAX_ERROR_LENGTH = 2000;
+    private static final Pattern SENSITIVE_FIELD_PATTERN = Pattern.compile(
+            "(?i)(password|token|api[-_]?key|secret|authorization|jwt|mailPassword|emailAuthorizationCode|prompt|resume|content|jdContent|parsedText|rawAiResponse)");
 
-    private final SystemOperationLogMapper systemOperationLogMapper;//操作日志Mapper，
-    // 用于将操作日志记录到数据库中
-    // ObjectMapper实例，用于将请求参数转换为JSON字符串，方便存储到数据库中
+    private final SystemOperationLogMapper systemOperationLogMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @Schema(description = "记录操作日志的方法，使用@Around注解定义一个环绕通知，拦截所有标记了@OperationLog注解的方法，在方法执行前后记录操作日志到数据库中")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
+
     @Around("@annotation(operationLog)")
-    public Object recordOperationLog(
-            ProceedingJoinPoint joinPoint,
-            OperationLog operationLog
-    ) throws Throwable {
-
+    public Object recordOperationLog(ProceedingJoinPoint joinPoint, OperationLog operationLog) throws Throwable {
         long startTime = System.currentTimeMillis();
+        SystemOperationLog operationLogEntity = new SystemOperationLog();
+        fillBasicInfo(operationLogEntity, operationLog, joinPoint.getArgs());
 
-        SystemOperationLog log = new SystemOperationLog();
-        fillBasicInfo(log, operationLog, joinPoint.getArgs());
-
-        Object result;
         try {
-            result = joinPoint.proceed();
-
-            log.setSuccess(1);
-            log.setCostTime(System.currentTimeMillis() - startTime);
-            systemOperationLogMapper.insert(log);
-
+            Object result = joinPoint.proceed();
+            operationLogEntity.setSuccess(1);
+            operationLogEntity.setCostTime(System.currentTimeMillis() - startTime);
+            safeInsert(operationLogEntity);
             return result;
-
         } catch (Throwable ex) {
-            log.setSuccess(0);
-            log.setErrorMessage(truncate(ex.getMessage(), MAX_ERROR_LENGTH));
-            log.setCostTime(System.currentTimeMillis() - startTime);
-            systemOperationLogMapper.insert(log);
-
+            operationLogEntity.setSuccess(0);
+            operationLogEntity.setErrorMessage(truncate(sanitizeText(ex.getMessage()), MAX_ERROR_LENGTH));
+            operationLogEntity.setCostTime(System.currentTimeMillis() - startTime);
+            safeInsert(operationLogEntity);
             throw ex;
         }
     }
-    @Schema(description = "填充操作日志的基本信息，包括操作模块、操作名称、操作类型、操作者信息和请求信息等")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
-    private void fillBasicInfo(SystemOperationLog log, OperationLog operationLog, Object[] args) {
-        log.setModule(operationLog.module());
-        log.setOperation(operationLog.operation());
-        log.setOperationType(operationLog.type().getCode());
 
-        fillUserInfo(log, args);
-        fillRequestInfo(log, operationLog.recordParams());
+    private void fillBasicInfo(SystemOperationLog operationLogEntity, OperationLog operationLog, Object[] args) {
+        operationLogEntity.setModule(operationLog.module());
+        operationLogEntity.setOperation(operationLog.operation());
+        operationLogEntity.setOperationType(operationLog.type().getCode());
+
+        fillUserInfo(operationLogEntity, args);
+        fillRequestInfo(operationLogEntity, operationLog.recordParams(), args);
     }
-    @Schema(description = "填充操作者信息，包括操作者ID和用户名等，如果当前用户未登录，则尝试从请求参数中推断用户名")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
-    private void fillUserInfo(SystemOperationLog log, Object[] args) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
+    private void fillUserInfo(SystemOperationLog operationLogEntity, Object[] args) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Object principal = authentication == null ? null : authentication.getPrincipal();
 
         if (principal instanceof CustomUserDetails userDetails) {
-            log.setOperatorId(userDetails.getUserId());
-            log.setOperatorUsername(userDetails.getUsername());
-        } else if (principal instanceof String username) {
-            if (!"anonymousUser".equals(username)) {
-                log.setOperatorUsername(username);
-            }
+            operationLogEntity.setOperatorId(userDetails.getUserId());
+            operationLogEntity.setOperatorUsername(userDetails.getUsername());
+        } else if (principal instanceof String username && !"anonymousUser".equals(username)) {
+            operationLogEntity.setOperatorUsername(username);
         }
 
-        if (log.getOperatorUsername() == null) {
-            log.setOperatorUsername(inferUsernameFromArgs(args));
+        if (operationLogEntity.getOperatorUsername() == null) {
+            operationLogEntity.setOperatorUsername(inferUsernameFromArgs(args));
         }
     }
-    @Schema(description = "推断用户名，从请求参数中查找包含用户名的对象，并尝试获取其用户名属性")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
+
     private String inferUsernameFromArgs(Object[] args) {
         if (args == null) {
             return null;
@@ -114,59 +106,112 @@ public class OperationLogAspect {
         return null;
     }
 
-    @Schema(description = "填充请求信息，包括请求URI、请求方法、客户端IP地址和User-Agent等")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
-    private void fillRequestInfo(SystemOperationLog log, boolean recordParams) {
+    private void fillRequestInfo(SystemOperationLog operationLogEntity, boolean recordParams, Object[] args) {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-
         if (!(requestAttributes instanceof ServletRequestAttributes servletRequestAttributes)) {
             return;
         }
 
         HttpServletRequest request = servletRequestAttributes.getRequest();
-
-        log.setRequestUri(request.getRequestURI());
-        log.setRequestMethod(request.getMethod());
-        log.setIpAddress(getClientIp(request));
-        log.setUserAgent(truncate(request.getHeader("User-Agent"), 500));
+        operationLogEntity.setRequestUri(request.getRequestURI());
+        operationLogEntity.setRequestMethod(request.getMethod());
+        operationLogEntity.setIpAddress(getClientIp(request));
+        operationLogEntity.setUserAgent(truncate(request.getHeader("User-Agent"), 500));
 
         if (recordParams) {
-            log.setRequestParams(extractRequestParams(request));
+            operationLogEntity.setRequestParams(extractRequestParams(request, args));
         }
     }
 
-    @Schema(description = "提取请求参数，将请求参数转换为JSON字符串")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
-    private String extractRequestParams(HttpServletRequest request) {
+    private String extractRequestParams(HttpServletRequest request, Object[] args) {
         try {
-            String params = objectMapper.writeValueAsString(request.getParameterMap());
-            return truncate(params, MAX_PARAM_LENGTH);
+            Map<String, Object> params = new LinkedHashMap<>();
+            request.getParameterMap().forEach((key, value) -> params.put(key, sanitizeValue(key, Arrays.toString(value))));
+            Object[] safeArgs = Arrays.stream(args == null ? new Object[0] : args)
+                    .filter(arg -> !(arg instanceof MultipartFile))
+                    .filter(arg -> !(arg instanceof HttpServletRequest))
+                    .map(this::sanitizeObject)
+                    .toArray();
+            if (safeArgs.length > 0) {
+                params.put("body", safeArgs);
+            }
+            return truncate(sanitizeText(objectMapper.writeValueAsString(params)), MAX_PARAM_LENGTH);
         } catch (Exception e) {
             return null;
         }
     }
-    @Schema(description = "获取客户端IP地址，优先从X-Forwarded-For和X-Real-IP等HTTP头中获取，如果没有则使用request.getRemoteAddr()")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
+
+    private Object sanitizeObject(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String text) {
+            return truncate(sanitizeText(text), 120);
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = objectMapper.convertValue(value, Map.class);
+            Map<String, Object> safe = new LinkedHashMap<>();
+            map.forEach((key, item) -> safe.put(key, sanitizeValue(key, item)));
+            return safe;
+        } catch (Exception e) {
+            return value.getClass().getSimpleName();
+        }
+    }
+
+    private Object sanitizeValue(String key, Object value) {
+        if (key != null && SENSITIVE_FIELD_PATTERN.matcher(key).find()) {
+            return "[MASKED]";
+        }
+        if (value instanceof String text) {
+            return truncate(sanitizeText(text), 120);
+        }
+        return value;
+    }
+
     private String getClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank()) {
             return xForwardedFor.split(",")[0].trim();
         }
-
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isBlank()) {
             return xRealIp;
         }
-
         return request.getRemoteAddr();
     }
-    @Schema(description = "截断字符串，如果字符串长度超过指定的最大长度，则截断并返回前maxLength个字符")//这个注解用于Swagger API文档生成，提供了对该方法的描述信息
+
+    private String sanitizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value
+                .replaceAll("(?i)(Bearer\\s+)[A-Za-z0-9._\\-]+", "$1[MASKED]")
+                .replaceAll("(?i)(api[-_]?key\\s*[=:]\\s*)[^,}\\s]+", "$1[MASKED]")
+                .replaceAll("(?i)(password\\s*[=:]\\s*)[^,}\\s]+", "$1[MASKED]")
+                .replaceAll("(?i)(token\\s*[=:]\\s*)[^,}\\s]+", "$1[MASKED]");
+    }
+
+    private void safeInsert(SystemOperationLog operationLogEntity) {
+        try {
+            systemOperationLogMapper.insert(operationLogEntity);
+        } catch (Exception e) {
+            log.warn("Failed to persist operation log. module={}, operation={}, success={}, reason={}",
+                    operationLogEntity.getModule(), operationLogEntity.getOperation(),
+                    operationLogEntity.getSuccess(), e.getMessage());
+        }
+    }
+
     private String truncate(String value, int maxLength) {
         if (value == null) {
             return null;
         }
-
         if (value.length() <= maxLength) {
             return value;
         }
-
         return value.substring(0, maxLength);
     }
 }
