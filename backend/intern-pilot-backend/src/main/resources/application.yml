@@ -50,6 +50,21 @@ ai:
   api-key: ${DEEPSEEK_API_KEY:}
   model: ${AI_MODEL:deepseek-v4-flash}
   pro-model: ${AI_PRO_MODEL:deepseek-v4-pro}
+  default-model: ${AI_DEFAULT_MODEL:${AI_MODEL:deepseek-v4-flash}}
+  fallback-model: ${AI_FALLBACK_MODEL:${AI_MODEL:deepseek-v4-flash}}
+  models:
+    flash: ${AI_MODEL:deepseek-v4-flash}
+    pro: ${AI_PRO_MODEL:deepseek-v4-pro}
+  scenario-model:
+    RESUME_JOB_ANALYSIS: ${AI_RESUME_JOB_ANALYSIS_MODEL:${AI_PRO_MODEL:deepseek-v4-pro}}
+    JOB_RECOMMENDATION: ${AI_JOB_RECOMMENDATION_MODEL:${AI_MODEL:deepseek-v4-flash}}
+    INTERVIEW_QUESTION_GENERATION: ${AI_INTERVIEW_QUESTION_GENERATION_MODEL:${AI_MODEL:deepseek-v4-flash}}
+    INTERVIEW_QUESTION_REGENERATION: ${AI_INTERVIEW_QUESTION_REGENERATION_MODEL:${AI_MODEL:deepseek-v4-flash}}
+    RAG_QA: ${AI_RAG_QA_MODEL:${AI_PRO_MODEL:deepseek-v4-pro}}
+    RESUME_OPTIMIZATION: ${AI_RESUME_OPTIMIZATION_MODEL:${AI_PRO_MODEL:deepseek-v4-pro}}
+  retry:
+    enabled: ${AI_RETRY_ENABLED:true}
+    max-attempts: ${AI_RETRY_MAX_ATTEMPTS:2}
   timeout-seconds: ${AI_TIMEOUT_SECONDS:60}
 
 auth:

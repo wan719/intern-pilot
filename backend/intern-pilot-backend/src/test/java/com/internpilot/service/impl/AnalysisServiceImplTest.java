@@ -6,6 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.config.AiProperties;
+import com.internpilot.ai.client.AiChatRequest;
+import com.internpilot.ai.config.AiModelProperties;
+import com.internpilot.ai.prompt.template.AiPromptTemplateResolver;
+import com.internpilot.ai.prompt.template.ResumeJobAnalysisPromptTemplateV2;
+import com.internpilot.ai.router.DefaultAiModelRouter;
 import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.JobDescription;
@@ -94,7 +99,9 @@ class AnalysisServiceImplTest {
                 aiProperties,
                 redisTemplate,
                 new ObjectMapper(),
-                ragKnowledgeService);
+                ragKnowledgeService,
+                new DefaultAiModelRouter(new AiModelProperties(), aiProperties),
+                new AiPromptTemplateResolver(List.of(new ResumeJobAnalysisPromptTemplateV2())));
     }
 
     @AfterEach
@@ -134,7 +141,7 @@ class AnalysisServiceImplTest {
 
         assertTrue(response.getCacheHit());
         assertEquals(88, response.getMatchScore());
-        verify(aiClient, never()).chat(anyString());
+        verify(aiClient, never()).chat(any(AiChatRequest.class));
     }
 
     @Test
@@ -144,7 +151,7 @@ class AnalysisServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
         when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
-        when(aiClient.chat(anyString())).thenReturn("""
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("""
                 {
                   "matchScore": 82,
                   "matchLevel": "MEDIUM_HIGH",
@@ -247,7 +254,7 @@ class AnalysisServiceImplTest {
         when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
         when(ragKnowledgeService.search(any())).thenThrow(new RuntimeException("RAG 服务异常"));
-        when(aiClient.chat(anyString())).thenReturn("""
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("""
                 {
                   "matchScore": 75,
                   "matchLevel": "MEDIUM_HIGH",
@@ -275,7 +282,7 @@ class AnalysisServiceImplTest {
         assertNotNull(response);
         assertEquals(75, response.getMatchScore());
         assertFalse(response.getCacheHit());
-        verify(aiClient).chat(anyString());
+        verify(aiClient).chat(any(AiChatRequest.class));
     }
 
     @Test
@@ -285,7 +292,7 @@ class AnalysisServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
         when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
-        when(aiClient.chat(anyString())).thenReturn("");
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("");
 
         AnalysisMatchRequest request = new AnalysisMatchRequest();
         request.setResumeId(1L);
@@ -302,7 +309,7 @@ class AnalysisServiceImplTest {
         when(valueOperations.get(anyString())).thenReturn(null);
         when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
-        when(aiClient.chat(anyString())).thenReturn("这不是合法的 JSON 格式");
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("这不是合法的 JSON 格式");
         doAnswer(invocation -> {
             AnalysisReport report = invocation.getArgument(0);
             report.setId(100L);

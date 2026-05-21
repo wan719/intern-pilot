@@ -36,6 +36,18 @@ ai:
   api-key: test
   model: mock-ai
   pro-model: mock-ai-pro
+  default-model: mock-ai
+  fallback-model: mock-ai
+  scenario-model:
+    RESUME_JOB_ANALYSIS: mock-ai
+    JOB_RECOMMENDATION: mock-ai
+    INTERVIEW_QUESTION_GENERATION: mock-ai
+    INTERVIEW_QUESTION_REGENERATION: mock-ai
+    RAG_QA: mock-ai
+    RESUME_OPTIMIZATION: mock-ai
+  retry:
+    enabled: false
+    max-attempts: 1
   timeout-seconds: 3
 
 rag:

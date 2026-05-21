@@ -1,6 +1,7 @@
 package com.internpilot.util;
 
 import com.internpilot.ai.cache.AiAnalysisCacheKeyBuilder;
+import com.internpilot.ai.scenario.AiScenarioEnum;
 
 import org.junit.jupiter.api.Test;
 
@@ -163,6 +164,22 @@ class AiAnalysisCacheKeyBuilderTest {
 
         assertNotNull(key);
         assertTrue(key.startsWith("ai:analysis:result:"));
+    }
+
+    @Test
+    void buildShouldReturnDifferentKeyWhenScenarioChanges() {
+        String key1 = AiAnalysisCacheKeyBuilder.build(
+                AiScenarioEnum.RESUME_JOB_ANALYSIS,
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash", "prompt-a"
+        );
+        String key2 = AiAnalysisCacheKeyBuilder.build(
+                AiScenarioEnum.UNKNOWN,
+                1L, 10L, 3L, "2026-05-14T10:30:00",
+                8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash", "prompt-a"
+        );
+
+        assertNotEquals(key1, key2);
     }
 
     private void assertNotNull(String key) {

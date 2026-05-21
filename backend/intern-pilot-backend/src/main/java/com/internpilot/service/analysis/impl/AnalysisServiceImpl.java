@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internpilot.common.PageResult;
 import com.internpilot.config.AiProperties;
+import com.internpilot.ai.client.AiChatRequest;
 import com.internpilot.dto.analysis.AiAnalysisResult;
 import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.dto.rag.RagSearchRequest;
@@ -23,8 +24,13 @@ import com.internpilot.ai.client.AiClient;
 import com.internpilot.service.analysis.AnalysisService;
 import com.internpilot.service.rag.RagKnowledgeService;
 import com.internpilot.ai.cache.AiAnalysisCacheKeyBuilder;
+import com.internpilot.ai.parser.AiJsonSanitizer;
+import com.internpilot.ai.prompt.AiPromptContext;
 import com.internpilot.util.JsonUtils;
-import com.internpilot.ai.prompt.PromptUtils;
+import com.internpilot.ai.prompt.template.AiPromptTemplate;
+import com.internpilot.ai.prompt.template.AiPromptTemplateResolver;
+import com.internpilot.ai.router.AiModelRouter;
+import com.internpilot.ai.scenario.AiScenarioEnum;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
@@ -49,7 +55,7 @@ import java.util.List;
 public class AnalysisServiceImpl implements AnalysisService {
 
     private static final long CACHE_TTL_HOURS = 4;
-    private static final String ANALYSIS_PROMPT_VERSION = "v1";
+    private static final AiScenarioEnum ANALYSIS_SCENARIO = AiScenarioEnum.RESUME_JOB_ANALYSIS;
 
     private final ResumeMapper resumeMapper;
     private final ResumeVersionMapper resumeVersionMapper;
@@ -60,6 +66,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
     private final RagKnowledgeService ragKnowledgeService;
+    private final AiModelRouter aiModelRouter;
+    private final AiPromptTemplateResolver promptTemplateResolver;
 
     @Override
     @Transactional
@@ -88,15 +96,25 @@ public class AnalysisServiceImpl implements AnalysisService {
                 : resume.getUpdatedAt() != null ? resume.getUpdatedAt().toString() : "";
         String jobUpdatedAt = job.getUpdatedAt() != null ? job.getUpdatedAt().toString() : "";
         boolean ragEnabled = ragKnowledgeService != null;
+        String ragContext = buildRagContext(resumeText, job);
+        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(ANALYSIS_SCENARIO);
+        String model = aiModelRouter.route(ANALYSIS_SCENARIO);
+        String prompt = promptTemplate.buildUserPrompt(AiPromptContext.builder()
+                .scenario(ANALYSIS_SCENARIO)
+                .resumeContent(resumeText)
+                .jobContent(job.getJdContent())
+                .ragContext(ragContext)
+                .build());
+        String promptVersion = promptTemplate.version();
+        String promptHash = hashText(prompt);
         String cacheKey = buildCacheKey(userId, resume.getId(), resumeVersionId,
-                resumeUpdatedAt, job.getId(), jobUpdatedAt, ragEnabled);
-        String cacheProbePromptHash = hashText(PromptUtils.buildAnalysisPrompt(resumeText, job.getJdContent(), null));
+                resumeUpdatedAt, job.getId(), jobUpdatedAt, ragEnabled, promptVersion, model, promptHash);
         boolean forceRefresh = Boolean.TRUE.equals(request.getForceRefresh());
 
-        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
+        log.info("AI analysis diag: userId={}, provider={}, model={}, scenario={}, promptVersion={}, "
                 + "cacheHit=pending, cacheKey={}, promptHash={}, resumeId={}, resumeVersionId={}, resumeUpdatedAt={}, "
                 + "jobId={}, jobUpdatedAt={}, forceRefresh={}",
-                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, cacheProbePromptHash,
+                userId, aiProperties.getProvider(), model, ANALYSIS_SCENARIO, promptVersion, cacheKey, promptHash,
                 resume.getId(), resumeVersionId, resumeUpdatedAt,
                 job.getId(), jobUpdatedAt, forceRefresh);
 
@@ -105,38 +123,47 @@ public class AnalysisServiceImpl implements AnalysisService {
             if (cached instanceof AnalysisResultResponse cachedResponse) {
                 AnalysisResultResponse copy = copyResultResponse(cachedResponse);
                 copy.setCacheHit(true);
-                log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
-                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}",
-                        aiProperties.getProvider(), aiProperties.getModel(), cacheKey,
-                        cacheProbePromptHash, hashObject(copy));
+                log.info("AI analysis diag: userId={}, provider={}, model={}, scenario={}, promptVersion={}, "
+                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}, durationMs=0, retryCount=0, fallbackUsed=false, success=true, errorCode=",
+                        userId, aiProperties.getProvider(), model, ANALYSIS_SCENARIO, promptVersion, cacheKey,
+                        promptHash, hashObject(copy));
                 return copy;
             }
             if (cached != null) {
                 AnalysisResultResponse cachedResponse = objectMapper.convertValue(cached, AnalysisResultResponse.class);
                 AnalysisResultResponse copy = copyResultResponse(cachedResponse);
                 copy.setCacheHit(true);
-                log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
-                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}",
-                        aiProperties.getProvider(), aiProperties.getModel(), cacheKey,
-                        cacheProbePromptHash, hashObject(copy));
+                log.info("AI analysis diag: userId={}, provider={}, model={}, scenario={}, promptVersion={}, "
+                                + "cacheHit=true, cacheKey={}, promptHash={}, responseHash={}, durationMs=0, retryCount=0, fallbackUsed=false, success=true, errorCode=",
+                        userId, aiProperties.getProvider(), model, ANALYSIS_SCENARIO, promptVersion, cacheKey,
+                        promptHash, hashObject(copy));
                 return copy;
             }
         }
 
-        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
-                        + "cacheHit=false, cacheKey={}, promptHash={}, callingAi=true",
-                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, cacheProbePromptHash);
-        String ragContext = buildRagContext(resumeText, job);
-        String prompt = PromptUtils.buildAnalysisPrompt(resumeText, job.getJdContent(), ragContext);
-        String promptHash = hashText(prompt);
-        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
-                        + "cacheHit=false, cacheKey={}, promptHash={}, promptLength={}",
-                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, promptHash, prompt.length());
-        String rawResponse = aiClient.chat(prompt);
+        long start = System.currentTimeMillis();
+        log.info("AI analysis diag: userId={}, provider={}, model={}, scenario={}, promptVersion={}, "
+                        + "cacheHit=false, cacheKey={}, promptHash={}, promptLength={}, callingAi=true",
+                userId, aiProperties.getProvider(), model, ANALYSIS_SCENARIO, promptVersion, cacheKey, promptHash,
+                prompt.length());
+        String rawResponse = aiClient.chat(AiChatRequest.builder()
+                .scenario(ANALYSIS_SCENARIO)
+                .model(model)
+                .fallbackModel(aiModelRouter.fallback(ANALYSIS_SCENARIO))
+                .promptVersion(promptVersion)
+                .userId(userId)
+                .promptHash(promptHash)
+                .cacheHit(false)
+                .systemPrompt(promptTemplate.systemPrompt())
+                .userPrompt(prompt)
+                .outputFormat(promptTemplate.outputFormat())
+                .allowFallback(aiModelRouter.allowFallback(ANALYSIS_SCENARIO))
+                .build());
         String responseHash = hashText(rawResponse);
-        log.info("AI analysis diag: provider={}, model={}, scenario=RESUME_JOB_ANALYSIS, "
-                        + "cacheHit=false, cacheKey={}, promptHash={}, responseHash={}, responseLength={}",
-                aiProperties.getProvider(), aiProperties.getModel(), cacheKey, promptHash, responseHash, rawResponse.length());
+        log.info("AI analysis diag: userId={}, provider={}, model={}, scenario={}, promptVersion={}, "
+                        + "cacheHit=false, cacheKey={}, promptHash={}, responseHash={}, responseLength={}, durationMs={}, retryCount=0, fallbackUsed=false, success=true, errorCode=",
+                userId, aiProperties.getProvider(), model, ANALYSIS_SCENARIO, promptVersion, cacheKey, promptHash,
+                responseHash, rawResponse.length(), System.currentTimeMillis() - start);
         AiAnalysisResult aiResult = parseAnalysisResult(rawResponse);
         normalizeAiResult(aiResult);
 
@@ -154,7 +181,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         report.setInterviewTips(JsonUtils.toJsonString(nullToEmpty(aiResult.getInterviewTips())));
         report.setRawAiResponse(rawResponse);
         report.setAiProvider(aiProperties.getProvider());
-        report.setAiModel(aiProperties.getModel());
+        report.setAiModel(model);
         report.setCacheHit(0);
 
         analysisReportMapper.insert(report);
@@ -263,11 +290,12 @@ public class AnalysisServiceImpl implements AnalysisService {
     }
 
     private String buildCacheKey(Long userId, Long resumeId, Long resumeVersionId,
-            String resumeUpdatedAt, Long jobId, String jobUpdatedAt, boolean ragEnabled) {
+            String resumeUpdatedAt, Long jobId, String jobUpdatedAt, boolean ragEnabled,
+            String promptVersion, String model, String promptHash) {
         return AiAnalysisCacheKeyBuilder.build(
+                ANALYSIS_SCENARIO,
                 userId, resumeId, resumeVersionId, resumeUpdatedAt,
-                jobId, jobUpdatedAt, ragEnabled, ANALYSIS_PROMPT_VERSION,
-                aiProperties.getModel());
+                jobId, jobUpdatedAt, ragEnabled, promptVersion, model, promptHash);
     }
 
     private String buildRagContext(String resumeText, JobDescription job) {
@@ -352,7 +380,15 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     private AiAnalysisResult parseAnalysisResult(String rawResponse) {
         try {
-            return JsonUtils.parseAiJson(rawResponse, AiAnalysisResult.class);
+            var node = AiJsonSanitizer.sanitizeObject(rawResponse);
+            AiJsonSanitizer.clampInt(node, "matchScore", 0, 100, 60);
+            AiJsonSanitizer.ensureText(node, "matchLevel", "");
+            AiJsonSanitizer.ensureArray(node, "strengths");
+            AiJsonSanitizer.ensureArray(node, "weaknesses");
+            AiJsonSanitizer.ensureArray(node, "missingSkills");
+            AiJsonSanitizer.ensureArray(node, "suggestions");
+            AiJsonSanitizer.ensureArray(node, "interviewTips");
+            return JsonUtils.parseAiJson(AiJsonSanitizer.toJson(node), AiAnalysisResult.class);
         } catch (AiServiceException e) {
             if (!"AI_RESPONSE_PARSE_FAILED".equals(e.getErrorCode())) {
                 throw e;

@@ -3,6 +3,7 @@ package com.internpilot.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.internpilot.ai.parser.AiJsonSanitizer;
 import com.internpilot.exception.AiServiceException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,7 +20,7 @@ public class JsonUtils {
 
     public static <T> T parseAiJson(String rawText, Class<T> clazz) {
         try {
-            String json = extractJson(rawText);
+            String json = AiJsonSanitizer.extractJsonObject(rawText);
             return OBJECT_MAPPER.readValue(json, clazz);
         } catch (JsonProcessingException e) {
             throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI response JSON parse failed.");
@@ -52,32 +53,5 @@ public class JsonUtils {
         } catch (JsonProcessingException e) {
             throw new AiServiceException("JSON deserialization failed.");
         }
-    }
-
-    private static String extractJson(String rawText) {
-        if (rawText == null || rawText.isBlank()) {
-            throw new AiServiceException("AI_RESPONSE_EMPTY", "AI response content is empty.");
-        }
-
-        String text = rawText.trim();
-
-        if (text.startsWith("```json")) {
-            text = text.substring(7).trim();
-        }
-        if (text.startsWith("```")) {
-            text = text.substring(3).trim();
-        }
-        if (text.endsWith("```")) {
-            text = text.substring(0, text.length() - 3).trim();
-        }
-
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
-
-        if (start < 0 || end < 0 || end <= start) {
-            throw new AiServiceException("AI_RESPONSE_PARSE_FAILED", "AI response content is not valid JSON.");
-        }
-
-        return text.substring(start, end + 1);
     }
 }

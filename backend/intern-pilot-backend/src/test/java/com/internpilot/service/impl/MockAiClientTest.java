@@ -76,7 +76,7 @@ class MockAiClientTest {
 
     @Test
     void chatShouldReturnDefaultForNullPrompt() {
-        String result = mockAiClient.chat(null);
+        String result = mockAiClient.chat((String) null);
 
         assertNotNull(result);
         assertTrue(result.contains("Mock AI 默认响应"));
@@ -86,7 +86,7 @@ class MockAiClientTest {
     void chatShouldNotThrowForAnyPrompt() {
         assertDoesNotThrow(() -> mockAiClient.chat("any text"));
         assertDoesNotThrow(() -> mockAiClient.chat(""));
-        assertDoesNotThrow(() -> mockAiClient.chat(null));
+        assertDoesNotThrow(() -> mockAiClient.chat((String) null));
         assertDoesNotThrow(() -> mockAiClient.chat("mixed match analysis and interview questions"));
     }
 }

@@ -1,16 +1,16 @@
 package com.internpilot.ai.client;
 
-import com.internpilot.config.AiProperties;
 import com.internpilot.ai.scenario.AiScenarioEnum;
+import com.internpilot.config.AiProperties;
 import com.internpilot.exception.AiServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
-import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -57,11 +57,11 @@ class DeepSeekAiClientTest {
         }
 
         @Test
-        void selectModelShouldUseProOnlyForRagQa() {
-                assertEquals("deepseek-v4-flash", deepSeekAiClient.selectModel(AiScenarioEnum.RESUME_JOB_ANALYSIS));
+        void selectModelShouldUseProForComplexScenarios() {
+                assertEquals("deepseek-v4-pro", deepSeekAiClient.selectModel(AiScenarioEnum.RESUME_JOB_ANALYSIS));
                 assertEquals("deepseek-v4-flash",
                                 deepSeekAiClient.selectModel(AiScenarioEnum.INTERVIEW_QUESTION_GENERATION));
-                assertEquals("deepseek-v4-flash", deepSeekAiClient.selectModel(AiScenarioEnum.RESUME_OPTIMIZATION));
+                assertEquals("deepseek-v4-pro", deepSeekAiClient.selectModel(AiScenarioEnum.RESUME_OPTIMIZATION));
                 assertEquals("deepseek-v4-flash", deepSeekAiClient.selectModel(AiScenarioEnum.JOB_RECOMMENDATION));
                 assertEquals("deepseek-v4-flash", deepSeekAiClient.selectModel(AiScenarioEnum.UNKNOWN));
                 assertEquals("deepseek-v4-pro", deepSeekAiClient.selectModel(AiScenarioEnum.RAG_QA));
@@ -125,40 +125,40 @@ class DeepSeekAiClientTest {
                 HttpEntity<Map<String, Object>> entity = entityCaptor.getValue();
                 assertNotNull(entity);
                 assertEquals("Bearer test-key", entity.getHeaders().getFirst("Authorization"));
-                assertEquals("deepseek-v4-flash", entity.getBody().get("model"));
+                assertEquals("deepseek-v4-pro", entity.getBody().get("model"));
         }
 
         @Test
         void systemPromptShouldContainChineseLanguageConstraint() {
                 Map<String, Object> body = deepSeekAiClient.buildRequestBody(
-                                "分析简历匹配度",
+                                "analyze resume",
                                 AiScenarioEnum.RESUME_JOB_ANALYSIS,
                                 "deepseek-v4-flash");
 
                 @SuppressWarnings("unchecked")
                 List<Map<String, String>> messages = (List<Map<String, String>>) body.get("messages");
                 String systemContent = messages.get(0).get("content");
-                assertTrue(systemContent.contains("简体中"),
+                assertTrue(systemContent.contains("Simplified Chinese"),
                                 "System prompt should contain Chinese language constraint");
         }
 
         @Test
         void userPromptShouldContainChineseLanguageConstraintForNonJsonScenario() {
                 Map<String, Object> body = deepSeekAiClient.buildRequestBody(
-                                "优化简",
+                                "optimize resume",
                                 AiScenarioEnum.RESUME_OPTIMIZATION,
                                 "deepseek-v4-flash");
 
                 @SuppressWarnings("unchecked")
                 List<Map<String, String>> messages = (List<Map<String, String>>) body.get("messages");
                 String userContent = messages.get(1).get("content");
-                assertTrue(userContent.contains("简体中"),
+                assertTrue(userContent.contains("Simplified Chinese"),
                                 "User prompt for non-JSON scenario should contain Chinese language constraint");
         }
 
         @Test
         void requestBodyShouldContainRealPrompt() {
-                String prompt = "分析学生简历与岗位JD的匹配度，简历内容：熟悉Java Spring Boot，岗位要求：熟悉Java Spring Boot Docker";
+                String prompt = "Analyze Java Spring Boot resume against Docker job requirements";
                 Map<String, Object> body = deepSeekAiClient.buildRequestBody(
                                 prompt,
                                 AiScenarioEnum.RESUME_JOB_ANALYSIS,

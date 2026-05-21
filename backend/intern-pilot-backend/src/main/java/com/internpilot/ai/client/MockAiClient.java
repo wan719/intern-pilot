@@ -14,11 +14,23 @@ public class MockAiClient implements AiClient {
   @Override
   public String chat(String prompt) {
     AiScenarioEnum scenario = detectScenario(prompt);
+    return chatByScenario(scenario);
+  }
 
+  @Override
+  public String chat(AiChatRequest request) {
+    AiScenarioEnum scenario = request == null || request.getScenario() == null
+        ? detectScenario(request == null ? null : request.getUserPrompt())
+        : request.getScenario();
+    return chatByScenario(scenario);
+  }
+
+  private String chatByScenario(AiScenarioEnum scenario) {
     return switch (scenario) {
       case RESUME_JOB_ANALYSIS -> mockResumeJobAnalysis();
       case RESUME_OPTIMIZATION -> mockResumeOptimization();
       case INTERVIEW_QUESTION_GENERATION -> mockInterviewQuestions();
+      case INTERVIEW_QUESTION_REGENERATION -> mockInterviewQuestions();
       case JOB_RECOMMENDATION -> mockJobRecommendation();
       case RAG_QA -> mockRagQa();
       default -> mockDefaultResponse();

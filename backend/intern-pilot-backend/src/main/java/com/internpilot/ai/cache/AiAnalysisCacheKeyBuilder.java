@@ -2,6 +2,7 @@ package com.internpilot.ai.cache;
 
 import org.springframework.util.DigestUtils;
 
+import com.internpilot.ai.scenario.AiScenarioEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.nio.charset.StandardCharsets;
@@ -24,7 +25,42 @@ public class AiAnalysisCacheKeyBuilder {
             String promptVersion,
             String model
     ) {
-        String rawKey = userId + ":" +
+        return build(userId, resumeId, resumeVersionId, resumeUpdatedAt, jobId, jobUpdatedAt,
+                ragEnabled, promptVersion, model, "");
+    }
+
+    public static String build(
+            Long userId,
+            Long resumeId,
+            Long resumeVersionId,
+            String resumeUpdatedAt,
+            Long jobId,
+            String jobUpdatedAt,
+            boolean ragEnabled,
+            String promptVersion,
+            String model,
+            String promptHash
+    ) {
+        return build(AiScenarioEnum.RESUME_JOB_ANALYSIS, userId, resumeId, resumeVersionId, resumeUpdatedAt,
+                jobId, jobUpdatedAt, ragEnabled, promptVersion, model, promptHash);
+    }
+
+    public static String build(
+            AiScenarioEnum scenario,
+            Long userId,
+            Long resumeId,
+            Long resumeVersionId,
+            String resumeUpdatedAt,
+            Long jobId,
+            String jobUpdatedAt,
+            boolean ragEnabled,
+            String promptVersion,
+            String model,
+            String promptHash
+    ) {
+        String safeScenario = scenario == null ? AiScenarioEnum.UNKNOWN.name() : scenario.name();
+        String rawKey = safeScenario + ":" +
+                userId + ":" +
                 resumeId + ":" +
                 (resumeVersionId == null ? 0 : resumeVersionId) + ":" +
                 (resumeUpdatedAt == null ? "" : resumeUpdatedAt) + ":" +
@@ -32,7 +68,8 @@ public class AiAnalysisCacheKeyBuilder {
                 (jobUpdatedAt == null ? "" : jobUpdatedAt) + ":" +
                 ragEnabled + ":" +
                 promptVersion + ":" +
-                (model == null ? "" : model);
+                (model == null ? "" : model) + ":" +
+                (promptHash == null ? "" : promptHash);
 
         String hash = DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
         return CACHE_KEY_PREFIX + hash;

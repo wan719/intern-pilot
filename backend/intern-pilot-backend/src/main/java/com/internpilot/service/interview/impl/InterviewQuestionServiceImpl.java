@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.config.AiProperties;
+import com.internpilot.ai.client.AiChatRequest;
 import com.internpilot.dto.interview.AiInterviewQuestionResult;
 import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
 import com.internpilot.dto.rag.RagSearchRequest;
@@ -26,7 +27,11 @@ import com.internpilot.ai.client.AiClient;
 import com.internpilot.service.interview.InterviewQuestionService;
 import com.internpilot.service.rag.RagKnowledgeService;
 import com.internpilot.ai.parser.InterviewQuestionParser;
-import com.internpilot.ai.prompt.InterviewQuestionPromptBuilder;
+import com.internpilot.ai.prompt.AiPromptContext;
+import com.internpilot.ai.prompt.template.AiPromptTemplate;
+import com.internpilot.ai.prompt.template.AiPromptTemplateResolver;
+import com.internpilot.ai.router.AiModelRouter;
+import com.internpilot.ai.scenario.AiScenarioEnum;
 import com.internpilot.util.JsonUtils;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.interview.InterviewQuestionDetailResponse;
@@ -38,11 +43,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -66,6 +74,8 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
     private final AiProperties aiProperties;
     private final RagKnowledgeService ragKnowledgeService;
+    private final AiModelRouter aiModelRouter;
+    private final AiPromptTemplateResolver promptTemplateResolver;
 
     private static final int DEFAULT_QUESTION_COUNT = 8;
     private static final int MIN_QUESTION_COUNT = 3;
@@ -107,13 +117,18 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             analysisReportText = analysisReportText + "\n\n【岗位知识库参考内容】\n" + ragContext;
         }
 
-        String prompt = InterviewQuestionPromptBuilder.build(
-                resumeText,
-                job.getJdContent(),
-                analysisReportText,
-                request);
+        AiScenarioEnum scenario = AiScenarioEnum.INTERVIEW_QUESTION_GENERATION;
+        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(scenario);
+        String model = aiModelRouter.route(scenario);
+        String prompt = promptTemplate.buildUserPrompt(AiPromptContext.builder()
+                .scenario(scenario)
+                .resumeContent(resumeText)
+                .jobContent(job.getJdContent())
+                .analysisReport(analysisReportText)
+                .metadata(Map.of("request", request))
+                .build());
 
-        String rawResponse = aiClient.chat(prompt);
+        String rawResponse = aiClient.chat(buildAiChatRequest(currentUserId, scenario, promptTemplate, model, prompt));
 
         AiInterviewQuestionResult aiResult = parseInterviewQuestions(rawResponse, job, request);
 
@@ -134,7 +149,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         report.setTitle(ensureChineseTitle(title, job));
         report.setQuestionCount(aiResult.getQuestions().size());
         report.setAiProvider(aiProperties.getProvider());
-        report.setAiModel(aiProperties.getModel());
+        report.setAiModel(model);
         report.setRawAiResponse(rawResponse);
 
         interviewQuestionReportMapper.insert(report);
@@ -278,15 +293,20 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             analysisReportText = analysisReportText + "\n\n【岗位知识库参考内容】\n" + ragContext;
         }
 
-        String prompt = InterviewQuestionPromptBuilder.build(
-                resumeText,
-                job.getJdContent(),
-                analysisReportText,
-                regenerateRequest)
+        AiScenarioEnum scenario = AiScenarioEnum.INTERVIEW_QUESTION_REGENERATION;
+        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(scenario);
+        String model = aiModelRouter.route(scenario);
+        String prompt = promptTemplate.buildUserPrompt(AiPromptContext.builder()
+                .scenario(scenario)
+                .resumeContent(resumeText)
+                .jobContent(job.getJdContent())
+                .analysisReport(analysisReportText)
+                .metadata(Map.of("request", regenerateRequest))
+                .build())
                 + buildRegenerateInstruction(oldQuestions)
                 + "\n【生成批次】" + System.currentTimeMillis() + "\n";
 
-        String rawResponse = aiClient.chat(prompt);
+        String rawResponse = aiClient.chat(buildAiChatRequest(currentUserId, scenario, promptTemplate, model, prompt));
 
         AiInterviewQuestionResult aiResult = parseInterviewQuestions(rawResponse, job, regenerateRequest);
         aiResult = ensureRegeneratedQuestionsDiffer(aiResult, oldQuestions, job, regenerateRequest);
@@ -302,7 +322,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         existingReport.setTitle(ensureChineseTitle(title, job));
         existingReport.setQuestionCount(aiResult.getQuestions().size());
         existingReport.setAiProvider(aiProperties.getProvider());
-        existingReport.setAiModel(aiProperties.getModel());
+        existingReport.setAiModel(model);
         existingReport.setRawAiResponse(rawResponse);
 
         interviewQuestionReportMapper.updateById(existingReport);
@@ -331,6 +351,31 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
         }
 
         return toGenerateResponse(existingReport, false);
+    }
+
+    private AiChatRequest buildAiChatRequest(
+            Long userId,
+            AiScenarioEnum scenario,
+            AiPromptTemplate promptTemplate,
+            String model,
+            String prompt) {
+        return AiChatRequest.builder()
+                .scenario(scenario)
+                .model(model)
+                .fallbackModel(aiModelRouter.fallback(scenario))
+                .promptVersion(promptTemplate.version())
+                .userId(userId)
+                .promptHash(hashText(prompt))
+                .cacheHit(false)
+                .systemPrompt(promptTemplate.systemPrompt())
+                .userPrompt(prompt)
+                .outputFormat(promptTemplate.outputFormat())
+                .allowFallback(aiModelRouter.allowFallback(scenario))
+                .build();
+    }
+
+    private String hashText(String text) {
+        return DigestUtils.md5DigestAsHex((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
     }
 
     private Resume getUserResumeOrThrow(Long resumeId, Long userId) {

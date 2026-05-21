@@ -14,9 +14,14 @@ import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.mapper.ResumeVersionMapper;
+import com.internpilot.ai.client.AiChatRequest;
 import com.internpilot.ai.client.AiClient;
 import com.internpilot.service.resume.ResumeVersionService;
-import com.internpilot.ai.prompt.PromptUtils;
+import com.internpilot.ai.prompt.AiPromptContext;
+import com.internpilot.ai.prompt.template.AiPromptTemplate;
+import com.internpilot.ai.prompt.template.AiPromptTemplateResolver;
+import com.internpilot.ai.router.AiModelRouter;
+import com.internpilot.ai.scenario.AiScenarioEnum;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.resume.ResumeVersionCompareResponse;
 import com.internpilot.vo.resume.ResumeVersionCreateResponse;
@@ -25,8 +30,10 @@ import com.internpilot.vo.resume.ResumeVersionListResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +49,8 @@ public class ResumeVersionServiceImpl implements ResumeVersionService {
     private final JobDescriptionMapper jobDescriptionMapper;
     private final AnalysisReportMapper analysisReportMapper;
     private final AiClient aiClient;
+    private final AiModelRouter aiModelRouter;
+    private final AiPromptTemplateResolver promptTemplateResolver;
 
     @Override
     @Transactional
@@ -172,13 +181,29 @@ public class ResumeVersionServiceImpl implements ResumeVersionService {
             }
         }
 
-        String prompt = PromptUtils.buildResumeOptimizePrompt(
-                sourceVersion.getContent(),
-                job.getJdContent(),
-                buildAnalysisReportText(analysisReport),
-                request.getExtraRequirement()
-        );
-        String optimizedContent = aiClient.chat(prompt);
+        AiScenarioEnum scenario = AiScenarioEnum.RESUME_OPTIMIZATION;
+        AiPromptTemplate promptTemplate = promptTemplateResolver.resolve(scenario);
+        String model = aiModelRouter.route(scenario);
+        String prompt = promptTemplate.buildUserPrompt(AiPromptContext.builder()
+                .scenario(scenario)
+                .resumeContent(sourceVersion.getContent())
+                .jobContent(job.getJdContent())
+                .analysisReport(buildAnalysisReportText(analysisReport))
+                .extraInstruction(request.getExtraRequirement())
+                .build());
+        String optimizedContent = aiClient.chat(AiChatRequest.builder()
+                .scenario(scenario)
+                .model(model)
+                .fallbackModel(aiModelRouter.fallback(scenario))
+                .promptVersion(promptTemplate.version())
+                .userId(currentUserId)
+                .promptHash(hashText(prompt))
+                .cacheHit(false)
+                .systemPrompt(promptTemplate.systemPrompt())
+                .userPrompt(prompt)
+                .outputFormat(promptTemplate.outputFormat())
+                .allowFallback(aiModelRouter.allowFallback(scenario))
+                .build());
         if (!StringUtils.hasText(optimizedContent)) {
             throw new BusinessException("AI未返回有效简历内");
         }
@@ -342,6 +367,10 @@ public class ResumeVersionServiceImpl implements ResumeVersionService {
                 .map(String::trim)
                 .filter(line -> !line.isBlank())
                 .toList();
+    }
+
+    private String hashText(String text) {
+        return DigestUtils.md5DigestAsHex((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
     }
 
     private ResumeVersionCreateResponse toCreateResponse(ResumeVersion version) {
