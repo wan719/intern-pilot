@@ -1,6 +1,7 @@
 package com.internpilot.ai.cache;
 
 import com.internpilot.ai.scenario.AiScenarioEnum;
+import com.internpilot.constant.RedisKeyConstants;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -50,7 +51,7 @@ class AiCacheKeyBuilderTest {
                 .extra(Map.of("ragEnabled", true))
                 .build());
 
-        assertTrue(key.startsWith("ai:cache:RESUME_JOB_ANALYSIS:"));
+        assertTrue(key.startsWith(RedisKeyConstants.AI_CACHE_PREFIX + "RESUME_JOB_ANALYSIS:"));
         assertNotEquals(key, changedPrompt);
         assertNotEquals(key, changedModel);
     }

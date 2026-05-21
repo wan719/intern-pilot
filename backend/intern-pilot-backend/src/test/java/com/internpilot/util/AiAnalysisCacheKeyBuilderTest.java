@@ -2,6 +2,7 @@ package com.internpilot.util;
 
 import com.internpilot.ai.cache.AiAnalysisCacheKeyBuilder;
 import com.internpilot.ai.scenario.AiScenarioEnum;
+import com.internpilot.constant.RedisKeyConstants;
 
 import org.junit.jupiter.api.Test;
 
@@ -130,7 +131,7 @@ class AiAnalysisCacheKeyBuilderTest {
                 8L, "2026-05-14T10:40:00", true, "v1", "deepseek-v4-flash"
         );
 
-        assertTrue(key.startsWith("ai:analysis:result:"));
+        assertTrue(key.startsWith(RedisKeyConstants.AI_ANALYSIS_RESULT_PREFIX));
     }
 
     @Test
@@ -141,7 +142,7 @@ class AiAnalysisCacheKeyBuilderTest {
         );
 
         assertNotNull(key);
-        assertTrue(key.startsWith("ai:analysis:result:"));
+        assertTrue(key.startsWith(RedisKeyConstants.AI_ANALYSIS_RESULT_PREFIX));
     }
 
     @Test
@@ -152,7 +153,7 @@ class AiAnalysisCacheKeyBuilderTest {
         );
 
         assertNotNull(key);
-        assertTrue(key.startsWith("ai:analysis:result:"));
+        assertTrue(key.startsWith(RedisKeyConstants.AI_ANALYSIS_RESULT_PREFIX));
     }
 
     @Test
@@ -163,7 +164,7 @@ class AiAnalysisCacheKeyBuilderTest {
         );
 
         assertNotNull(key);
-        assertTrue(key.startsWith("ai:analysis:result:"));
+        assertTrue(key.startsWith(RedisKeyConstants.AI_ANALYSIS_RESULT_PREFIX));
     }
 
     @Test

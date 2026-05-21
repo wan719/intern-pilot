@@ -3,6 +3,7 @@ package com.internpilot.service.auth.impl;
 import com.internpilot.captcha.EmailCaptchaSender;
 import com.internpilot.captcha.MockCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
+import com.internpilot.constant.RedisKeyConstants;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.dto.auth.LoginRequest;
 import com.internpilot.dto.auth.RegisterRequest;
@@ -101,9 +102,9 @@ class AuthServiceImplTest {
 
         captchaService.sendRegisterCaptcha(request);
 
-        verify(valueOperations).set(eq("auth:captcha:EMAIL_REGISTER:test@example.com"), eq("123456"), eq(300L),
+        verify(valueOperations).set(eq(RedisKeyConstants.captcha("EMAIL_REGISTER", "test@example.com")), eq("123456"), eq(300L),
                 eq(TimeUnit.SECONDS));
-        verify(valueOperations).set(eq("auth:captcha:cooldown:EMAIL_REGISTER:test@example.com"), eq("1"), eq(60L),
+        verify(valueOperations).set(eq(RedisKeyConstants.captchaCooldown("EMAIL_REGISTER", "test@example.com")), eq("1"), eq(60L),
                 eq(TimeUnit.SECONDS));
         verify(mockCaptchaSender).send(eq("test@example.com"), eq("123456"), any());
     }
@@ -159,8 +160,8 @@ class AuthServiceImplTest {
         RegisterRequest request = emailRegisterRequest("test@example.com", "000000");
 
         when(userMapper.selectCount(any())).thenReturn(0L);
-        when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
-        when(valueOperations.get("auth:captcha:fail:EMAIL_REGISTER:test@example.com")).thenReturn(null);
+        when(valueOperations.get(RedisKeyConstants.captcha("EMAIL_REGISTER", "test@example.com"))).thenReturn("123456");
+        when(valueOperations.get(RedisKeyConstants.captchaFail("EMAIL_REGISTER", "test@example.com"))).thenReturn(null);
         when(stringRedisTemplate.getExpire(anyString(), any())).thenReturn(300L);
 
         assertThrows(BusinessException.class, () -> authService.register(request));
@@ -171,8 +172,8 @@ class AuthServiceImplTest {
         RegisterRequest request = emailRegisterRequest("test@example.com", "123456");
 
         when(userMapper.selectCount(any())).thenReturn(0L);
-        when(valueOperations.get("auth:captcha:EMAIL_REGISTER:test@example.com")).thenReturn("123456");
-        when(valueOperations.get("auth:captcha:fail:EMAIL_REGISTER:test@example.com")).thenReturn(null);
+        when(valueOperations.get(RedisKeyConstants.captcha("EMAIL_REGISTER", "test@example.com"))).thenReturn("123456");
+        when(valueOperations.get(RedisKeyConstants.captchaFail("EMAIL_REGISTER", "test@example.com"))).thenReturn(null);
         when(passwordEncoder.encode("123456")).thenReturn("encoded_password");
         when(roleMapper.selectOne(any())).thenReturn(mockRole());
         when(permissionMapper.selectRoleCodesByUserId(anyLong())).thenReturn(List.of("USER"));

@@ -1,5 +1,6 @@
 package com.internpilot.service.impl;
 
+import com.internpilot.constant.RedisKeyConstants;
 import com.internpilot.service.analysis.impl.AnalysisProgressPublisherImpl;
 
 import com.internpilot.enums.AnalysisTaskStatusEnum;
@@ -68,7 +69,7 @@ class AnalysisProgressPublisherImplTest {
         assertNotNull(message.getTimestamp());
 
         verify(valueOperations).set(
-                "ai:analysis:task:TASK_20260514_abcd1234",
+                RedisKeyConstants.analysisTask("TASK_20260514_abcd1234"),
                 message,
                 Duration.ofHours(24)
         );
