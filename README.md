@@ -795,3 +795,58 @@ git push gitee dev
 - 作者：wan719
 - 问题反馈：请通过 [GitHub Issues](https://github.com/wan719/intern-pilot/issues) 提交缺陷、建议或使用问题
 - Gitee：作为同步展示仓库，可用于国内访问和项目展示
+## 运维与健康检查
+
+后端已接入 Spring Boot Actuator，默认健康检查地址：
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+正常返回应包含：
+
+```json
+{"status":"UP"}
+```
+
+本地开发环境和生产环境默认仅暴露 `health` 和 `info`，避免公开过多运行细节。`/actuator/health` 已在 Spring Security 中放行，可用于 Docker Compose healthcheck。
+
+生产环境必须通过环境变量提供敏感配置，包括：
+
+- `JWT_SECRET`
+- `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD`
+- `REDIS_PASSWORD`
+- `DEEPSEEK_API_KEY`
+- `MAIL_PASSWORD`
+- `TENCENT_SMS_SECRET_KEY`（如启用短信）
+
+`prod` profile 启动时会校验：
+
+- AI provider 不能是 `mock`
+- `DEEPSEEK_API_KEY` 不能为空
+- `JWT_SECRET` 至少 32 个字符
+- 验证码不能使用 mock provider
+
+Docker Compose 已为 `mysql`、`redis`、`backend`、`frontend` 配置 healthcheck。常用检查命令：
+
+```bash
+docker compose -f deploy/docker-compose.yml ps
+docker compose -f deploy/docker-compose.yml logs -f backend
+curl http://localhost:8080/actuator/health
+```
+
+本地开发时可用以下命令查看后端启动和业务日志：
+
+```powershell
+cd backend/intern-pilot-backend
+.\gradlew.bat bootRun --no-daemon
+```
+
+Docker 部署后可用以下命令查看服务日志：
+
+```bash
+docker compose -f deploy/docker-compose.yml logs -f backend
+docker compose -f deploy/docker-compose.yml logs -f frontend
+docker compose -f deploy/docker-compose.yml logs --tail=200 mysql
+docker compose -f deploy/docker-compose.yml logs --tail=200 redis
+```
