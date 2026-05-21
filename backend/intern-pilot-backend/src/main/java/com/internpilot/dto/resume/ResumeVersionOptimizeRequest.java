@@ -2,6 +2,7 @@ package com.internpilot.dto.resume;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
@@ -20,8 +21,10 @@ public class ResumeVersionOptimizeRequest {
     private Long aiReportId;
 
     @Schema(description = "新版本名称", example = "腾讯Java后端定制版")
+    @Size(max = 100, message = "新版本名称长度不能超过 100 个字符")
     private String versionName;
 
     @Schema(description = "额外优化要求", example = "突出Spring Boot和Redis项目经验")
+    @Size(max = 2000, message = "额外优化要求长度不能超过 2000 个字符")
     private String extraRequirement;
 }

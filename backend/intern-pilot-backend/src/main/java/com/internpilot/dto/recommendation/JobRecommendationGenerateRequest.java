@@ -1,6 +1,8 @@
 package com.internpilot.dto.recommendation;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -19,5 +21,7 @@ public class JobRecommendationGenerateRequest {
     private Boolean includeApplied = false;
 
     @Schema(description = "最多推荐数量", example = "10")
+    @Min(value = 1, message = "推荐数量不能少于 1")
+    @Max(value = 50, message = "推荐数量不能超过 50")
     private Integer limit = 10;
 }
