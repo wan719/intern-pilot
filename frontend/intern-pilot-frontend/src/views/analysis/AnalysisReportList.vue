@@ -196,9 +196,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { CircleCheck, Clock, Files, MagicStick, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
@@ -209,6 +210,7 @@ import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const route = useRoute()
 
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
@@ -279,6 +281,13 @@ async function openDetail(id: number) {
     detailError.value = e?.message || e?.response?.data?.message || '报告不存在、已被删除，或当前账号没有访问权限。'
   } finally {
     detailLoading.value = false
+  }
+}
+
+function openReportFromQuery() {
+  const reportId = Number(route.query.reportId)
+  if (Number.isFinite(reportId) && reportId > 0) {
+    openDetail(reportId)
   }
 }
 
@@ -397,7 +406,15 @@ function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-onMounted(loadReports)
+watch(
+  () => route.query.reportId,
+  () => openReportFromQuery()
+)
+
+onMounted(async () => {
+  await loadReports()
+  openReportFromQuery()
+})
 </script>
 
 <style scoped>

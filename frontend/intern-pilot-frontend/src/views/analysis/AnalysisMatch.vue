@@ -430,7 +430,7 @@ function applyTaskMessage(message: AnalysisProgressMessage) {
   }
   
   if (message.reportId) {
-    updates.resultPath = `/analysis/reports/${message.reportId}`
+    updates.resultPath = `/analysis/reports?reportId=${message.reportId}`
   }
   
   aiTaskCenter.updateTask(currentLocalTaskId, updates)

@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, Plus } from '@element-plus/icons-vue'
@@ -159,10 +159,12 @@ import {
 } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
 const route = useRoute()
 const router = useRouter()
 const resumeId = Number(route.params.resumeId)
+const aiTaskCenter = useAiTaskCenterStore()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -208,6 +210,15 @@ async function loadData() {
     analysisReports.value = analysisRes.records || []
   } finally {
     loading.value = false
+  }
+}
+
+function openVersionFromQuery() {
+  const versionId = Number(route.query.versionId)
+  if (!Number.isFinite(versionId) || versionId <= 0) return
+  const row = versions.value.find((item) => item.versionId === versionId)
+  if (row) {
+    openDetail(row)
   }
 }
 
@@ -299,11 +310,29 @@ async function optimizeVersion() {
     return
   }
   optimizing.value = true
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'RESUME_OPTIMIZE',
+    title: 'AI 简历版本优化',
+    message: '正在调用 AI 生成优化后的简历版本...',
+    status: 'CALLING_AI',
+    progress: 35,
+    sourcePath: `/resumes/${resumeId}/versions`
+  })
   try {
-    await optimizeResumeVersionApi(resumeId, { ...optimizeForm })
+    const result: any = await optimizeResumeVersionApi(resumeId, { ...optimizeForm })
+    const versionId = result?.versionId
+    aiTaskCenter.completeTask(localTaskId, {
+      resultId: versionId,
+      resultPath: versionId ? `/resumes/${resumeId}/versions?versionId=${versionId}` : `/resumes/${resumeId}/versions`,
+      message: 'AI 优化版本已生成，可查看新版本内容'
+    })
     ElMessage.success('AI 优化版本已生成')
     optimizeVisible.value = false
     await loadData()
+    openVersionFromQuery()
+  } catch (e: any) {
+    aiTaskCenter.failTask(localTaskId, e?.message || e?.response?.data?.message || 'AI 优化版本生成失败')
+    throw e
   } finally {
     optimizing.value = false
   }
@@ -337,7 +366,15 @@ function isLikelyMojibake(value?: string) {
   return /[鐟鐢闂濞婵閭绠鍘宀椾綅]/.test(value)
 }
 
-onMounted(loadData)
+watch(
+  () => route.query.versionId,
+  () => openVersionFromQuery()
+)
+
+onMounted(async () => {
+  await loadData()
+  openVersionFromQuery()
+})
 </script>
 
 <style scoped>
