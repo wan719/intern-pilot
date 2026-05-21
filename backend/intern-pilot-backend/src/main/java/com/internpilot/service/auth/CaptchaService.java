@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.captcha.EmailCaptchaSender;
 import com.internpilot.captcha.MockCaptchaSender;
 import com.internpilot.config.CaptchaProperties;
+import com.internpilot.constant.RedisKeyConstants;
 import com.internpilot.dto.auth.CaptchaSendRequest;
 import com.internpilot.entity.User;
 import com.internpilot.enums.CaptchaSceneEnum;
@@ -23,10 +24,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class CaptchaService {
 
-    private static final String CAPTCHA_PREFIX = "auth:captcha:";
-    private static final String COOLDOWN_PREFIX = "auth:captcha:cooldown:";
-    private static final String FAIL_PREFIX = "auth:captcha:fail:";
-    private static final String DAILY_PREFIX = "auth:captcha:daily:";
     private static final String MOCK_CODE = "123456";
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -66,14 +63,14 @@ public class CaptchaService {
     }
 
     public void validateCaptcha(String target, CaptchaSceneEnum scene, String inputCode) {
-        String captchaKey = CAPTCHA_PREFIX + scene.getCode() + ":" + target;
+        String captchaKey = RedisKeyConstants.captcha(scene.getCode(), target);
         String storedCode = stringRedisTemplate.opsForValue().get(captchaKey);
 
         if (storedCode == null) {
             throw new BusinessException("验证码已过期，请重新发送");
         }
 
-        String failKey = FAIL_PREFIX + scene.getCode() + ":" + target;
+        String failKey = RedisKeyConstants.captchaFail(scene.getCode(), target);
         String failCountStr = stringRedisTemplate.opsForValue().get(failKey);
         int failCount = failCountStr == null ? 0 : Integer.parseInt(failCountStr);
 
@@ -113,12 +110,12 @@ public class CaptchaService {
     }
 
     private String ensureCaptchaPolicy(CaptchaSceneEnum scene, String target) {
-        String cooldownKey = COOLDOWN_PREFIX + scene.getCode() + ":" + target;
+        String cooldownKey = RedisKeyConstants.captchaCooldown(scene.getCode(), target);
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(cooldownKey))) {
             throw new BusinessException("验证码发送过于频繁，请稍后再试");
         }
 
-        String dailyKey = DAILY_PREFIX + scene.getCode() + ":" + target;
+        String dailyKey = RedisKeyConstants.captchaDaily(scene.getCode() + ":" + target);
         Long dailyCount = stringRedisTemplate.opsForValue().increment(dailyKey);
         if (dailyCount != null && dailyCount == 1L) {
             stringRedisTemplate.expire(dailyKey, 1, TimeUnit.DAYS);
@@ -156,9 +153,9 @@ public class CaptchaService {
     }
 
     private void saveCaptcha(CaptchaSceneEnum scene, String target, String code) {
-        String captchaKey = CAPTCHA_PREFIX + scene.getCode() + ":" + target;
-        String cooldownKey = COOLDOWN_PREFIX + scene.getCode() + ":" + target;
-        String failKey = FAIL_PREFIX + scene.getCode() + ":" + target;
+        String captchaKey = RedisKeyConstants.captcha(scene.getCode(), target);
+        String cooldownKey = RedisKeyConstants.captchaCooldown(scene.getCode(), target);
+        String failKey = RedisKeyConstants.captchaFail(scene.getCode(), target);
         stringRedisTemplate.opsForValue().set(captchaKey, code, captchaProperties.getTtlSeconds(), TimeUnit.SECONDS);
         stringRedisTemplate.opsForValue().set(cooldownKey, "1", captchaProperties.getCooldownSeconds(), TimeUnit.SECONDS);
         stringRedisTemplate.delete(failKey);

@@ -1,5 +1,6 @@
 package com.internpilot.service.analysis.impl;
 
+import com.internpilot.constant.RedisKeyConstants;
 import com.internpilot.service.analysis.AnalysisProgressPublisher;
 import com.internpilot.vo.analysis.AnalysisProgressMessage;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,6 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class AnalysisProgressPublisherImpl implements AnalysisProgressPublisher {
 
-    private static final String REDIS_KEY_PREFIX = "ai:analysis:task:";
     private static final Duration REDIS_TTL = Duration.ofHours(24);
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -47,7 +47,7 @@ public class AnalysisProgressPublisherImpl implements AnalysisProgressPublisher 
 
         try {
             redisTemplate.opsForValue().set(
-                    REDIS_KEY_PREFIX + taskNo,
+                    RedisKeyConstants.analysisTask(taskNo),
                     progressMessage,
                     REDIS_TTL
             );

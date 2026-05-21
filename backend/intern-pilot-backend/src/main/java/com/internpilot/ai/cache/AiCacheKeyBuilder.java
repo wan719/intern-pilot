@@ -1,5 +1,6 @@
 package com.internpilot.ai.cache;
 
+import com.internpilot.constant.RedisKeyConstants;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -7,8 +8,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class AiCacheKeyBuilder {
-
-    private static final String CACHE_KEY_PREFIX = "ai:cache:";
 
     public String build(AiCacheKeyContext context) {
         if (context == null) {
@@ -28,7 +27,7 @@ public class AiCacheKeyBuilder {
                 safe(context.getPromptHash()),
                 normalizeExtra(context.getExtra()));
         String hash = DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
-        return CACHE_KEY_PREFIX + scenario + ":" + hash;
+        return RedisKeyConstants.AI_CACHE_PREFIX + scenario + ":" + hash;
     }
 
     private String normalizeExtra(Map<String, Object> extra) {
