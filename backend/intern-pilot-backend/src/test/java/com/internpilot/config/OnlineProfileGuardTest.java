@@ -81,6 +81,9 @@ class OnlineProfileGuardTest {
         captchaProperties.setEmailProvider(emailProvider);
         captchaProperties.setSmsProvider(smsProvider);
 
-        return new OnlineProfileGuard(environment, aiProperties, captchaProperties);
+        JwtProperties jwtProperties = new JwtProperties();
+        jwtProperties.setSecret("intern-pilot-prod-secret-with-more-than-32-chars");
+
+        return new OnlineProfileGuard(environment, aiProperties, captchaProperties, jwtProperties);
     }
 }

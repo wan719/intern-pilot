@@ -16,6 +16,7 @@ public class OnlineProfileGuard implements ApplicationRunner {
     private final Environment environment;
     private final AiProperties aiProperties;
     private final CaptchaProperties captchaProperties;
+    private final JwtProperties jwtProperties;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -31,6 +32,9 @@ public class OnlineProfileGuard implements ApplicationRunner {
         }
         if (!StringUtils.hasText(aiProperties.getApiKey())) {
             throw new IllegalStateException("prod profile requires DEEPSEEK_API_KEY.");
+        }
+        if (!StringUtils.hasText(jwtProperties.getSecret()) || jwtProperties.getSecret().length() < 32) {
+            throw new IllegalStateException("prod profile requires a strong JWT_SECRET with at least 32 characters.");
         }
         if ("mock".equalsIgnoreCase(captchaProperties.getEmailProvider())
                 || "mock".equalsIgnoreCase(captchaProperties.getSmsProvider())
