@@ -1,6 +1,18 @@
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    mail:
+      enabled: false
+
 spring:
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:intern_pilot}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
@@ -94,3 +106,11 @@ rag:
   embedding:
     provider: ${RAG_EMBEDDING_PROVIDER:mock}
     model: ${RAG_EMBEDDING_MODEL:mock-embedding-64}
+
+system:
+  cleanup:
+    enabled: ${SYSTEM_CLEANUP_ENABLED:true}
+    cron: ${SYSTEM_CLEANUP_CRON:0 30 3 * * *}
+    analysis-task-retention-days: ${ANALYSIS_TASK_RETENTION_DAYS:30}
+    operation-log-retention-days: ${OPERATION_LOG_RETENTION_DAYS:90}
+    redis-task-notification-retention-hours: ${REDIS_TASK_NOTIFICATION_RETENTION_HOURS:24}

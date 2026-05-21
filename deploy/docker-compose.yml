@@ -19,6 +19,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
     networks:
       - internpilot-network
 
@@ -36,6 +37,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 10s
     networks:
       - internpilot-network
 
@@ -85,6 +87,12 @@ services:
       - "8080:8080"
     volumes:
       - internpilot-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - internpilot-network
 
@@ -95,9 +103,16 @@ services:
     container_name: internpilot-frontend
     restart: always
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - internpilot-network
 

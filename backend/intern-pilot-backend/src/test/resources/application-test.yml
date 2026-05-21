@@ -56,3 +56,19 @@ rag:
   embedding:
     provider: mock
     model: mock-embedding-64
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    mail:
+      enabled: false
+
+system:
+  cleanup:
+    enabled: false

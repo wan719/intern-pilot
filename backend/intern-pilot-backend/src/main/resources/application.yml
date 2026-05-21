@@ -1,6 +1,27 @@
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    mail:
+      enabled: false
+
+info:
+  app:
+    name: InternPilot Backend
+    description: Spring Boot API for InternPilot
+
 spring:
   application:
     name: intern-pilot-backend
@@ -86,3 +107,13 @@ sms:
     sign-name: ${TENCENT_SMS_SIGN_NAME:}
     template-id: ${TENCENT_SMS_TEMPLATE_ID:}
     template-has-expire-minutes: ${TENCENT_SMS_TEMPLATE_HAS_EXPIRE_MINUTES:false}
+
+system:
+  execution-time:
+    warn-threshold-ms: ${EXECUTION_TIME_WARN_THRESHOLD_MS:1500}
+  cleanup:
+    enabled: ${SYSTEM_CLEANUP_ENABLED:true}
+    cron: ${SYSTEM_CLEANUP_CRON:0 30 3 * * *}
+    analysis-task-retention-days: ${ANALYSIS_TASK_RETENTION_DAYS:30}
+    operation-log-retention-days: ${OPERATION_LOG_RETENTION_DAYS:90}
+    redis-task-notification-retention-hours: ${REDIS_TASK_NOTIFICATION_RETENTION_HOURS:24}
