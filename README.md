@@ -9,6 +9,8 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 
 项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、TypeScript、Element Plus、Vue Router、Pinia、Axios 和 ECharts。
 
+当前稳定演示版本：`v1.3.1`。在线演示地址：`http://43.136.182.179`。线上管理员账号与密码不在 README、截图、提交记录或示例配置中公开。
+
 ## 项目概述
 
 ### 项目背景与应用场景
@@ -32,9 +34,13 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 - **AI 面试题生成**：结合分析报告、岗位信息和 RAG 知识库上下文，生成分类、难度、答案、追问的结构化面试题
 - **RAG 岗位知识库**：管理员维护岗位方向知识，系统自动切片、生成 Embedding，在分析和面试题生成时检索相关知识增强 AI 输出
 - **DeepSeek + Mock AI 双模式**：线上默认使用 DeepSeek 真实 API，Mock AI 仅保留给 test / CI
+- **AI 模型路由与 Prompt 版本管理**：按简历分析、岗位推荐、面试题、RAG 等场景选择模型，缓存 key 包含模型、Prompt 版本和 promptHash
+- **AI 报告 PDF 导出**：分析报告支持独立打印页和浏览器保存 PDF，便于答辩演示和求职资料归档
 - **RBAC 管理后台**：用户、角色、权限、操作日志、RAG 知识库、用户反馈和后台看板管理
 - **岗位推荐闭环**：从岗位库、推荐批次、推荐理由到投递记录形成完整求职链路
 - **产品级前端体验**：用户工作台与管理员后台分离，统一页面标题、卡片布局、空状态、loading、错误提示、删除确认和多端适配
+- **Spring Boot 工程增强**：接入 Actuator、Validation、全局异常处理、AOP 耗时日志、操作日志脱敏和 Docker healthcheck
+- **前端性能优化**：路由懒加载、Vite manualChunks 拆包、Logo 资源压缩、Nginx gzip 与静态资源缓存
 - **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2 和前端类型检查覆盖核心链路
 - **GitHub Actions CI**：推送或 PR 时自动运行后端测试和前端构建
 
@@ -50,6 +56,10 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 
 | 版本 | 日期 | 更新内容 |
 | --- | --- | --- |
+| v1.3.1 | 2026-05-22 | 根据 `44-ai-report-pdf-export-and-frontend-performance-design.md` 完成 AI 报告 PDF 导出、打印页、前端路由懒加载、Vite 拆包、Logo 资源优化和 Nginx gzip / 缓存配置 |
+| v1.3.0 | 2026-05-22 | 根据 `43-spring-boot-engineering-enhancement-design.md` 完成 Actuator、参数校验、全局异常处理、AOP 耗时日志、操作日志脱敏、Redis key 规范、定时清理和 Docker healthcheck |
+| v1.2.0 | 2026-05-21 | 根据 `42-ai-model-router-and-prompt-optimization-design.md` 完成 AI 场景枚举、模型路由、Prompt 模板版本管理、AI JSON 清洗、缓存 key 优化、重试与 fallback |
+| v1.1.0 | 2026-05-21 | 根据 `41-project-architecture-review-and-interview-preparation.md` 完成架构复盘、答辩材料、面试问答和 Release 前项目包装 |
 | v1.0.0 | 2026-05-20 | 根据 `40-final-acceptance-release-and-deployment.md` 完成最终验收、发布收尾、README 更新、Docker 部署说明、数据库迁移说明和安全检查 |
 | v0.7.0 | 2026-05-20 | 根据 `39-ai-task-center-and-feedback-design.md` 完成 AI 任务中心、右下角结果提醒、用户反馈入口和管理员反馈管理 |
 | v0.6.0 | 2026-05-20 | 根据 `38-frontend-ui-polish-and-user-experience-design.md` 完成前端 UI 统一、管理员独立后台、多端适配和品牌图标替换 |
@@ -84,6 +94,8 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 ### AI 分析报告
 
 ![AI 分析报告](docs/assets/screenshots/06-analysis-report.png)
+
+AI 分析报告支持独立打印页 `/analysis/reports/{id}/print`，可通过浏览器打印或保存为 PDF。打印页复用报告详情接口，不展示侧边栏、顶部导航、AI 任务中心和反馈按钮。
 
 ### AI 面试题列表
 
@@ -564,6 +576,8 @@ CI 执行内容：
 
 项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端 Nginx 四个服务，可一键启动。
 
+当前线上演示版本为 `v1.3.1`，部署在 `http://43.136.182.179`。生产环境 `.env` 只保留在服务器，不提交到 GitHub 或 Gitee。
+
 **前置要求：**
 
 - [Docker](https://docs.docker.com/get-docker/) 20.10+
@@ -636,7 +650,26 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        try_files /index.html =404;
+    }
+
+    location /assets/ {
+        access_log off;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ /index.html;
     }
 
@@ -763,7 +796,7 @@ git push gitee dev
 - 面试题收藏与刷题记录
 - AI 评分与多轮模拟面试
 - RAG 向量检索引擎替换
-- AI 调用日志和失败重试
+- AI 调用日志后台与质量分析
 - 前端分包优化
 - 线上演示和 CI/CD
 
