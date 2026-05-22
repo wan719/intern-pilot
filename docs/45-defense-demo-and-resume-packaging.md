@@ -798,7 +798,7 @@ InternPilot 智能实习领航员｜AI 实习投递与简历优化平台
 ## 11.3 简历技术栈
 
 ```text
-Spring Boot、Spring Security、JWT、MyBatis、MySQL、Redis、WebSocket、DeepSeek API、Vue3、Vite、Pinia、Element Plus、Docker、Nginx
+Spring Boot、Spring Security、JWT、MyBatis-Plus、MySQL、Redis、WebSocket、DeepSeek API、Vue3、Vite、Pinia、Element Plus、Docker、Nginx
 ```
 
 ---
