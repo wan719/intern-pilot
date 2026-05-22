@@ -153,7 +153,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
-import * as echarts from 'echarts'
+import { LineChart, PieChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { init, use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
 import {
   Briefcase,
   CircleCheckFilled,
@@ -184,6 +187,8 @@ const applications = ref<any[]>([])
 const loading = ref(false)
 const statusChartRef = ref<HTMLDivElement>()
 const scoreChartRef = ref<HTMLDivElement>()
+
+use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '同学')
 const greeting = computed(() => {
@@ -247,7 +252,7 @@ async function loadDashboard() {
 
 function renderCharts() {
   if (statusChartRef.value && applications.value.length) {
-    echarts.init(statusChartRef.value).setOption({
+    init(statusChartRef.value).setOption({
       color: ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#64748b'],
       tooltip: { trigger: 'item' },
       series: [
@@ -266,7 +271,7 @@ function renderCharts() {
 
   if (scoreChartRef.value && reports.value.length) {
     const data = reports.value.slice(0, 8).reverse()
-    echarts.init(scoreChartRef.value).setOption({
+    init(scoreChartRef.value).setOption({
       color: ['#2563eb'],
       tooltip: { trigger: 'axis' },
       grid: { left: 36, right: 16, top: 24, bottom: 48 },
