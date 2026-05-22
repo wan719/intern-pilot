@@ -99,7 +99,7 @@ import {
   QuestionFilled,
   Tickets
 } from '@element-plus/icons-vue'
-import brandLogo from '@/assets/brand-logo.png'
+import brandLogo from '@/assets/brand-logo-optimized.png'
 
 const route = useRoute()
 const router = useRouter()

@@ -61,7 +61,7 @@ import { Briefcase, Document, List, Lock, MagicStick, Message } from '@element-p
 import { useRouter } from 'vue-router'
 import { loginApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
-import brandLogo from '@/assets/brand-logo.png'
+import brandLogo from '@/assets/brand-logo-optimized.png'
 
 const router = useRouter()
 const auth = useAuthStore()

@@ -67,7 +67,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Avatar, ChatDotRound, DataBoard, Lock, Memo, Refresh, Tickets, User } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
-import brandLogo from '@/assets/brand-logo.png'
+import brandLogo from '@/assets/brand-logo-optimized.png'
 
 const route = useRoute()
 const router = useRouter()
