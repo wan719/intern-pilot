@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 const routes = [
   { path: '/login', component: () => import('@/views/auth/Login.vue'), meta: { public: true } },
   { path: '/register', component: () => import('@/views/auth/Register.vue'), meta: { public: true } },
+  { path: '/analysis/reports/:id/print', component: () => import('@/views/analysis/AnalysisReportPrint.vue'), meta: { title: '打印分析报告' } },
   { path: '/403', component: () => import('@/views/error/Forbidden.vue'), meta: { public: true, title: '无权限' } },
   {
     path: '/',

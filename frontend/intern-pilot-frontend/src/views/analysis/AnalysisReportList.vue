@@ -80,6 +80,7 @@
         </div>
 
         <div class="report-actions">
+          <el-button :icon="Printer" @click="openPrintPage(item.reportId)">导出 PDF</el-button>
           <el-button type="primary" @click="openDetail(item.reportId)">查看详情</el-button>
           <el-button @click="goInterviewQuestions(item)">生成面试题</el-button>
           <el-button
@@ -132,6 +133,7 @@
           </div>
           <p>{{ conclusionText(detail) }}</p>
           <div class="detail-actions">
+            <el-button :icon="Printer" @click="openPrintPage(detail.reportId)">导出 PDF</el-button>
             <el-button type="primary" :icon="MagicStick" @click="router.push('/interview-questions')">生成面试题</el-button>
             <el-button @click="router.push('/analysis/match')">重新分析</el-button>
           </div>
@@ -197,7 +199,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { CircleCheck, Clock, Files, MagicStick, TrendCharts } from '@element-plus/icons-vue'
+import { CircleCheck, Clock, Files, MagicStick, Printer, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -329,6 +331,11 @@ function applyScoreFilter(value: string) {
 
 function goInterviewQuestions(row: any) {
   router.push(`/interview-questions?reportId=${row.reportId}`)
+}
+
+function openPrintPage(reportId: number) {
+  const href = router.resolve(`/analysis/reports/${reportId}/print`).href
+  window.open(href, '_blank', 'noopener,noreferrer')
 }
 
 function normalizedScore(value?: number) {
