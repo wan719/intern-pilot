@@ -32,7 +32,9 @@ file:
 
 auth:
   captcha:
-    mode: mock
+    mode: real
+    email-provider: smtp
+    sms-provider: disabled
 
 ai:
   base-url: ${AI_BASE_URL:https://api.deepseek.com}

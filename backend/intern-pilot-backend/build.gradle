@@ -69,4 +69,36 @@ tasks.named('test') {
 
 tasks.named('bootRun') {
 	jvmArgs = ['-Xms128m', '-Xmx256m', '-XX:MaxMetaspaceSize=128m']
+	doFirst {
+		[
+				file('.env'),
+				file('../../deploy/.env')
+		].findAll { it.exists() }.each { envFile ->
+			envFile.readLines('UTF-8').each { line ->
+				def trimmed = line.trim()
+				if (!trimmed || trimmed.startsWith('#') || !trimmed.contains('=')) {
+					return
+				}
+				def parts = trimmed.split('=', 2)
+				def key = parts[0].trim()
+				def value = parts.length > 1 ? parts[1].trim() : ''
+				if (!key || key == 'SPRING_PROFILES_ACTIVE' || System.getenv(key) != null) {
+					return
+				}
+				if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+					value = value.substring(1, value.length() - 1)
+				}
+				if (key == 'AI_PROVIDER' && value.equalsIgnoreCase('mock')) {
+					return
+				}
+				if (envFile.name == '.env' && envFile.parentFile.name == 'deploy' && key == 'REDIS_PASSWORD') {
+					return
+				}
+				environment key, value
+			}
+		}
+		if (System.getenv('SPRING_PROFILES_ACTIVE') == null) {
+			environment 'SPRING_PROFILES_ACTIVE', 'dev'
+		}
+	}
 }
