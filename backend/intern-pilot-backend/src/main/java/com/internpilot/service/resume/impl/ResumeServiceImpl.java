@@ -209,7 +209,7 @@ public class ResumeServiceImpl implements ResumeService {
         ResumeVersion version = new ResumeVersion();
         version.setUserId(resume.getUserId());
         version.setResumeId(resume.getId());
-        version.setVersionName("鍘熷鐗堟湰");
+        version.setVersionName("原始版本");
         version.setVersionType(ResumeVersionTypeEnum.ORIGINAL.getCode());
         version.setContent(parsedText == null ? "" : parsedText);
         version.setContentSummary(buildPreview(parsedText));

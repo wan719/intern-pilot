@@ -238,7 +238,7 @@ async function openDetail(row: any) {
 async function openEdit(row: any) {
   const current: any = await getResumeVersionDetailApi(resumeId, row.versionId)
   editingVersionId.value = row.versionId
-  editForm.versionName = current.versionName
+  editForm.versionName = displayVersionName(current)
   editForm.versionType = current.versionType
   editForm.content = current.content
   editVisible.value = true

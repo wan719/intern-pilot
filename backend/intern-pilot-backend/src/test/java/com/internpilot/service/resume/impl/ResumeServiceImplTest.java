@@ -100,6 +100,10 @@ class ResumeServiceImplTest {
         ArgumentCaptor<Resume> captor = ArgumentCaptor.forClass(Resume.class);
         verify(resumeMapper).insert(captor.capture());
         assertEquals(1, captor.getValue().getIsDefault());
+
+        ArgumentCaptor<ResumeVersion> versionCaptor = ArgumentCaptor.forClass(ResumeVersion.class);
+        verify(resumeVersionMapper).insert(versionCaptor.capture());
+        assertEquals("原始版本", versionCaptor.getValue().getVersionName());
     }
 
     @Test
