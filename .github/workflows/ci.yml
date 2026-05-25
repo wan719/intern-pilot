@@ -33,7 +33,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run backend tests
-        run: ./gradlew clean test --no-daemon
+        run: ./gradlew clean test jacocoTestReport --no-daemon
+
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-report
+          path: backend/intern-pilot-backend/build/reports/jacoco/test/html
+          if-no-files-found: error
 
   frontend-build:
     name: Frontend Build
