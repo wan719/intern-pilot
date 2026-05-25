@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.3.5'
 	id 'io.spring.dependency-management' version '1.1.6'
+	id 'jacoco'
 }
 
 group = 'com.internpilot'
@@ -61,9 +62,23 @@ tasks.named('test') {
 	forkEvery = 0
 	jvmArgs = ['-Dfile.encoding=UTF-8', '-Dsun.jnu.encoding=UTF-8']
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
 	testLogging {
 		events "failed", "skipped"
 		exceptionFormat "full"
+	}
+}
+
+jacoco {
+	toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
 	}
 }
 
