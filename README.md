@@ -3,6 +3,8 @@
 ![CI](https://github.com/wan719/intern-pilot/actions/workflows/ci.yml/badge.svg)
 ![Docker Build](https://github.com/wan719/intern-pilot/actions/workflows/docker-build.yml/badge.svg)
 
+[English README](README_EN.md) | [演示视频脚本与评分证据](docs/47-demo-video-and-scoring-evidence.md)
+
 > 面向大学生实习求职场景的 AI 简历优化、岗位匹配、面试准备与投递管理平台
 
 InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。系统支持简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 实时进度展示、AI 任务中心、AI 面试题生成、岗位推荐、投递记录、用户反馈、RAG 岗位知识库、RBAC 权限管理和管理员后台。
@@ -534,6 +536,19 @@ cd backend/intern-pilot-backend
 .\gradlew.bat test --no-daemon --max-workers=1
 ```
 
+生成 JaCoCo 覆盖率报告：
+
+```powershell
+.\gradlew.bat test jacocoTestReport --no-daemon --max-workers=1
+```
+
+报告路径：
+
+```text
+backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html
+backend/intern-pilot-backend/build/reports/jacoco/test/jacocoTestReport.xml
+```
+
 单独运行某个测试类：
 
 ```powershell
@@ -675,6 +690,13 @@ server {
 
     location /api/ {
         proxy_pass http://backend:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /actuator/ {
+        proxy_pass http://backend:8080/actuator/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -883,3 +905,18 @@ docker compose -f deploy/docker-compose.yml logs -f frontend
 docker compose -f deploy/docker-compose.yml logs --tail=200 mysql
 docker compose -f deploy/docker-compose.yml logs --tail=200 redis
 ```
+
+## 评分与答辩证据
+
+本项目按课程最终评分维度整理了可展示证据，方便答辩和仓库检查：
+
+| 评分项 | 项目证据 |
+| --- | --- |
+| 功能完整性 | 登录注册、简历管理、岗位管理、AI 分析、岗位推荐、面试题、RAG、任务中心、PDF 导出、用户反馈、管理员后台 |
+| 技术实现 | Spring Boot、Gradle、Swagger/Knife4j、MyBatis-Plus、Redis、WebSocket、DeepSeek、Actuator、Docker、JaCoCo |
+| Git 提交历史 | `main / dev / feature/*` 分支模型、110+ 次提交、`v1.0.0` 到 `v1.3.1` tag、GitHub Release |
+| README 文档 | 中文 README、[English README](README_EN.md)、架构图、10 张截图、快速开始、测试与部署说明 |
+| 创新与实用性 | AI 模型路由、Prompt 版本管理、RAG 检索增强、AI 任务中心、报告 PDF 导出、AI 调用重试与 fallback |
+| 加分项 | 在线部署、英文 README、演示视频脚本、Docker Compose、GitHub Actions CI |
+
+演示视频录制路线和评分证据见：[docs/47-demo-video-and-scoring-evidence.md](docs/47-demo-video-and-scoring-evidence.md)。录制完成后，可将视频放入 `docs/assets/demo/` 或上传到 Release / 课程平台，并在 README 顶部补充正式视频链接。
