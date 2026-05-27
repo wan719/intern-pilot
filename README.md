@@ -5,7 +5,7 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- 演示视频：[InternPilot v1.3.1 功能演示](docs/assets/demo/internpilot-v1.3.1-demo.mp4)
+- 演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)
 
 
 ---

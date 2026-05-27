@@ -5,7 +5,7 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- Demo Video: [InternPilot v1.3.1 Feature Demo](docs/assets/demo/internpilot-v1.3.1-demo.mp4)
+- 演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)
 
 ---
 > An AI-powered resume optimization, job matching, interview preparation, and application management platform for college students seeking internships.
