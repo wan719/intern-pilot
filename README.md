@@ -3,8 +3,12 @@
 ![CI](https://github.com/wan719/intern-pilot/actions/workflows/ci.yml/badge.svg)
 ![Docker Build](https://github.com/wan719/intern-pilot/actions/workflows/docker-build.yml/badge.svg)
 
-[English README](README_EN.md) | [演示视频脚本与评分证据](docs/47-demo-video-and-scoring-evidence.md)
+[中文简体 README](README.md) | [English README](README_EN.md)
 
+- 演示视频：[InternPilot v1.3.1 功能演示](docs/assets/demo/internpilot-v1.3.1-demo.mp4)
+
+
+---
 > 面向大学生实习求职场景的 AI 简历优化、岗位匹配、面试准备与投递管理平台
 
 InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。系统支持简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 实时进度展示、AI 任务中心、AI 面试题生成、岗位推荐、投递记录、用户反馈、RAG 岗位知识库、RBAC 权限管理和管理员后台。
@@ -43,7 +47,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 - **产品级前端体验**：用户工作台与管理员后台分离，统一页面标题、卡片布局、空状态、loading、错误提示、删除确认和多端适配
 - **Spring Boot 工程增强**：接入 Actuator、Validation、全局异常处理、AOP 耗时日志、操作日志脱敏和 Docker healthcheck
 - **前端性能优化**：路由懒加载、Vite manualChunks 拆包、Logo 资源压缩、Nginx gzip 与静态资源缓存
-- **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2 和前端类型检查覆盖核心链路
+- **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2、JaCoCo 和前端类型检查覆盖核心链路
 - **GitHub Actions CI**：推送或 PR 时自动运行后端测试和前端构建
 
 ### 适用人群
@@ -527,6 +531,22 @@ erDiagram
 | 前端验证 | `vue-tsc` 类型检查、Vite 构建 |
 | CI | GitHub Actions 自动执行后端测试和前端构建 |
 
+### 当前覆盖率与测试规模
+
+最近一次本地执行 `.\gradlew.bat test jacocoTestReport --no-daemon --max-workers=1` 通过，当前后端测试规模与 JaCoCo 覆盖率如下：
+
+| 指标 | 当前结果 |
+| --- | ---: |
+| 测试文件 | 54 个 |
+| `@Test` 用例 | 296 个 |
+| Instruction Coverage | 91.85% |
+| Line Coverage | 91.86% |
+| Method Coverage | 92.76% |
+| Branch Coverage | 70.48% |
+| Class Coverage | 97.37% |
+
+JaCoCo HTML 报告生成后可在 `backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html` 查看。
+
 ### 本地验收命令
 
 后端完整测试：
@@ -789,38 +809,14 @@ git pull origin dev
 git push gitee dev
 ```
 
-## Gitee 最终提交说明
-
-课程最终提交内容：
-
-| 内容 | 说明 |
-| --- | --- |
-| Gitee 仓库完整 URL | `https://gitee.com/li-hong2006/intern-pilot` |
-| 项目名称 | InternPilot 智能实习领航员 |
-| 团队成员及分工 | wan719，独立完成项目选题、需求分析、前后端开发、数据库设计、AI 接入、测试和 README 编写 |
-
-提交前检查清单：
-
-- [ ] Gitee 仓库公开可访问
-- [ ] `main` 分支是最新稳定代码
-- [ ] README 在 Gitee 上显示正常
-- [ ] README 中截图路径正常
-- [ ] README 中启动方式准确
-- [ ] README 不公开默认账号密码或管理员明文密码
-- [ ] 后端测试通过
-- [ ] 前端构建通过
-- [ ] 没有真实 API Key 泄露
-- [ ] 没有邮箱 SMTP 授权码泄露
-- [ ] 没有 `.env`、`node_modules`、`dist`、`build` 被提交
-
 ## 后续规划
 
 - 面试题收藏与刷题记录
 - AI 评分与多轮模拟面试
 - RAG 向量检索引擎替换
 - AI 调用日志后台与质量分析
-- 前端分包优化
-- 线上演示和 CI/CD
+- 更细粒度的前端首屏加载指标采集
+- 更完善的自动化端到端回归测试
 
 ## 贡献指南
 
@@ -850,6 +846,7 @@ git push gitee dev
 - 作者：wan719
 - 问题反馈：请通过 [GitHub Issues](https://github.com/wan719/intern-pilot/issues) 提交缺陷、建议或使用问题
 - Gitee：作为同步展示仓库，可用于国内访问和项目展示
+
 ## 运维与健康检查
 
 后端已接入 Spring Boot Actuator，默认健康检查地址：
@@ -913,10 +910,8 @@ docker compose -f deploy/docker-compose.yml logs --tail=200 redis
 | 评分项 | 项目证据 |
 | --- | --- |
 | 功能完整性 | 登录注册、简历管理、岗位管理、AI 分析、岗位推荐、面试题、RAG、任务中心、PDF 导出、用户反馈、管理员后台 |
-| 技术实现 | Spring Boot、Gradle、Swagger/Knife4j、MyBatis-Plus、Redis、WebSocket、DeepSeek、Actuator、Docker、JaCoCo |
+| 技术实现 | Spring Boot、Gradle、Swagger/Knife4j、MyBatis-Plus、Redis、WebSocket、DeepSeek、Actuator、Docker、JaCoCo；后端当前 296 个 `@Test`，Line Coverage 91.86%，Branch Coverage 70.48% |
 | Git 提交历史 | `main / dev / feature/*` 分支模型、110+ 次提交、`v1.0.0` 到 `v1.3.1` tag、GitHub Release |
 | README 文档 | 中文 README、[English README](README_EN.md)、架构图、10 张截图、快速开始、测试与部署说明 |
 | 创新与实用性 | AI 模型路由、Prompt 版本管理、RAG 检索增强、AI 任务中心、报告 PDF 导出、AI 调用重试与 fallback |
-| 加分项 | 在线部署、英文 README、演示视频脚本、Docker Compose、GitHub Actions CI |
-
-演示视频录制路线和评分证据见：[docs/47-demo-video-and-scoring-evidence.md](docs/47-demo-video-and-scoring-evidence.md)。录制完成后，可将视频放入 `docs/assets/demo/` 或上传到 Release / 课程平台，并在 README 顶部补充正式视频链接。
+| 加分项 | 在线部署、英文 README、演示视频、Docker Compose、GitHub Actions CI |
