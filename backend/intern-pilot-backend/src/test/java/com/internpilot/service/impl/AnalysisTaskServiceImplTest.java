@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -221,6 +222,194 @@ class AnalysisTaskServiceImplTest {
                 eq(99L),
                 eq(null)
         );
+    }
+
+    @Test
+    void createTaskShouldStoreResumeVersionAndForceRefreshFlag() {
+        mockLoginUser(1L);
+
+        AnalysisTaskCreateRequest request = new AnalysisTaskCreateRequest();
+        request.setResumeId(10L);
+        request.setResumeVersionId(11L);
+        request.setJobId(20L);
+        request.setForceRefresh(true);
+
+        doAnswer(invocation -> {
+            AnalysisTask task = invocation.getArgument(0);
+            task.setId(7L);
+            return 1;
+        }).when(analysisTaskMapper).insert(any(AnalysisTask.class));
+        doAnswer(invocation -> null).when(analysisTaskExecutor).execute(any(Runnable.class));
+
+        var response = taskService.createTask(request);
+
+        assertEquals(7L, response.getTaskId());
+        ArgumentCaptor<AnalysisTask> taskCaptor = ArgumentCaptor.forClass(AnalysisTask.class);
+        verify(analysisTaskMapper).insert(taskCaptor.capture());
+        AnalysisTask saved = taskCaptor.getValue();
+        assertEquals(11L, saved.getResumeVersionId());
+        assertEquals(1, saved.getForceRefresh());
+    }
+
+    @Test
+    void createTaskShouldGenerateReportAndThenCompleteWhenCacheMiss() {
+        mockLoginUser(1L);
+
+        AnalysisTaskCreateRequest request = new AnalysisTaskCreateRequest();
+        request.setResumeId(10L);
+        request.setResumeVersionId(12L);
+        request.setJobId(20L);
+        request.setForceRefresh(true);
+
+        doAnswer(invocation -> {
+            AnalysisTask task = invocation.getArgument(0);
+            task.setId(1L);
+            return 1;
+        }).when(analysisTaskMapper).insert(any(AnalysisTask.class));
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(analysisTaskExecutor).execute(any(Runnable.class));
+
+        AnalysisTask task = buildTask("TASK_002", 1L, AnalysisTaskStatusEnum.PENDING.getCode(), 0);
+        task.setResumeVersionId(12L);
+        task.setForceRefresh(1);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(task);
+
+        AnalysisResultResponse result = new AnalysisResultResponse();
+        result.setReportId(88L);
+        result.setCacheHit(false);
+        when(analysisService.matchForUser(any(), eq(1L))).thenReturn(result);
+
+        taskService.createTask(request);
+
+        ArgumentCaptor<AnalysisTask> updateCaptor = ArgumentCaptor.forClass(AnalysisTask.class);
+        verify(analysisTaskMapper, org.mockito.Mockito.atLeastOnce()).updateById(updateCaptor.capture());
+        assertTrue(updateCaptor.getAllValues().stream()
+                .anyMatch(update -> AnalysisTaskStatusEnum.GENERATING_REPORT.getCode().equals(update.getStatus())
+                        && Long.valueOf(88L).equals(update.getReportId())));
+        assertTrue(updateCaptor.getAllValues().stream()
+                .anyMatch(update -> AnalysisTaskStatusEnum.COMPLETED.getCode().equals(update.getStatus())
+                        && Long.valueOf(88L).equals(update.getReportId())));
+
+        ArgumentCaptor<com.internpilot.dto.analysis.AnalysisMatchRequest> requestCaptor =
+                ArgumentCaptor.forClass(com.internpilot.dto.analysis.AnalysisMatchRequest.class);
+        verify(analysisService).matchForUser(requestCaptor.capture(), eq(1L));
+        assertEquals(12L, requestCaptor.getValue().getResumeVersionId());
+        assertTrue(requestCaptor.getValue().getForceRefresh());
+    }
+
+    @Test
+    void createTaskShouldMarkTaskFailedWhenAnalysisThrows() {
+        mockLoginUser(1L);
+
+        AnalysisTaskCreateRequest request = new AnalysisTaskCreateRequest();
+        request.setResumeId(10L);
+        request.setJobId(20L);
+
+        doAnswer(invocation -> {
+            AnalysisTask task = invocation.getArgument(0);
+            task.setId(1L);
+            return 1;
+        }).when(analysisTaskMapper).insert(any(AnalysisTask.class));
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(analysisTaskExecutor).execute(any(Runnable.class));
+
+        AnalysisTask task = buildTask("TASK_003", 1L, AnalysisTaskStatusEnum.PENDING.getCode(), null);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(task);
+        when(analysisService.matchForUser(any(), eq(1L))).thenThrow(new RuntimeException("AI timeout"));
+
+        taskService.createTask(request);
+
+        ArgumentCaptor<AnalysisTask> updateCaptor = ArgumentCaptor.forClass(AnalysisTask.class);
+        verify(analysisTaskMapper, org.mockito.Mockito.atLeastOnce()).updateById(updateCaptor.capture());
+        assertTrue(updateCaptor.getAllValues().stream()
+                .anyMatch(update -> AnalysisTaskStatusEnum.FAILED.getCode().equals(update.getStatus())
+                        && "AI timeout".equals(update.getErrorMessage())));
+    }
+
+    @Test
+    void createTaskShouldStopWhenCancelledBeforeFirstProgress() {
+        mockLoginUser(1L);
+
+        AnalysisTaskCreateRequest request = new AnalysisTaskCreateRequest();
+        request.setResumeId(10L);
+        request.setJobId(20L);
+
+        doAnswer(invocation -> {
+            AnalysisTask task = invocation.getArgument(0);
+            task.setId(1L);
+            return 1;
+        }).when(analysisTaskMapper).insert(any(AnalysisTask.class));
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(analysisTaskExecutor).execute(any(Runnable.class));
+
+        AnalysisTask pending = buildTask("TASK_004", 1L, AnalysisTaskStatusEnum.PENDING.getCode(), 0);
+        AnalysisTask cancelled = buildTask("TASK_004", 1L, AnalysisTaskStatusEnum.CANCELLED.getCode(), 100);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(pending, cancelled);
+
+        taskService.createTask(request);
+
+        verify(analysisTaskMapper, never()).updateById(any(AnalysisTask.class));
+        verify(analysisService, never()).matchForUser(any(), anyLong());
+    }
+
+    @Test
+    void cancelTaskShouldUpdateNonTerminalTaskAndPublish() {
+        mockLoginUser(1L);
+        AnalysisTask running = buildTask("TASK_CANCEL", 1L, AnalysisTaskStatusEnum.CALLING_AI.getCode(), 60);
+        running.setReportId(55L);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(running);
+
+        AnalysisTaskDetailResponse detail = taskService.cancelTask("TASK_CANCEL");
+
+        assertEquals(AnalysisTaskStatusEnum.CANCELLED.getCode(), detail.getStatus());
+        assertEquals(AnalysisTaskStatusEnum.CANCELLED.getDefaultProgress(), detail.getProgress());
+        ArgumentCaptor<AnalysisTask> updateCaptor = ArgumentCaptor.forClass(AnalysisTask.class);
+        verify(analysisTaskMapper).updateById(updateCaptor.capture());
+        assertEquals(AnalysisTaskStatusEnum.CANCELLED.getCode(), updateCaptor.getValue().getStatus());
+        verify(progressPublisher).publish(eq("TASK_CANCEL"), eq(1L),
+                eq(AnalysisTaskStatusEnum.CANCELLED.getCode()),
+                eq(AnalysisTaskStatusEnum.CANCELLED.getDefaultProgress()),
+                anyString(), eq(55L), eq(null));
+    }
+
+    @Test
+    void cancelTaskShouldRejectMissingAndTerminalTasks() {
+        mockLoginUser(1L);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        assertThrows(BusinessException.class, () -> taskService.cancelTask("TASK_MISSING"));
+
+        AnalysisTask completed = buildTask("TASK_DONE", 1L, AnalysisTaskStatusEnum.COMPLETED.getCode(), 100);
+        when(analysisTaskMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(completed);
+        assertThrows(BusinessException.class, () -> taskService.cancelTask("TASK_DONE"));
+        verify(analysisTaskMapper, never()).updateById(any(AnalysisTask.class));
+    }
+
+    @Test
+    void listRunningAndRecentTasksShouldUseDefaultLimitAndMapDetails() {
+        mockLoginUser(1L);
+        AnalysisTask running = buildTask("TASK_RUNNING", 1L, AnalysisTaskStatusEnum.BUILDING_CONTEXT.getCode(), 35);
+        AnalysisTask recent = buildTask("TASK_RECENT", 1L, AnalysisTaskStatusEnum.COMPLETED.getCode(), 100);
+        when(analysisTaskMapper.selectList(any(LambdaQueryWrapper.class)))
+                .thenReturn(java.util.List.of(running))
+                .thenReturn(java.util.List.of(recent));
+
+        var runningTasks = taskService.listRunningTasks();
+        var recentTasks = taskService.listRecentTasks(0);
+
+        assertEquals(1, runningTasks.size());
+        assertEquals("TASK_RUNNING", runningTasks.get(0).getTaskNo());
+        assertEquals(1, recentTasks.size());
+        assertEquals("TASK_RECENT", recentTasks.get(0).getTaskNo());
+        verify(analysisTaskMapper, times(2)).selectList(any(LambdaQueryWrapper.class));
     }
 
     private void mockLoginUser(Long userId) {

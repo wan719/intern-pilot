@@ -13,15 +13,21 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +47,7 @@ class OperationLogAspectTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+        RequestContextHolder.resetRequestAttributes();
     }
 
     @Test
@@ -128,7 +135,95 @@ class OperationLogAspectTest {
         assertEquals("wan", log.getOperatorUsername());
     }
 
+    @Test
+    void shouldInferUsernameFromArgsWhenSecurityContextMissing() throws Throwable {
+        OperationLog operationLog = createMockOperationLog("auth", "login", OperationTypeEnum.LOGIN);
+        LoginCommand command = new LoginCommand("guest", "secret");
+
+        when(joinPoint.proceed()).thenReturn("ok");
+        when(joinPoint.getArgs()).thenReturn(new Object[]{command});
+
+        Object result = operationLogAspect.recordOperationLog(joinPoint, operationLog);
+
+        assertEquals("ok", result);
+        ArgumentCaptor<SystemOperationLog> captor = ArgumentCaptor.forClass(SystemOperationLog.class);
+        verify(systemOperationLogMapper).insert(captor.capture());
+        assertEquals("guest", captor.getValue().getOperatorUsername());
+    }
+
+    @Test
+    void shouldCaptureRequestMetadataAndMaskSensitiveParameters() throws Throwable {
+        mockLoginUser(9L, "auditor");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/admin/users");
+        request.addHeader("X-Forwarded-For", "10.0.0.1, 10.0.0.2");
+        request.addHeader("User-Agent", "JUnit");
+        request.addParameter("password", "plain-password");
+        request.addParameter("keyword", "normal");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        OperationLog operationLog = createMockOperationLog("admin", "update", OperationTypeEnum.UPDATE);
+        LoginCommand command = new LoginCommand("target", "secret-value");
+        when(joinPoint.proceed()).thenReturn("done");
+        when(joinPoint.getArgs()).thenReturn(new Object[]{command});
+
+        operationLogAspect.recordOperationLog(joinPoint, operationLog);
+
+        ArgumentCaptor<SystemOperationLog> captor = ArgumentCaptor.forClass(SystemOperationLog.class);
+        verify(systemOperationLogMapper).insert(captor.capture());
+        SystemOperationLog log = captor.getValue();
+        assertEquals("/api/admin/users", log.getRequestUri());
+        assertEquals("POST", log.getRequestMethod());
+        assertEquals("10.0.0.1", log.getIpAddress());
+        assertEquals("JUnit", log.getUserAgent());
+        assertTrue(log.getRequestParams().contains("[MASKED]"));
+        assertTrue(log.getRequestParams().contains("normal"));
+        assertFalse(log.getRequestParams().contains("plain-password"));
+        assertFalse(log.getRequestParams().contains("secret-value"));
+    }
+
+    @Test
+    void shouldUseStringPrincipalAndXRealIpWhenAvailable() throws Throwable {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("operator", null, List.of())
+        );
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/logs");
+        request.addHeader("X-Real-IP", "192.168.1.10");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        OperationLog operationLog = createMockOperationLog("logs", "list", OperationTypeEnum.QUERY, false);
+        when(joinPoint.proceed()).thenReturn("ok");
+        when(joinPoint.getArgs()).thenReturn(new Object[0]);
+
+        operationLogAspect.recordOperationLog(joinPoint, operationLog);
+
+        ArgumentCaptor<SystemOperationLog> captor = ArgumentCaptor.forClass(SystemOperationLog.class);
+        verify(systemOperationLogMapper).insert(captor.capture());
+        SystemOperationLog log = captor.getValue();
+        assertEquals("operator", log.getOperatorUsername());
+        assertEquals("192.168.1.10", log.getIpAddress());
+        assertEquals("/api/logs", log.getRequestUri());
+        assertEquals(null, log.getRequestParams());
+    }
+
+    @Test
+    void shouldNotBreakBusinessResultWhenPersistingLogFails() throws Throwable {
+        mockLoginUser(3L, "admin");
+        OperationLog operationLog = createMockOperationLog("admin", "delete", OperationTypeEnum.DELETE);
+
+        when(joinPoint.proceed()).thenReturn("business-result");
+        when(joinPoint.getArgs()).thenReturn(new Object[0]);
+        doThrow(new RuntimeException("insert failed")).when(systemOperationLogMapper).insert(any(SystemOperationLog.class));
+
+        Object result = operationLogAspect.recordOperationLog(joinPoint, operationLog);
+
+        assertEquals("business-result", result);
+    }
+
     private OperationLog createMockOperationLog(String module, String operation, OperationTypeEnum type) {
+        return createMockOperationLog(module, operation, type, true);
+    }
+
+    private OperationLog createMockOperationLog(String module, String operation, OperationTypeEnum type, boolean recordParams) {
         return new OperationLog() {
             @Override
             public Class<? extends java.lang.annotation.Annotation> annotationType() {
@@ -152,7 +247,7 @@ class OperationLogAspectTest {
 
             @Override
             public boolean recordParams() {
-                return true;
+                return recordParams;
             }
         };
     }
@@ -163,5 +258,23 @@ class OperationLogAspectTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities())
         );
+    }
+
+    private static class LoginCommand {
+        private final String username;
+        private final String password;
+
+        private LoginCommand(String username, String password) {
+            this.username = username;
+            this.password = password;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
     }
 }
