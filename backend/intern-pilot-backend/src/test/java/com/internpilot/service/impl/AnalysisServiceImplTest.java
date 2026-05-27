@@ -15,6 +15,7 @@ import com.internpilot.dto.analysis.AnalysisMatchRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.JobDescription;
 import com.internpilot.entity.Resume;
+import com.internpilot.entity.ResumeVersion;
 import com.internpilot.exception.AiServiceException;
 import com.internpilot.mapper.AnalysisReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
@@ -26,6 +27,7 @@ import com.internpilot.service.rag.RagKnowledgeService;
 import com.internpilot.vo.analysis.AnalysisReportDetailResponse;
 import com.internpilot.vo.analysis.AnalysisReportListResponse;
 import com.internpilot.vo.analysis.AnalysisResultResponse;
+import com.internpilot.vo.rag.RagSearchResultResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +40,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -145,6 +149,34 @@ class AnalysisServiceImplTest {
     }
 
     @Test
+    void matchShouldConvertCachedMapAndSkipAi() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+
+        Map<String, Object> cached = new HashMap<>();
+        cached.put("reportId", 101L);
+        cached.put("resumeId", 1L);
+        cached.put("jobId", 2L);
+        cached.put("matchScore", 91);
+        cached.put("matchLevel", "HIGH");
+        cached.put("strengths", List.of("cached"));
+        when(valueOperations.get(anyString())).thenReturn(cached);
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertEquals(101L, response.getReportId());
+        assertEquals(91, response.getMatchScore());
+        assertTrue(response.getCacheHit());
+        verify(aiClient, never()).chat(any(AiChatRequest.class));
+    }
+
+    @Test
     void matchShouldCallAiAndPersistReport() {
         mockLoginUser(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -180,6 +212,77 @@ class AnalysisServiceImplTest {
         assertEquals(82, response.getMatchScore());
         assertFalse(response.getCacheHit());
         verify(valueOperations).set(anyString(), any(AnalysisResultResponse.class), any());
+    }
+
+    @Test
+    void matchShouldSkipCacheReadWhenForceRefreshAndUseRagContext() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJobWithType());
+        when(ragKnowledgeService.search(any())).thenReturn(List.of(buildRagResult()));
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("""
+                {
+                  "matchScore": 120,
+                  "matchLevel": "",
+                  "strengths": "not-array"
+                }
+                """);
+        doAnswer(invocation -> {
+            AnalysisReport report = invocation.getArgument(0);
+            report.setId(120L);
+            report.setCreatedAt(LocalDateTime.now());
+            return 1;
+        }).when(analysisReportMapper).insert(any(AnalysisReport.class));
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+        request.setForceRefresh(true);
+
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertEquals(120L, response.getReportId());
+        assertEquals(100, response.getMatchScore());
+        assertEquals("HIGH", response.getMatchLevel());
+        verify(valueOperations, never()).get(anyString());
+        verify(valueOperations).set(anyString(), any(AnalysisResultResponse.class), any());
+    }
+
+    @Test
+    void matchShouldUseExplicitResumeVersionAndNormalizeLowScore() {
+        mockLoginUser(1L);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        when(resumeVersionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildVersion());
+        when(aiClient.chat(any(AiChatRequest.class))).thenReturn("""
+                {
+                  "matchScore": -10,
+                  "strengths": [],
+                  "weaknesses": [],
+                  "missingSkills": [],
+                  "suggestions": [],
+                  "interviewTips": []
+                }
+                """);
+        doAnswer(invocation -> {
+            AnalysisReport report = invocation.getArgument(0);
+            report.setId(130L);
+            return 1;
+        }).when(analysisReportMapper).insert(any(AnalysisReport.class));
+
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setResumeVersionId(11L);
+        request.setJobId(2L);
+
+        AnalysisResultResponse response = analysisService.match(request);
+
+        assertEquals(0, response.getMatchScore());
+        assertEquals("VERY_LOW", response.getMatchLevel());
+        assertEquals(11L, response.getResumeVersionId());
     }
 
     @Test
@@ -303,6 +406,37 @@ class AnalysisServiceImplTest {
     }
 
     @Test
+    void matchShouldThrowForMissingResumeJobVersionAndBlankTexts() {
+        mockLoginUser(1L);
+        AnalysisMatchRequest request = new AnalysisMatchRequest();
+        request.setResumeId(1L);
+        request.setJobId(2L);
+
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        assertThrows(com.internpilot.exception.BusinessException.class, () -> analysisService.match(request));
+
+        Resume blankResume = buildResume();
+        blankResume.setParsedText(" ");
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(blankResume);
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        assertThrows(com.internpilot.exception.BusinessException.class, () -> analysisService.match(request));
+
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildResume());
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        assertThrows(com.internpilot.exception.BusinessException.class, () -> analysisService.match(request));
+
+        JobDescription blankJob = buildJob();
+        blankJob.setJdContent("");
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(blankJob);
+        assertThrows(com.internpilot.exception.BusinessException.class, () -> analysisService.match(request));
+
+        request.setResumeVersionId(999L);
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(buildJob());
+        when(resumeVersionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        assertThrows(com.internpilot.exception.BusinessException.class, () -> analysisService.match(request));
+    }
+
+    @Test
     void matchShouldUseFallbackWhenAiReturnsInvalidJson() {
         mockLoginUser(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -387,6 +521,32 @@ class AnalysisServiceImplTest {
         job.setJobTitle("Java后端开发实习生");
         job.setJdContent("要求熟悉 Java、Spring Boot、MySQL、Redis、Docker");
         return job;
+    }
+
+    private JobDescription buildJobWithType() {
+        JobDescription job = buildJob();
+        job.setJobType("Java backend");
+        job.setUpdatedAt(LocalDateTime.now());
+        return job;
+    }
+
+    private ResumeVersion buildVersion() {
+        ResumeVersion version = new ResumeVersion();
+        version.setId(11L);
+        version.setUserId(1L);
+        version.setResumeId(1L);
+        version.setContent("Version resume Java Spring Boot");
+        version.setUpdatedAt(LocalDateTime.now());
+        return version;
+    }
+
+    private RagSearchResultResponse buildRagResult() {
+        RagSearchResultResponse response = new RagSearchResultResponse();
+        response.setDirection("Java backend");
+        response.setKnowledgeType("SKILL_REQUIREMENT");
+        response.setContent("RAG knowledge content");
+        response.setSimilarity(0.9);
+        return response;
     }
 
     private void mockLoginUser(Long userId) {

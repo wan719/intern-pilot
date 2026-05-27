@@ -57,10 +57,14 @@ dependencies {
 }
 
 tasks.named('test') {
-	maxHeapSize = '512m'
+	maxHeapSize = '384m'
 	maxParallelForks = 1
 	forkEvery = 0
-	jvmArgs = ['-Dfile.encoding=UTF-8', '-Dsun.jnu.encoding=UTF-8']
+	jvmArgs = [
+		'-Dfile.encoding=UTF-8',
+		'-Dsun.jnu.encoding=UTF-8',
+		'-XX:TieredStopAtLevel=1'
+	]
 	useJUnitPlatform()
 	finalizedBy jacocoTestReport
 	testLogging {

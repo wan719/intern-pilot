@@ -110,7 +110,10 @@ public class DeepSeekAiClient implements AiClient {
                             safeRequest.getUserId(), scenario, model, safeRequest.getPromptVersion(),
                             safeRequest.getPromptHash(), "", safeRequest.getCacheHit(), durationMs, retryCount,
                             fallbackUsed, e.getErrorCode(), retryable);
-                    if (!retryable || attempt >= maxAttempts) {
+                    if (!retryable) {
+                        throw e;
+                    }
+                    if (attempt >= maxAttempts) {
                         break;
                     }
                     retryCount++;
