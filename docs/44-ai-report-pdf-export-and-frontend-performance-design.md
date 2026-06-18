@@ -1164,7 +1164,7 @@ docker compose -f deploy/docker-compose.yml ps
 可以用：
 
 ```bash
-curl -I -H "Accept-Encoding: gzip" http://43.136.182.179/assets/xxx.js
+curl -I -H "Accept-Encoding: gzip" https://internpilot.com.cn/assets/xxx.js
 ```
 
 查看响应头是否包含：

@@ -9,9 +9,9 @@
 - 建议分辨率：1920x1080 或 1280x720
 - 建议提交方式：若文件较大，优先上传到 Gitee / GitHub Release / 课程平台，README 中放链接
 - 录制前检查：
-  - 线上地址可访问：`http://43.136.182.179`
-  - 后端健康检查：`http://43.136.182.179/api/health`
-  - Actuator 健康检查：`http://43.136.182.179/actuator/health`
+  - 线上地址可访问：`https://internpilot.com.cn`
+  - 后端健康检查：`https://internpilot.com.cn/api/health`
+  - Actuator 健康检查：`https://internpilot.com.cn/actuator/health`
   - 管理员账号和密码不要出现在视频画面中
   - 不展示 `.env`、API Key、邮箱授权码、JWT token
 

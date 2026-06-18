@@ -61,7 +61,7 @@ README 收尾
 前端：Vue 3 + Vite + Pinia + Vue Router + Element Plus
 AI：DeepSeek API
 部署：Docker + Docker Compose + Nginx
-服务器：43.136.182.179
+服务器：124.220.93.183
 部署目录：~/intern-pilot
 部署文件：deploy/docker-compose.yml
 ```
@@ -412,7 +412,7 @@ npm run build
 服务器信息：
 
 ```text
-服务器 IP：43.136.182.179
+服务器 IP：124.220.93.183
 部署目录：~/intern-pilot
 部署方式：Docker Compose
 Compose 文件：deploy/docker-compose.yml
@@ -421,7 +421,7 @@ Compose 文件：deploy/docker-compose.yml
 登录服务器：
 
 ```bash
-ssh ubuntu@43.136.182.179
+ssh ubuntu@124.220.93.183
 ```
 
 进入项目目录：

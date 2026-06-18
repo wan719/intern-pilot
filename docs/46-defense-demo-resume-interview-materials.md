@@ -15,7 +15,7 @@
 本轮补充：
 
 - README 增加 `v1.3.1` 稳定演示版本说明。
-- README 增加在线演示地址 `http://43.136.182.179`。
+- README 增加在线演示地址 `https://internpilot.com.cn`。
 - README 更新 v1.1.0 到 v1.3.1 更新日志。
 - README 补充 AI 模型路由、Prompt 版本管理、PDF 导出、Spring Boot 工程增强、前端性能优化等最新能力。
 - README 的 Nginx 示例补充 gzip、`/assets/` 长缓存、`index.html` 不强缓存。

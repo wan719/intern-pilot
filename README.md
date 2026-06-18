@@ -15,7 +15,12 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 
 项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、TypeScript、Element Plus、Vue Router、Pinia、Axios 和 ECharts。
 
-当前稳定演示版本：`v1.3.1`。在线演示地址：`http://43.136.182.179`。线上管理员账号与密码不在 README、截图、提交记录或示例配置中公开。
+当前稳定演示版本：`v1.3.1`。线上管理员账号与密码不在 README、截图、提交记录或示例配置中公开。
+
+## 在线体验
+
+- 在线地址：https://internpilot.com.cn
+- GitHub 仓库：https://github.com/wan719/intern-pilot
 
 ## 项目概述
 
@@ -611,7 +616,7 @@ CI 执行内容：
 
 项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端 Nginx 四个服务，可一键启动。
 
-当前线上演示版本为 `v1.3.1`，部署在 `http://43.136.182.179`。生产环境 `.env` 只保留在服务器，不提交到 GitHub 或 Gitee。
+当前线上演示版本为 `v1.3.1`，部署在 `https://internpilot.com.cn`。生产环境 `.env` 只保留在服务器，不提交到 GitHub 或 Gitee。
 
 **前置要求：**
 

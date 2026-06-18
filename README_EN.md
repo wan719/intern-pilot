@@ -14,7 +14,12 @@ InternPilot is a front-end/back-end separated AI internship application and resu
 
 The project uses a front-end/back-end separated architecture. The back end is built with Spring Boot, Spring Security, MyBatis-Plus, MySQL, Redis, WebSocket, and the DeepSeek API. The front end is built with Vue 3, TypeScript, Element Plus, Vue Router, Pinia, Axios, and ECharts.
 
-Current stable demo version: `v1.3.1`. Online demo URL: `http://43.136.182.179`. The production administrator account and password are not disclosed in the README, screenshots, commit history, or sample configuration files.
+Current stable demo version: `v1.3.1`. The production administrator account and password are not disclosed in the README, screenshots, commit history, or sample configuration files.
+
+## Live Demo
+
+- Live Site: https://internpilot.com.cn
+- GitHub Repository: https://github.com/wan719/intern-pilot
 
 ## Project Overview
 
@@ -610,7 +615,7 @@ CI tasks:
 
 The project provides complete Docker Compose orchestration, including four services: MySQL, Redis, the back end, and the front-end Nginx service. It can be started with one command.
 
-The current online demo version is `v1.3.1`, deployed at `http://43.136.182.179`. The production `.env` file is kept only on the server and is not committed to GitHub or Gitee.
+The current online demo version is `v1.3.1`, deployed at `https://internpilot.com.cn`. The production `.env` file is kept only on the server and is not committed to GitHub or Gitee.
 
 **Prerequisites:**
 

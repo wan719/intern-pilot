@@ -102,7 +102,7 @@ InternPilot v1.3.1 - AI 工程化、Spring Boot 工程增强与前端体验优�
 分支：main
 开发集成分支：dev
 线上部署目录：~/intern-pilot
-服务器 IP：43.136.182.179
+服务器 IP：124.220.93.183
 部署方式：Docker Compose
 部署文件：deploy/docker-compose.yml
 ```
@@ -136,7 +136,7 @@ InternPilot v1.3.1 - AI 工程化、Spring Boot 工程增强与前端体验优�
 进入服务器：
 
 ```bash
-ssh ubuntu@43.136.182.179
+ssh ubuntu@124.220.93.183
 cd ~/intern-pilot
 ```
 
