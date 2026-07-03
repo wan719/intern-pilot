@@ -55,6 +55,27 @@ class AuthControllerTest {
     }
 
     @Test
+    void login_shouldAllowProductionOrigin_whenBrowserPosts() throws Exception {
+        LoginResponse response = new LoginResponse();
+        response.setToken("mock-token");
+        response.setTokenType("Bearer");
+
+        Mockito.when(authService.login(any(LoginRequest.class))).thenReturn(response);
+
+        LoginRequest request = new LoginRequest();
+        request.setAccount("demo@internpilot.local");
+        request.setPassword("123456");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .header("Origin", "https://internpilot.com.cn")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://internpilot.com.cn"))
+                .andExpect(jsonPath("$.data.token").value("mock-token"));
+    }
+
+    @Test
     void register_shouldReturnBadRequest_whenAccountBlank() throws Exception {
         RegisterRequest request = new RegisterRequest();
         request.setAccount("");
