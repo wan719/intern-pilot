@@ -81,8 +81,8 @@
               clearable
               filterable
               placeholder="请选择默认简历"
-              :loading="resumeLoading || defaultResumeSaving"
-              :disabled="resumeLoading || defaultResumeSaving"
+              :loading="!profileInitialized || !resumesInitialized || resumeLoading || defaultResumeSaving"
+              :disabled="!profileInitialized || !resumesInitialized || resumeLoading || defaultResumeSaving"
               @change="changeDefaultResume"
             >
               <el-option
@@ -167,10 +167,13 @@ const avatarUploading = ref(false)
 const passwordSaving = ref(false)
 const resumeLoading = ref(false)
 const defaultResumeSaving = ref(false)
+const profileInitialized = ref(false)
+const resumesInitialized = ref(false)
 const resumes = ref<any[]>([])
 const selectedDefaultResumeId = ref<number | undefined>()
 const confirmedDefaultResumeId = ref<number | undefined>()
 const pendingDefaultResumeId = ref<number | undefined>()
+let defaultResumeMutationEpoch = 0
 
 const profileForm = reactive({
   nickname: '',
@@ -218,14 +221,28 @@ function syncAuthUser() {
 }
 
 async function loadProfile() {
-  profile.value = await getUserProfileApi()
+  const profileLoadMutationSnapshot = defaultResumeMutationEpoch
+  const loadedProfile: any = await getUserProfileApi()
+  const defaultResumeChangedDuringLoad = defaultResumeMutationEpoch !== profileLoadMutationSnapshot
+  if (defaultResumeChangedDuringLoad) {
+    const confirmedResume = resumes.value.find((resume) => resume.resumeId === confirmedDefaultResumeId.value)
+    profile.value = {
+      ...loadedProfile,
+      defaultResumeId: confirmedDefaultResumeId.value,
+      defaultResumeName:
+        profile.value?.defaultResumeName || confirmedResume?.resumeName || confirmedResume?.originalFileName || ''
+    }
+  } else {
+    profile.value = loadedProfile
+    selectedDefaultResumeId.value = loadedProfile?.defaultResumeId
+    confirmedDefaultResumeId.value = loadedProfile?.defaultResumeId
+  }
   profileForm.nickname = profile.value?.nickname || ''
   profileForm.preferredJobTitle = profile.value?.preferredJobTitle || ''
   profileForm.preferredCity = profile.value?.preferredCity || ''
   profileForm.expectedSalary = profile.value?.expectedSalary || ''
   profileForm.employmentType = profile.value?.employmentType || ''
-  selectedDefaultResumeId.value = profile.value?.defaultResumeId
-  confirmedDefaultResumeId.value = profile.value?.defaultResumeId
+  profileInitialized.value = true
   syncAuthUser()
 }
 
@@ -272,12 +289,17 @@ async function loadResumes() {
   try {
     const res: any = await getResumeListApi({ pageNum: 1, pageSize: 100 })
     resumes.value = res?.records || []
+    resumesInitialized.value = true
   } finally {
     resumeLoading.value = false
   }
 }
 
 async function changeDefaultResume(value?: number) {
+  if (!profileInitialized.value || !resumesInitialized.value) {
+    selectedDefaultResumeId.value = pendingDefaultResumeId.value ?? confirmedDefaultResumeId.value
+    return
+  }
   if (!value) {
     selectedDefaultResumeId.value = pendingDefaultResumeId.value ?? confirmedDefaultResumeId.value
     return
@@ -293,6 +315,7 @@ async function changeDefaultResume(value?: number) {
   pendingDefaultResumeId.value = value
   selectedDefaultResumeId.value = value
   defaultResumeSaving.value = true
+  defaultResumeMutationEpoch += 1
   try {
     await setDefaultResumeApi(value)
     const selected = resumes.value.find((resume) => resume.resumeId === value)

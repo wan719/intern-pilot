@@ -218,4 +218,67 @@ describe('user center redesign', () => {
     expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 5).isDefault).toBe(false)
     expect((wrapper.vm as any).defaultResumeSaving).toBe(false)
   })
+
+  it('rejects default-resume changes until both profile and resumes finish initialization', async () => {
+    const initialProfile = deferred<any>()
+    vi.mocked(getUserProfileApi).mockReturnValueOnce(initialProfile.promise)
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false }
+      ]
+    } as any)
+    const { wrapper } = await mountPage()
+    const defaultResumeSelect = wrapper
+      .findAllComponents({ name: 'ElSelect' })
+      .find((select) => select.props('placeholder') === '请选择默认简历')
+
+    expect((wrapper.vm as any).resumeLoading).toBe(false)
+    expect(defaultResumeSelect?.props('disabled')).toBe(true)
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+    expect(setDefaultResumeApi).not.toHaveBeenCalled()
+
+    initialProfile.resolve(profile as any)
+    await flushPromises()
+    expect(defaultResumeSelect?.props('disabled')).toBe(false)
+
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+
+    expect(setDefaultResumeApi).toHaveBeenCalledOnce()
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).confirmedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).profile.defaultResumeId).toBe(4)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
+  })
+
+  it('does not let an older profile refresh overwrite a newer saved default resume', async () => {
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false }
+      ]
+    } as any)
+    const { wrapper } = await mountPage()
+    const staleProfile = deferred<any>()
+    vi.mocked(getUserProfileApi).mockReturnValueOnce(staleProfile.promise)
+
+    const profileRefresh = (wrapper.vm as any).loadProfile()
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+    staleProfile.resolve({ ...profile, nickname: '刷新后的昵称', defaultResumeId: 3, defaultResumeName: '前端简历' })
+    await profileRefresh
+    await flushPromises()
+
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).confirmedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).profile).toMatchObject({
+      nickname: '刷新后的昵称',
+      defaultResumeId: 4,
+      defaultResumeName: '后端简历'
+    })
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 3).isDefault).toBe(false)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
+  })
 })
