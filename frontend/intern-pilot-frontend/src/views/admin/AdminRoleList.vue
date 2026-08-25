@@ -7,6 +7,11 @@
       <StatCard label="权限点" :value="permissions.length" :icon="Files" :loading="loading" />
     </div>
 
+    <div v-if="canReadPermissions && canUpdateRoles && permissionOptionsState === 'error'" class="auxiliary-error" data-role-permission-options-error>
+      <el-alert title="权限选项加载失败，暂时无法分配权限" type="error" :closable="false" show-icon />
+      <el-button @click="loadPermissions">重试权限选项</el-button>
+    </div>
+
     <TableShell
       :loading="loading"
       :empty="roles.length === 0"
@@ -31,7 +36,7 @@
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="hasPermission('role:update')" link type="primary" @click="openDialog(row)">分配权限</el-button>
+            <el-button v-if="canAssignPermissions" link type="primary" @click="openDialog(row)">分配权限</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -58,7 +63,7 @@
       </el-form>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!hasPermission('role:update')" @click="submit">保存</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!canAssignPermissions" @click="submit">保存</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -78,20 +83,26 @@ import { getAdminRoleListApi, updateRolePermissionsApi } from '@/api/adminRole'
 import { getAdminPermissionListApi } from '@/api/adminPermission'
 
 const auth = useAuthStore()
-const loading = ref(false)
+const rolesLoading = ref(false)
 const saving = ref(false)
 const roles = ref<any[]>([])
 const permissions = ref<any[]>([])
+const permissionOptionsState = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const visible = ref(false)
 const { responsiveDialogWidth } = useResponsiveSize()
 const permissionDialogWidth = responsiveDialogWidth('620px')
 const currentRole = ref<any>(null)
 const selectedPermissionIds = ref<number[]>([])
 let active = true
-let loadRequestId = 0
+let roleRequestId = 0
+let permissionRequestId = 0
 
+const loading = computed(() => rolesLoading.value || permissionOptionsState.value === 'loading')
 const enabledCount = computed(() => roles.value.filter((item) => item.enabled).length)
 const disabledCount = computed(() => roles.value.filter((item) => !item.enabled).length)
+const canReadPermissions = computed(() => hasPermission('permission:read'))
+const canUpdateRoles = computed(() => hasPermission('role:update'))
+const canAssignPermissions = computed(() => canUpdateRoles.value && canReadPermissions.value && permissionOptionsState.value === 'success')
 const groupedPermissions = computed(() => {
   const map = new Map<string, any[]>()
   for (const permission of permissions.value) {
@@ -101,23 +112,71 @@ const groupedPermissions = computed(() => {
   return Array.from(map.entries()).map(([resourceType, items]) => ({ resourceType, items }))
 })
 
-async function loadData() {
-  const requestId = ++loadRequestId
-  loading.value = true
+async function loadRoles() {
+  const requestId = ++roleRequestId
+  if (!hasPermission('role:read')) {
+    roles.value = []
+    return
+  }
+  rolesLoading.value = true
   try {
     const roleRes: any = await getAdminRoleListApi()
-    const permissionRes: any = await getAdminPermissionListApi()
-    if (!active || requestId !== loadRequestId) return
+    if (!active || requestId !== roleRequestId) return
     roles.value = roleRes || []
-    permissions.value = permissionRes || []
   } catch (error: any) {
-    if (active && requestId === loadRequestId) ElMessage.error(error?.message || '角色与权限数据加载失败')
+    if (active && requestId === roleRequestId) {
+      roles.value = []
+      ElMessage.error(error?.message || '角色列表加载失败')
+    }
   } finally {
-    if (active && requestId === loadRequestId) loading.value = false
+    if (active && requestId === roleRequestId) rolesLoading.value = false
   }
 }
 
+async function loadPermissions() {
+  const requestId = ++permissionRequestId
+  if (!hasPermission('permission:read')) {
+    permissions.value = []
+    permissionOptionsState.value = 'idle'
+    closePermissionDialog()
+    return
+  }
+  permissionOptionsState.value = 'loading'
+  try {
+    const permissionRes: any = await getAdminPermissionListApi()
+    if (!active || requestId !== permissionRequestId) return
+    if (!hasPermission('permission:read')) {
+      permissions.value = []
+      permissionOptionsState.value = 'idle'
+      closePermissionDialog()
+      return
+    }
+    permissions.value = permissionRes || []
+    permissionOptionsState.value = 'success'
+  } catch (error: any) {
+    if (!active || requestId !== permissionRequestId) return
+    permissions.value = []
+    permissionOptionsState.value = 'error'
+    closePermissionDialog()
+    ElMessage.error(error?.message || '权限选项加载失败')
+  }
+}
+
+function loadData() {
+  return Promise.all([loadRoles(), loadPermissions()])
+}
+
+function closePermissionDialog() {
+  visible.value = false
+  currentRole.value = null
+  selectedPermissionIds.value = []
+}
+
 function openDialog(role: any) {
+  if (!canAssignPermissions.value) {
+    closePermissionDialog()
+    return
+  }
   currentRole.value = role
   const rolePermissionCodes = new Set(role.permissions || [])
   selectedPermissionIds.value = permissions.value
@@ -127,6 +186,10 @@ function openDialog(role: any) {
 }
 
 async function submit() {
+  if (!canAssignPermissions.value) {
+    closePermissionDialog()
+    return
+  }
   if (!currentRole.value || saving.value) return
   const roleId = currentRole.value.roleId
   saving.value = true
@@ -146,7 +209,8 @@ function hasPermission(permission: string) { return auth.hasPermission(permissio
 onMounted(loadData)
 onBeforeUnmount(() => {
   active = false
-  loadRequestId += 1
+  roleRequestId += 1
+  permissionRequestId += 1
 })
 </script>
 
@@ -161,6 +225,8 @@ onBeforeUnmount(() => {
 .permission-group-title span, .permission-group small { color: var(--color-text-muted); font-size: 12px; }
 .permission-group :deep(.el-checkbox-group) { display: grid; gap: var(--space-2); }
 .permission-group small { display: block; }
+.auxiliary-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.auxiliary-error .el-alert { flex: 1; }
 
 @media (max-width: 900px) {
   .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -168,5 +234,6 @@ onBeforeUnmount(() => {
 
 @media (max-width: 520px) {
   .compact-stats { grid-template-columns: 1fr; }
+  .auxiliary-error { align-items: stretch; flex-direction: column; }
 }
 </style>

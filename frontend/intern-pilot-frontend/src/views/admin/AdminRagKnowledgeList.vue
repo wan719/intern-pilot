@@ -92,7 +92,7 @@
       </el-form>
       <template #footer>
         <el-button @click="formVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="editingLoading" @click="save">保存并生成切片</el-button>
+        <el-button type="primary" :loading="saving" :disabled="editingLoading || !canManage" @click="save">保存并生成切片</el-button>
       </template>
     </el-dialog>
 
@@ -261,7 +261,20 @@ function validateFormFields() {
   return !Object.values(formErrors).some(Boolean)
 }
 
+function closeMutationForm() {
+  formVisible.value = false
+  editingId.value = undefined
+  editingLoading.value = false
+}
+
+function guardManagePermission() {
+  if (authStore.hasPermission('rag:manage')) return true
+  closeMutationForm()
+  return false
+}
+
 function openCreate() {
+  if (!guardManagePermission()) return
   editRequestId += 1
   resetForm()
   formVisible.value = true
@@ -269,11 +282,13 @@ function openCreate() {
 }
 
 async function openEdit(documentId: number) {
+  if (!guardManagePermission()) return
   const requestId = ++editRequestId
   editingLoading.value = true
   try {
     const res: any = await getRagKnowledgeDetailApi(documentId)
     if (!active || requestId !== editRequestId) return
+    if (!guardManagePermission()) return
     Object.assign(form, {
       title: res.title, direction: res.direction, knowledgeType: res.knowledgeType,
       summary: res.summary, content: res.content, enabled: res.enabled
@@ -288,6 +303,7 @@ async function openEdit(documentId: number) {
 }
 
 async function save() {
+  if (!guardManagePermission()) return
   if (saveInFlight) return
   saveInFlight = true
   try {
@@ -296,6 +312,7 @@ async function save() {
     if (!formRef.value || !active) return
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) return
+    if (!guardManagePermission()) return
     saving.value = true
     if (editingId.value) await updateRagKnowledgeApi(editingId.value, form)
     else await createRagKnowledgeApi(form)
@@ -340,6 +357,7 @@ function isConfirmationDismissed(reason: unknown) {
 }
 
 async function rebuild(row: any) {
+  if (!guardManagePermission()) return
   if (pendingDocumentIds.value.has(row.documentId)) return
   setDocumentPending(row.documentId, true)
   try {
@@ -359,6 +377,7 @@ async function rebuild(row: any) {
 }
 
 async function remove(row: any) {
+  if (!guardManagePermission()) return
   if (pendingDocumentIds.value.has(row.documentId)) return
   setDocumentPending(row.documentId, true)
   try {

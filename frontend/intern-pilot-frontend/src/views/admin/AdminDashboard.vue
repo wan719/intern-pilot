@@ -1,36 +1,51 @@
 <template>
   <PageContainer width="wide" title="后台看板" description="管理员视角下的系统运营概览、风险提示和常用管理入口。">
-    <section v-loading="loading" class="admin-hero" aria-label="系统运营总览">
+    <div v-if="loadState === 'error'" class="dashboard-error" data-admin-dashboard-error>
+      <el-alert title="数据不可用" :description="loadError" type="error" :closable="false" show-icon />
+      <el-button type="primary" @click="loadData">重试</el-button>
+    </div>
+
+    <section class="admin-hero" aria-label="系统运营总览">
       <div>
         <span class="hero-kicker">InternPilot Admin</span>
         <h2>系统运营总览</h2>
         <p>集中查看用户、简历、岗位、AI 分析和投递数据，快速判断业务活跃度与后台治理风险。</p>
       </div>
-      <div class="hero-indicators">
+      <div v-if="loadState === 'success'" class="hero-indicators">
         <div>
-          <strong>{{ summary.todayNewUserCount || 0 }}</strong>
+          <strong>{{ summary?.todayNewUserCount || 0 }}</strong>
           <span>今日新增用户</span>
         </div>
         <div :class="{ danger: failedCount > 0 }">
-          <strong>{{ summary.failedOperationCount || 0 }}</strong>
+          <strong>{{ summary?.failedOperationCount || 0 }}</strong>
           <span>今日失败操作</span>
         </div>
+      </div>
+      <div v-else class="hero-unknown" aria-label="运营指标尚不可用">
+        <el-skeleton :loading="loadState === 'idle' || loadState === 'loading'" animated :rows="2">
+          <span>运营指标暂不可用</span>
+        </el-skeleton>
       </div>
     </section>
 
     <div class="stat-grid admin-stat-grid" aria-label="后台核心指标">
-      <StatCard label="用户总数" :value="summary.userCount || 0" :icon="User" :loading="loading" />
-      <StatCard label="简历总数" :value="summary.resumeCount || 0" :icon="Document" :loading="loading" />
-      <StatCard label="岗位总数" :value="summary.jobCount || 0" :icon="Briefcase" :loading="loading" />
-      <StatCard label="分析报告" :value="summary.analysisReportCount || 0" :icon="DataBoard" :loading="loading" />
-      <StatCard label="面试题报告" :value="summary.interviewQuestionReportCount || 0" :icon="QuestionFilled" :loading="loading" />
-      <StatCard label="投递记录" :value="summary.applicationCount || 0" :icon="List" :loading="loading" />
-      <StatCard label="今日新增用户" :value="summary.todayNewUserCount || 0" :icon="Plus" :loading="loading" />
-      <StatCard label="今日失败操作" :value="summary.failedOperationCount || 0" :icon="Warning" :loading="loading" />
+      <StatCard label="用户总数" :value="metricValue('userCount')" :icon="User" :loading="loading" />
+      <StatCard label="简历总数" :value="metricValue('resumeCount')" :icon="Document" :loading="loading" />
+      <StatCard label="岗位总数" :value="metricValue('jobCount')" :icon="Briefcase" :loading="loading" />
+      <StatCard label="分析报告" :value="metricValue('analysisReportCount')" :icon="DataBoard" :loading="loading" />
+      <StatCard label="面试题报告" :value="metricValue('interviewQuestionReportCount')" :icon="QuestionFilled" :loading="loading" />
+      <StatCard label="投递记录" :value="metricValue('applicationCount')" :icon="List" :loading="loading" />
+      <StatCard label="今日新增用户" :value="metricValue('todayNewUserCount')" :icon="Plus" :loading="loading" />
+      <StatCard label="今日失败操作" :value="metricValue('failedOperationCount')" :icon="Warning" :loading="loading" />
     </div>
 
+    <section v-if="loadState === 'idle' || loadState === 'loading'" class="panel dashboard-loading" data-admin-dashboard-loading aria-live="polite">
+      <div><strong>正在加载运营数据</strong><span>健康度与业务活动结论将在汇总数据返回后显示。</span></div>
+      <el-skeleton animated :rows="3" />
+    </section>
+
     <div class="admin-grid">
-      <section class="panel admin-panel" data-admin-health-panel>
+      <section v-if="loadState === 'success'" class="panel admin-panel" data-admin-health-panel>
         <div class="panel-header">
           <div>
             <h2>运营健康度</h2>
@@ -50,7 +65,7 @@
         </div>
       </section>
 
-      <section class="panel admin-panel" data-admin-activity-panel>
+      <section v-if="loadState === 'success'" class="panel admin-panel" data-admin-activity-panel>
         <div class="panel-header">
           <div>
             <h2>业务活动结构</h2>
@@ -92,7 +107,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import {
   Briefcase, CircleCheck, DataBoard, Document, Files, Key, List, Plus, QuestionFilled, User, Warning
 } from '@element-plus/icons-vue'
@@ -102,36 +116,38 @@ import StatusTag from '@/components/common/StatusTag.vue'
 import { getAdminDashboardSummaryApi } from '@/api/adminDashboard'
 
 const router = useRouter()
-const loading = ref(false)
-const summary = ref<any>({})
+const loadState = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const loadError = ref('')
+const summary = ref<any | null>(null)
 let active = true
 let loadRequestId = 0
 
-const failedCount = computed(() => Number(summary.value.failedOperationCount || 0))
+const loading = computed(() => loadState.value === 'idle' || loadState.value === 'loading')
+const failedCount = computed(() => loadState.value === 'success' ? Number(summary.value?.failedOperationCount || 0) : 0)
 const healthStatus = computed(() => (failedCount.value > 0 ? 'PENDING' : 'SUCCESS'))
 const healthLabel = computed(() => (failedCount.value > 0 ? '需要关注' : '运行正常'))
-const healthItems = computed(() => [
+const healthItems = computed(() => loadState.value === 'success' ? [
   {
     label: '用户增长', description: '今日新增用户反映注册与用户运营活跃度',
-    value: `${summary.value.todayNewUserCount || 0} 人`,
-    status: Number(summary.value.todayNewUserCount || 0) > 0 ? 'SUCCESS' : 'PENDING', icon: User
+    value: `${summary.value?.todayNewUserCount || 0} 人`,
+    status: Number(summary.value?.todayNewUserCount || 0) > 0 ? 'SUCCESS' : 'PENDING', icon: User
   },
   {
     label: 'AI 使用量', description: '分析报告和面试题报告共同体现 AI 能力闭环',
-    value: `${Number(summary.value.analysisReportCount || 0) + Number(summary.value.interviewQuestionReportCount || 0)} 份`,
+    value: `${Number(summary.value?.analysisReportCount || 0) + Number(summary.value?.interviewQuestionReportCount || 0)} 份`,
     status: 'PROCESSING', icon: DataBoard
   },
   {
     label: '异常操作', description: '失败操作需要进入操作日志进一步排查', value: `${failedCount.value} 次`,
     status: failedCount.value > 0 ? 'FAILED' : 'SUCCESS', icon: failedCount.value > 0 ? Warning : CircleCheck
   }
-])
-const activityItems = computed(() => [
-  { label: '用户资产', value: Number(summary.value.userCount || 0) },
-  { label: '求职材料', value: Number(summary.value.resumeCount || 0) + Number(summary.value.jobCount || 0) },
-  { label: 'AI 产出', value: Number(summary.value.analysisReportCount || 0) + Number(summary.value.interviewQuestionReportCount || 0) },
-  { label: '投递跟踪', value: Number(summary.value.applicationCount || 0) }
-])
+] : [])
+const activityItems = computed(() => loadState.value === 'success' ? [
+  { label: '用户资产', value: Number(summary.value?.userCount || 0) },
+  { label: '求职材料', value: Number(summary.value?.resumeCount || 0) + Number(summary.value?.jobCount || 0) },
+  { label: 'AI 产出', value: Number(summary.value?.analysisReportCount || 0) + Number(summary.value?.interviewQuestionReportCount || 0) },
+  { label: '投递跟踪', value: Number(summary.value?.applicationCount || 0) }
+] : [])
 const activityMax = computed(() => Math.max(1, ...activityItems.value.map((item) => item.value)))
 const quickLinks = [
   { label: '用户管理', description: '查看账号、状态与角色分配', path: '/admin/users', icon: User },
@@ -145,18 +161,26 @@ function activityWidth(value: number) {
   return Math.max(value > 0 ? 8 : 0, Math.round((value / activityMax.value) * 100))
 }
 
+function metricValue(key: string) {
+  if (loadState.value !== 'success') return '—'
+  return Number(summary.value?.[key] || 0)
+}
+
 async function loadData() {
   const requestId = ++loadRequestId
-  loading.value = true
+  loadState.value = 'loading'
+  loadError.value = ''
+  summary.value = null
   try {
     const res: any = await getAdminDashboardSummaryApi()
     if (!active || requestId !== loadRequestId) return
     summary.value = res || {}
+    loadState.value = 'success'
   } catch (error: any) {
     if (!active || requestId !== loadRequestId) return
-    ElMessage.error(error?.message || '后台看板数据加载失败，请稍后重试')
-  } finally {
-    if (active && requestId === loadRequestId) loading.value = false
+    summary.value = null
+    loadError.value = error?.message || '后台看板数据加载失败，请稍后重试'
+    loadState.value = 'error'
   }
 }
 
@@ -189,7 +213,13 @@ onBeforeUnmount(() => {
 .hero-indicators strong { font-variant-numeric: tabular-nums; font-size: 25px; }
 .hero-indicators span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 12px; }
 .hero-indicators .danger strong { color: var(--color-danger); }
+.hero-unknown { width: 236px; min-height: 86px; padding: var(--space-3); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text-muted); }
 .admin-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dashboard-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.dashboard-error .el-alert { flex: 1; }
+.dashboard-loading { display: grid; gap: var(--space-3); margin-bottom: var(--space-4); }
+.dashboard-loading strong, .dashboard-loading span { display: block; }
+.dashboard-loading span { margin-top: var(--space-1); color: var(--color-text-muted); }
 .admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .admin-panel { margin: 0; }
 .admin-panel-wide { grid-column: 1 / -1; }
@@ -220,6 +250,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 520px) {
   .admin-stat-grid, .hero-indicators, .quick-admin-grid { grid-template-columns: 1fr; }
+  .dashboard-error { align-items: stretch; flex-direction: column; }
+  .hero-unknown { width: auto; }
   .health-item { grid-template-columns: 28px minmax(0, 1fr); }
   .health-item .status-tag { grid-column: 2; justify-self: start; }
 }

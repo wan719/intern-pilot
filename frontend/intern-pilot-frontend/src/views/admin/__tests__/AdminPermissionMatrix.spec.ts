@@ -1,8 +1,12 @@
+import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminFeedbackList from '@/views/admin/AdminFeedbackList.vue'
 import AdminRagKnowledgeList from '@/views/admin/AdminRagKnowledgeList.vue'
 import AdminRoleList from '@/views/admin/AdminRoleList.vue'
 import AdminUserList from '@/views/admin/AdminUserList.vue'
+import { getAdminRoleListApi, updateRolePermissionsApi } from '@/api/adminRole'
+import { getAdminPermissionListApi } from '@/api/adminPermission'
+import { updateUserRolesApi } from '@/api/adminUser'
 import { mountAdminPage } from './adminTestUtils'
 
 const { activePermissions, hasPermission, feedbackStore } = vi.hoisted(() => {
@@ -65,7 +69,7 @@ beforeEach(() => {
 
 describe('admin page permission matrix characterization', () => {
   it('full admin sees all existing permission-sensitive actions', async () => {
-    setPermissions('user:update', 'role:update', 'rag:manage', 'feedback:write', 'feedback:delete')
+    setPermissions('user:update', 'role:read', 'role:update', 'permission:read', 'rag:manage', 'feedback:write', 'feedback:delete')
 
     expect(actionLabels(await mountAdminPage(AdminUserList, '/admin/users'))).toEqual(expect.arrayContaining(['分配角色', '禁用']))
     expect(actionLabels(await mountAdminPage(AdminRoleList, '/admin/roles'))).toContain('分配权限')
@@ -77,10 +81,14 @@ describe('admin page permission matrix characterization', () => {
     )
   })
 
-  it('user-only admin sees user mutations but no role, RAG or feedback mutations', async () => {
+  it('user-only admin skips role options and cannot enter role assignment without role:read', async () => {
     setPermissions('user:read', 'user:update')
 
-    expect(actionLabels(await mountAdminPage(AdminUserList, '/admin/users'))).toEqual(expect.arrayContaining(['详情', '分配角色', '禁用']))
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+    expect(getAdminRoleListApi).not.toHaveBeenCalled()
+    expect(actionLabels(wrapper)).toContain('详情')
+    expect(actionLabels(wrapper)).toContain('禁用')
+    expect(actionLabels(wrapper)).not.toContain('分配角色')
     expect(actionLabels(await mountAdminPage(AdminRoleList, '/admin/roles'))).not.toContain('分配权限')
     expect(actionLabels(await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge'))).not.toEqual(
       expect.arrayContaining(['新增知识', '编辑', '重建', '删除'])
@@ -88,6 +96,79 @@ describe('admin page permission matrix characterization', () => {
     expect(actionLabels(await mountAdminPage(AdminFeedbackList, '/admin/feedback'))).not.toEqual(
       expect.arrayContaining(['状态', '回复', '删除'])
     )
+  })
+
+  it('enables user role assignment only after role:read makes role options available', async () => {
+    setPermissions('user:read', 'user:update', 'role:read')
+
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+
+    expect(getAdminRoleListApi).toHaveBeenCalledTimes(1)
+    expect(actionLabels(wrapper)).toContain('分配角色')
+  })
+
+  it('role-only admin skips permission options until permission:read is present', async () => {
+    setPermissions('role:read', 'role:update')
+    const roleOnly = await mountAdminPage(AdminRoleList, '/admin/roles')
+    expect(getAdminPermissionListApi).not.toHaveBeenCalled()
+    expect(actionLabels(roleOnly)).not.toContain('分配权限')
+
+    vi.clearAllMocks()
+    setPermissions('role:read', 'role:update', 'permission:read')
+    const withPermissionRead = await mountAdminPage(AdminRoleList, '/admin/roles')
+    expect(getAdminPermissionListApi).toHaveBeenCalledTimes(1)
+    expect(actionLabels(withPermissionRead)).toContain('分配权限')
+  })
+
+  it('keeps failed auxiliary role options unavailable until an explicit retry succeeds', async () => {
+    setPermissions('user:read', 'user:update', 'role:read')
+    vi.mocked(getAdminRoleListApi)
+      .mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { response: { status: 403 } }))
+      .mockResolvedValueOnce([{
+        roleId: 1, roleCode: 'USER', roleName: '普通用户', permissions: ['user:read'], enabled: 1
+      }] as any)
+
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+    expect(wrapper.text()).toContain('角色选项加载失败')
+    expect(actionLabels(wrapper)).not.toContain('分配角色')
+    ;(wrapper.vm as any).currentUser = { userId: 17, roles: ['USER'] }
+    ;(wrapper.vm as any).selectedRoleIds = []
+    ;(wrapper.vm as any).roleDialogVisible = true
+    await (wrapper.vm as any).submitRoles()
+    expect((wrapper.vm as any).roleDialogVisible).toBe(false)
+    expect(updateUserRolesApi).not.toHaveBeenCalled()
+
+    await (wrapper.vm as any).loadRoles()
+    await flushPromises()
+    expect(getAdminRoleListApi).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('角色选项加载失败')
+    expect(actionLabels(wrapper)).toContain('分配角色')
+  })
+
+  it('keeps failed permission options unavailable until an explicit retry succeeds', async () => {
+    setPermissions('role:read', 'role:update', 'permission:read')
+    vi.mocked(getAdminPermissionListApi)
+      .mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { response: { status: 403 } }))
+      .mockResolvedValueOnce([{
+        permissionId: 11, permissionCode: 'user:read', permissionName: '读取用户', resourceType: 'ADMIN_USER', enabled: 1
+      }] as any)
+
+    const wrapper = await mountAdminPage(AdminRoleList, '/admin/roles')
+    expect(getAdminRoleListApi).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('权限选项加载失败')
+    expect(actionLabels(wrapper)).not.toContain('分配权限')
+    ;(wrapper.vm as any).currentRole = { roleId: 1, permissions: ['user:read'] }
+    ;(wrapper.vm as any).selectedPermissionIds = []
+    ;(wrapper.vm as any).visible = true
+    await (wrapper.vm as any).submit()
+    expect((wrapper.vm as any).visible).toBe(false)
+    expect(updateRolePermissionsApi).not.toHaveBeenCalled()
+
+    await (wrapper.vm as any).loadPermissions()
+    await flushPromises()
+    expect(getAdminPermissionListApi).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('权限选项加载失败')
+    expect(actionLabels(wrapper)).toContain('分配权限')
   })
 
   it('restricted read-only account retains detail but no existing mutation action', async () => {

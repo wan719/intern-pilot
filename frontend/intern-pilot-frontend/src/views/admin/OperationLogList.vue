@@ -211,6 +211,7 @@ function isConfirmationDismissed(reason: unknown) {
 }
 
 async function removeLog(row: any) {
+  if (!hasPermission('operation-log:delete')) return
   if (pendingLogIds.value.has(row.logId)) return
   setLogPending(row.logId, true)
   try {

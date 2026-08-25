@@ -65,6 +65,16 @@ const feedback = {
   createdAt: '2026-08-25T08:00:00'
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   hasPermission.mockReturnValue(true)
@@ -91,6 +101,47 @@ describe('admin dashboard behavior characterization', () => {
     expect(getAdminDashboardSummaryApi).toHaveBeenCalledTimes(1)
     expect(getAdminDashboardSummaryApi).toHaveBeenCalledWith()
     expect(wrapper.findAll('.stat-card strong').map((item) => item.text())).toEqual(['10', '9', '8', '7', '6', '5', '2', '1'])
+  })
+
+  it('keeps health and activity conclusions unknown until the summary succeeds', async () => {
+    const pending = deferred<any>()
+    vi.mocked(getAdminDashboardSummaryApi).mockReturnValueOnce(pending.promise)
+
+    const wrapper = await mountAdminPage(AdminDashboard, '/admin/dashboard')
+
+    expect((wrapper.vm as any).loadState).toBe('loading')
+    expect(wrapper.find('[data-admin-dashboard-loading]').exists()).toBe(true)
+    expect(wrapper.find('[data-admin-health-panel]').exists()).toBe(false)
+    expect(wrapper.find('[data-admin-activity-panel]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('运行正常')
+
+    pending.resolve(summary)
+    await flushPromises()
+    expect((wrapper.vm as any).loadState).toBe('success')
+    expect(wrapper.find('[data-admin-dashboard-loading]').exists()).toBe(false)
+    expect(wrapper.find('[data-admin-health-panel]').exists()).toBe(true)
+    expect(wrapper.find('[data-admin-activity-panel]').exists()).toBe(true)
+  })
+
+  it('shows a persistent unavailable state and retries without claiming healthy operation', async () => {
+    vi.mocked(getAdminDashboardSummaryApi)
+      .mockRejectedValueOnce(new Error('summary unavailable'))
+      .mockResolvedValueOnce(summary as any)
+
+    const wrapper = await mountAdminPage(AdminDashboard, '/admin/dashboard')
+
+    expect((wrapper.vm as any).loadState).toBe('error')
+    expect(wrapper.get('[data-admin-dashboard-error]').text()).toContain('数据不可用')
+    expect(wrapper.text()).not.toContain('运行正常')
+    expect(wrapper.find('[data-admin-health-panel]').exists()).toBe(false)
+    expect(wrapper.find('[data-admin-activity-panel]').exists()).toBe(false)
+
+    await buttonByText(wrapper, '重试').trigger('click')
+    await flushPromises()
+    expect(getAdminDashboardSummaryApi).toHaveBeenCalledTimes(2)
+    expect((wrapper.vm as any).loadState).toBe('success')
+    expect(wrapper.find('[data-admin-dashboard-error]').exists()).toBe(false)
+    expect(wrapper.find('[data-admin-health-panel]').exists()).toBe(true)
   })
 })
 

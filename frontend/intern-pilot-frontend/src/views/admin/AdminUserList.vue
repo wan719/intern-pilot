@@ -21,6 +21,11 @@
       </template>
     </FilterBar>
 
+    <div v-if="canReadRoles && canUpdateUsers && roleOptionsState === 'error'" class="auxiliary-error" data-user-role-options-error>
+      <el-alert title="角色选项加载失败，暂时无法分配角色" type="error" :closable="false" show-icon />
+      <el-button @click="loadRoles">重试角色选项</el-button>
+    </div>
+
     <TableShell
       :loading="loading"
       :empty="users.length === 0"
@@ -62,7 +67,7 @@
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="showDetail(row.userId)">详情</el-button>
-            <el-button v-if="hasPermission('user:update')" link type="warning" @click="openRoleDialog(row)">分配角色</el-button>
+            <el-button v-if="canAssignRoles" link type="warning" @click="openRoleDialog(row)">分配角色</el-button>
             <el-button
               v-if="hasPermission('user:update') && row.enabled === 1"
               link
@@ -158,7 +163,7 @@
       </el-form>
       <template #footer>
         <el-button @click="roleDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingRoles" :disabled="!hasPermission('user:update')" @click="submitRoles">保存</el-button>
+        <el-button type="primary" :loading="savingRoles" :disabled="!canAssignRoles" @click="submitRoles">保存</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -194,6 +199,7 @@ const roleDialogWidth = responsiveDialogWidth('440px')
 const selectedRoleIds = ref<number[]>([])
 const currentUser = ref<any>(null)
 const roles = ref<any[]>([])
+const roleOptionsState = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const pendingUserIds = ref(new Set<number>())
 let active = true
 let listRequestId = 0
@@ -203,6 +209,9 @@ let detailRequestId = 0
 const query = reactive<any>({ keyword: '', roleCode: '', enabled: undefined, pageNum: 1, pageSize: 10 })
 const enabledCount = computed(() => users.value.filter((item) => item.enabled === 1).length)
 const disabledCount = computed(() => users.value.filter((item) => item.enabled !== 1).length)
+const canReadRoles = computed(() => hasPermission('role:read'))
+const canUpdateUsers = computed(() => hasPermission('user:update'))
+const canAssignRoles = computed(() => canUpdateUsers.value && canReadRoles.value && roleOptionsState.value === 'success')
 
 async function loadList() {
   const requestId = ++listRequestId
@@ -224,11 +233,30 @@ async function loadList() {
 
 async function loadRoles() {
   const requestId = ++roleRequestId
+  if (!hasPermission('role:read')) {
+    roles.value = []
+    roleOptionsState.value = 'idle'
+    closeRoleDialog()
+    return
+  }
+  roleOptionsState.value = 'loading'
   try {
     const roleRes: any = await getAdminRoleListApi()
-    if (active && requestId === roleRequestId) roles.value = roleRes || []
+    if (!active || requestId !== roleRequestId) return
+    if (!hasPermission('role:read')) {
+      roles.value = []
+      roleOptionsState.value = 'idle'
+      closeRoleDialog()
+      return
+    }
+    roles.value = roleRes || []
+    roleOptionsState.value = 'success'
   } catch (error: any) {
-    if (active && requestId === roleRequestId) ElMessage.error(error?.message || '角色列表加载失败')
+    if (!active || requestId !== roleRequestId) return
+    roles.value = []
+    roleOptionsState.value = 'error'
+    closeRoleDialog()
+    ElMessage.error(error?.message || '角色列表加载失败')
   }
 }
 
@@ -273,6 +301,7 @@ function isConfirmationDismissed(reason: unknown) {
 }
 
 async function changeEnabled(row: any, enable: boolean) {
+  if (!hasPermission('user:update')) return
   if (pendingUserIds.value.has(row.userId)) return
   setUserPending(row.userId, true)
   try {
@@ -293,13 +322,27 @@ async function changeEnabled(row: any, enable: boolean) {
   }
 }
 
+function closeRoleDialog() {
+  roleDialogVisible.value = false
+  currentUser.value = null
+  selectedRoleIds.value = []
+}
+
 function openRoleDialog(row: any) {
+  if (!canAssignRoles.value) {
+    closeRoleDialog()
+    return
+  }
   currentUser.value = row
   selectedRoleIds.value = roles.value.filter((role) => (row.roles || []).includes(role.roleCode)).map((role) => role.roleId)
   roleDialogVisible.value = true
 }
 
 async function submitRoles() {
+  if (!canAssignRoles.value) {
+    closeRoleDialog()
+    return
+  }
   if (!currentUser.value || savingRoles.value) return
   savingRoles.value = true
   const userId = currentUser.value.userId
@@ -346,6 +389,8 @@ onBeforeUnmount(() => {
 .asset-grid span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 12px; }
 .role-dialog-tip { margin-bottom: var(--space-3); padding: 10px 12px; border: 1px solid var(--color-primary-border); border-radius: var(--radius-md); background: var(--color-primary-soft); color: var(--color-text-muted); }
 .role-checks { display: grid; gap: var(--space-2); }
+.auxiliary-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.auxiliary-error .el-alert { flex: 1; }
 
 @media (max-width: 900px) {
   .compact-stats, .asset-grid, .profile-head { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -353,6 +398,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 520px) {
   .compact-stats, .asset-grid, .profile-head { grid-template-columns: 1fr; }
+  .auxiliary-error { align-items: stretch; flex-direction: column; }
   .pager { justify-content: flex-start; overflow-x: auto; }
 }
 </style>

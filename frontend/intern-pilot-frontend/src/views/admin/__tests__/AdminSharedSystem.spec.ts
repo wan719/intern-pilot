@@ -92,7 +92,10 @@ function setPermissions(...permissions: string[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  setPermissions('user:update', 'role:update', 'rag:manage', 'operation-log:delete', 'feedback:write', 'feedback:delete')
+  setPermissions(
+    'user:update', 'role:read', 'role:update', 'permission:read', 'rag:manage',
+    'operation-log:delete', 'feedback:write', 'feedback:delete'
+  )
   vi.mocked(getAdminUserListApi).mockResolvedValue({ records: [user], total: 1 } as any)
   vi.mocked(getRagKnowledgeListApi).mockResolvedValue({ records: [ragDocument], total: 1 } as any)
   vi.mocked(createRagKnowledgeApi).mockResolvedValue({ documentId: 42 } as any)

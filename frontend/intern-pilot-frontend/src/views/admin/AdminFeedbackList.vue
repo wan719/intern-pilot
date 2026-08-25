@@ -97,7 +97,7 @@
       </el-form>
       <template #footer>
         <el-button @click="statusVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitStatus">保存</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!auth.hasPermission('feedback:write')" @click="submitStatus">保存</el-button>
       </template>
     </el-dialog>
 
@@ -109,7 +109,7 @@
       </el-form>
       <template #footer>
         <el-button @click="replyVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitReply">提交回复</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!auth.hasPermission('feedback:write')" @click="submitReply">提交回复</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -195,13 +195,24 @@ function resetQuery() {
   return loadData()
 }
 function openDetail(row: Feedback) { selected.value = row; detailVisible.value = true }
+function closeWriteDialogs() {
+  statusVisible.value = false
+  replyVisible.value = false
+}
+function guardWritePermission() {
+  if (auth.hasPermission('feedback:write')) return true
+  closeWriteDialogs()
+  return false
+}
 function openStatus(row: Feedback) {
+  if (!guardWritePermission()) return
   selected.value = row
   statusForm.status = row.status
   statusVisible.value = true
   void nextTick(() => statusFormRef.value?.clearValidate())
 }
 function openReply(row: Feedback) {
+  if (!guardWritePermission()) return
   selected.value = row
   replyForm.reply = row.adminReply || ''
   replyError.value = ''
@@ -210,6 +221,7 @@ function openReply(row: Feedback) {
 }
 
 async function submitStatus() {
+  if (!guardWritePermission()) return
   if (!selected.value || writeInFlight) return
   writeInFlight = true
   try {
@@ -217,6 +229,7 @@ async function submitStatus() {
     if (!statusFormRef.value || !active) return
     const valid = await statusFormRef.value.validate().catch(() => false)
     if (!valid) return
+    if (!guardWritePermission()) return
     saving.value = true
     await store.updateStatus(selected.value.id, statusForm.status)
     if (!active) return
@@ -229,6 +242,7 @@ async function submitStatus() {
 }
 
 async function submitReply() {
+  if (!guardWritePermission()) return
   if (!selected.value || writeInFlight) return
   writeInFlight = true
   try {
@@ -238,6 +252,7 @@ async function submitReply() {
     if (!replyFormRef.value || !active) return
     const valid = await replyFormRef.value.validate().catch(() => false)
     if (!valid) return
+    if (!guardWritePermission()) return
     saving.value = true
     await store.reply(selected.value.id, replyForm.reply.trim())
     if (!active) return
@@ -261,6 +276,7 @@ function isConfirmationDismissed(reason: unknown) {
 }
 
 async function remove(row: Feedback) {
+  if (!auth.hasPermission('feedback:delete')) return
   if (deletingIds.value.has(row.id)) return
   setDeleting(row.id, true)
   try {
