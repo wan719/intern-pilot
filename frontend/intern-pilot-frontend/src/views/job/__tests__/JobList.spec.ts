@@ -5,9 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import JobList from '@/views/job/JobList.vue'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }))
+const { push, hasPermission } = vi.hoisted(() => ({ push: vi.fn(), hasPermission: vi.fn() }))
 
 vi.mock('@/router', () => ({ default: { push } }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ hasPermission }) }))
 vi.mock('@/api/job', () => ({
   createJobApi: vi.fn(),
   deleteJobApi: vi.fn(),
@@ -69,6 +70,7 @@ async function mountPage(records?: any[]) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  hasPermission.mockReturnValue(true)
   mockedList.mockResolvedValue({ records: jobs } as any)
   mockedDetail.mockResolvedValue(hydratedJob as any)
   mockedCreate.mockResolvedValue({ jobId: 8 } as any)
@@ -160,6 +162,22 @@ describe('job list legacy behavior', () => {
 })
 
 describe('job opportunity redesign', () => {
+  it('shows an authorized recommendation entry and navigates to the guarded list', async () => {
+    const wrapper = await mountPage()
+
+    expect(hasPermission).toHaveBeenCalledWith('analysis:read')
+    await button(wrapper, '查看岗位推荐').trigger('click')
+    expect(push).toHaveBeenCalledWith('/job-recommendations')
+  })
+
+  it('does not expose the recommendation entry without analysis:read', async () => {
+    hasPermission.mockReturnValue(false)
+    const wrapper = await mountPage()
+
+    expect(wrapper.findAll('button').some((item) => item.text().trim() === '查看岗位推荐')).toBe(false)
+    expect(wrapper.text()).not.toContain('查看岗位推荐')
+  })
+
   it('uses one goal-led heading, FilterBar and TableShell with safe long-company wrapping', async () => {
     const longCompany = '这是一家拥有非常非常长公司名称且需要在窄屏安全换行的国际化人工智能科技有限公司'
     mockedDetail.mockResolvedValueOnce({ ...hydratedJob, companyName: longCompany } as any)

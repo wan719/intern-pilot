@@ -1,6 +1,7 @@
 <template>
   <PageContainer title="锁定目标岗位" description="维护目标岗位 JD，用于 AI 匹配分析和投递跟踪。">
     <template #actions>
+      <el-button v-if="auth.hasPermission('analysis:read')" @click="viewRecommendations">查看岗位推荐</el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
     </template>
 
@@ -188,7 +189,9 @@ import router from '@/router'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
 const jobs = ref<any[]>([])
 const detail = ref<any>(null)
 const loading = ref(false)
@@ -313,6 +316,10 @@ async function removeJob(row: any) {
 
 function startAnalysis(jobId: number) {
   router.push(`/analysis/match?jobId=${jobId}`)
+}
+
+function viewRecommendations() {
+  router.push('/job-recommendations')
 }
 
 function jdSummary(content?: string) {

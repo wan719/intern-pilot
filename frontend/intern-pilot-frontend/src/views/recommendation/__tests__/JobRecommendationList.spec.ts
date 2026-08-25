@@ -190,6 +190,44 @@ describe('job recommendation list legacy behavior', () => {
 })
 
 describe('job recommendation list redesign', () => {
+  it('requests and renders history while resume options are still pending without showing false empty', async () => {
+    mockedResumes.mockReturnValueOnce(new Promise<any>(() => {}))
+    const wrapper = await mountPage()
+
+    expect(mockedList).toHaveBeenCalledWith({ pageNum: 1, pageSize: 100 })
+    expect(wrapper.text()).toContain('前端方向推荐')
+    expect(wrapper.get('.generator-panel').attributes('aria-busy')).toBe('true')
+    expect(button(wrapper, '生成推荐').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.app-empty').exists()).toBe(false)
+  })
+
+  it('keeps readable history visible when resume options fail and exposes an independent retry', async () => {
+    mockedResumes.mockRejectedValueOnce(new Error('resume options unavailable'))
+    const wrapper = await mountPage()
+
+    expect(mockedList).toHaveBeenCalledWith({ pageNum: 1, pageSize: 100 })
+    expect(wrapper.text()).toContain('前端方向推荐')
+    expect(wrapper.get('[data-options-error]').text()).toContain('简历选项暂时无法加载')
+    expect(wrapper.get('[data-options-retry]').text()).toContain('重新加载简历')
+    expect(button(wrapper, '生成推荐').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-recommendation-retry]').exists()).toBe(false)
+  })
+
+  it('recovers the generator independently after retrying failed resume options', async () => {
+    mockedResumes.mockRejectedValueOnce(new Error('resume options unavailable'))
+    const wrapper = await mountPage()
+    mockedResumes.mockResolvedValueOnce({ records: [{ resumeId: 3, resumeName: '前端简历' }] } as any)
+
+    await button(wrapper, '重新加载简历').trigger('click')
+    await flushPromises()
+
+    expect(mockedResumes).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[data-options-error]').exists()).toBe(false)
+    expect(wrapper.get('.generator-panel').attributes('aria-busy')).toBe('false')
+    expect(button(wrapper, '生成推荐').attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).toContain('前端方向推荐')
+  })
+
   it('uses one opportunity heading and a shared loading-aware list shell', async () => {
     const wrapper = await mountPage()
 

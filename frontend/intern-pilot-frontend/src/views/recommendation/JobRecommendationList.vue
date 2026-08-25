@@ -8,7 +8,7 @@
     </div>
 
     <div class="recommendation-grid">
-      <section class="panel generator-panel">
+      <section class="panel generator-panel" :aria-busy="optionsLoading">
         <div class="panel-header">
           <div>
             <h3>生成推荐</h3>
@@ -18,7 +18,7 @@
 
         <el-form :model="form" label-position="top">
           <el-form-item label="简历">
-            <el-select v-model="form.resumeId" placeholder="请选择简历" filterable>
+            <el-select v-model="form.resumeId" placeholder="请选择简历" filterable :loading="optionsLoading" :disabled="optionsLoading">
               <el-option
                 v-for="item in resumes"
                 :key="item.resumeId"
@@ -48,7 +48,19 @@
             </el-form-item>
           </div>
 
-          <el-button type="primary" :icon="MagicStick" :loading="generating" @click="generateRecommendation">
+          <p v-if="optionsLoading" class="generator-status" aria-live="polite">正在加载可用简历…</p>
+          <div v-else-if="optionsErrorText" data-options-error class="inline-error" role="alert">
+            <span>简历选项暂时无法加载：{{ optionsErrorText }}</span>
+            <el-button data-options-retry link type="primary" @click="loadOptions">重新加载简历</el-button>
+          </div>
+
+          <el-button
+            type="primary"
+            :icon="MagicStick"
+            :loading="generating"
+            :disabled="optionsLoading || Boolean(optionsErrorText) || !resumes.length"
+            @click="generateRecommendation"
+          >
             生成推荐
           </el-button>
           <div v-if="generationErrorText" data-generation-error class="inline-error" role="alert">
@@ -172,6 +184,8 @@ const versions = ref<any[]>([])
 const history = ref<any[]>([])
 const loading = ref(false)
 const generating = ref(false)
+const optionsLoading = ref(false)
+const optionsErrorText = ref('')
 const historyErrorText = ref('')
 const generationErrorText = ref('')
 const levelFilter = ref('all')
@@ -212,8 +226,20 @@ const batchStats = computed(() => {
 })
 
 async function loadOptions() {
-  const res: any = await getResumeListApi({ pageNum: 1, pageSize: 100 })
-  resumes.value = res.records || []
+  optionsLoading.value = true
+  optionsErrorText.value = ''
+  try {
+    const res: any = await getResumeListApi({ pageNum: 1, pageSize: 100 })
+    resumes.value = res.records || []
+  } catch (e: any) {
+    resumes.value = []
+    versions.value = []
+    form.resumeId = undefined
+    form.resumeVersionId = undefined
+    optionsErrorText.value = e?.response?.data?.message || e?.message || '请检查网络连接后重试。'
+  } finally {
+    optionsLoading.value = false
+  }
 }
 
 async function loadVersions() {
@@ -362,9 +388,9 @@ function strategyLabel(strategy?: string) {
 
 watch(() => form.resumeId, loadVersions)
 
-onMounted(async () => {
-  await loadOptions()
-  await loadHistory()
+onMounted(() => {
+  void loadOptions()
+  void loadHistory()
 })
 </script>
 
@@ -488,8 +514,8 @@ onMounted(async () => {
 .preview-job--error {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: color-mix(in srgb, var(--color-warning) 36%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
 }
 
 .inline-error {
@@ -499,10 +525,16 @@ onMounted(async () => {
   gap: 8px;
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid #fecaca;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
   border-radius: var(--radius-sm);
-  background: #fef2f2;
-  color: #b42318;
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.generator-status {
+  margin: 0 0 12px;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 

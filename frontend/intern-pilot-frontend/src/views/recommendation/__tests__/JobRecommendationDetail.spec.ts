@@ -46,6 +46,28 @@ const recommendation = {
   }]
 }
 
+function recommendationFixture(items = recommendation.items) {
+  return {
+    ...recommendation,
+    items: items.map((item) => ({
+      ...item,
+      matchedSkills: [...(item.matchedSkills || [])],
+      missingSkills: [...(item.missingSkills || [])],
+      reasons: [...(item.reasons || [])]
+    }))
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 function button(wrapper: VueWrapper, label: string) {
   const match = wrapper.findAll('button').find((item) => item.text().trim() === label)
   expect(match).toBeDefined()
@@ -68,9 +90,10 @@ async function mountPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockedDetail.mockResolvedValue(recommendation as any)
+  mockedDetail.mockResolvedValue(recommendationFixture() as any)
   mockedApplication.mockResolvedValue({ applicationId: 51 } as any)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
+  vi.spyOn(ElMessage, 'error').mockImplementation(() => undefined as any)
 })
 
 describe('job recommendation detail legacy behavior', () => {
@@ -109,7 +132,7 @@ describe('job recommendation detail legacy behavior', () => {
       note: '来自岗位推荐批次：前端方向推荐'
     })
     expect(ElMessage.success).toHaveBeenCalledWith('已加入投递记录')
-    expect((wrapper.vm as any).applyingId).toBeNull()
+    expect((wrapper.vm as any).isApplicationPending(recommendation.items[0])).toBe(false)
   })
 
   it('keeps a persistent failed-detail state with retry and return actions', async () => {
@@ -127,6 +150,87 @@ describe('job recommendation detail legacy behavior', () => {
 })
 
 describe('job recommendation detail redesign', () => {
+  it('never offers application creation for an already-applied recommendation', async () => {
+    mockedDetail.mockResolvedValueOnce(recommendationFixture([{ ...recommendation.items[0], isApplied: 1 }]) as any)
+    const wrapper = await mountPage()
+
+    expect(wrapper.get('.primary-next-action').text()).toBe('准备面试')
+    expect(wrapper.findAll('button').some((item) => item.text().trim() === '加入投递')).toBe(false)
+    await (wrapper.vm as any).addApplication((wrapper.vm as any).items[0])
+    expect(mockedApplication).not.toHaveBeenCalled()
+  })
+
+  it('transitions every duplicate job item to applied and the next action immediately after success', async () => {
+    mockedDetail.mockResolvedValueOnce(recommendationFixture([
+      recommendation.items[0],
+      { ...recommendation.items[0], itemId: 304, companyName: '星河科技第二展示位' }
+    ]) as any)
+    const wrapper = await mountPage()
+
+    await button(wrapper, '加入投递').trigger('click')
+    await flushPromises()
+
+    expect((wrapper.vm as any).items.every((item: any) => item.isApplied === 1)).toBe(true)
+    expect((wrapper.vm as any).applicationIdsByJob.get(7)).toBe(51)
+    expect(wrapper.findAll('.primary-next-action').map((item) => item.text())).toEqual(['准备面试', '准备面试'])
+    expect(wrapper.findAll('button').some((item) => item.text().trim() === '加入投递')).toBe(false)
+    expect(wrapper.findAll('.job-meta').every((item) => item.text().includes('状态：已投递'))).toBe(true)
+  })
+
+  it('recovers the same job after application failure and shows persistent feedback', async () => {
+    mockedApplication.mockRejectedValueOnce(new Error('application unavailable'))
+    const wrapper = await mountPage()
+
+    await expect((wrapper.vm as any).addApplication((wrapper.vm as any).items[0])).resolves.toBeUndefined()
+    await flushPromises()
+
+    expect((wrapper.vm as any).isApplicationPending(recommendation.items[0])).toBe(false)
+    expect((wrapper.vm as any).items[0].isApplied).toBe(0)
+    expect(wrapper.get('[data-application-error="7"]').text()).toContain('投递记录创建失败')
+    expect(button(wrapper, '加入投递').attributes('disabled')).toBeUndefined()
+    expect(ElMessage.error).toHaveBeenCalledWith('投递记录创建失败：application unavailable')
+  })
+
+  it('locks pending state by job while allowing different jobs to submit concurrently', async () => {
+    const secondItem = {
+      ...recommendation.items[0],
+      itemId: 302,
+      jobId: 8,
+      companyName: '远航实验室',
+      jobTitle: '交互实习生',
+      recommendationScore: 76
+    }
+    mockedDetail.mockResolvedValueOnce(recommendationFixture([recommendation.items[0], secondItem]) as any)
+    const firstRequest = deferred<any>()
+    const secondRequest = deferred<any>()
+    mockedApplication.mockImplementation((payload: any) => payload.jobId === 7 ? firstRequest.promise : secondRequest.promise)
+    const wrapper = await mountPage()
+    const pageItems = (wrapper.vm as any).items
+
+    const firstSubmission = (wrapper.vm as any).addApplication(pageItems[0])
+    const secondSubmission = (wrapper.vm as any).addApplication(pageItems[1])
+    await flushPromises()
+
+    expect(mockedApplication).toHaveBeenCalledTimes(2)
+    expect((wrapper.vm as any).isApplicationPending(pageItems[0])).toBe(true)
+    expect((wrapper.vm as any).isApplicationPending(pageItems[1])).toBe(true)
+
+    await (wrapper.vm as any).addApplication(pageItems[0])
+    expect(mockedApplication).toHaveBeenCalledTimes(2)
+
+    secondRequest.resolve({ applicationId: 52 })
+    await secondSubmission
+    await flushPromises()
+    expect(pageItems[1].isApplied).toBe(1)
+    expect((wrapper.vm as any).isApplicationPending(pageItems[0])).toBe(true)
+    expect((wrapper.vm as any).isApplicationPending(pageItems[1])).toBe(false)
+
+    firstRequest.resolve({ applicationId: 51 })
+    await firstSubmission
+    expect(pageItems[0].isApplied).toBe(1)
+    expect((wrapper.vm as any).isApplicationPending(pageItems[0])).toBe(false)
+  })
+
   it('uses one heading and separates reasons, fit evidence and risk in AI insight panels', async () => {
     const longCompany = '这是一家名称特别长需要在手机宽度下安全换行的全球数字产品创新科技有限公司'
     mockedDetail.mockResolvedValueOnce({

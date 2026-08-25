@@ -124,6 +124,15 @@
                 <li>进入 AI 分析或面试题页面准备针对性表达。</li>
               </ol>
             </section>
+
+            <div
+              v-if="applicationError(item)"
+              :data-application-error="item.jobId"
+              class="application-error"
+              role="alert"
+            >
+              {{ applicationError(item) }}
+            </div>
           </div>
 
           <div class="card-actions" role="group" :aria-label="`${item.companyName || '未知公司'} ${item.jobTitle || '未知岗位'} 后续行动`">
@@ -132,7 +141,7 @@
               class="primary-next-action"
               type="primary"
               :icon="Plus"
-              :loading="applyingId === item.itemId"
+              :loading="isApplicationPending(item)"
               @click="addApplication(item)"
             >加入投递</el-button>
             <el-button
@@ -150,9 +159,9 @@
             >准备面试</el-button>
 
             <el-button
-              v-if="primaryAction(item) !== 'application'"
+              v-if="primaryAction(item) !== 'application' && item.isApplied !== 1"
               :icon="Plus"
-              :loading="applyingId === item.itemId"
+              :loading="isApplicationPending(item)"
               @click="addApplication(item)"
             >加入投递</el-button>
             <el-button v-if="primaryAction(item) !== 'analysis'" :icon="MagicStick" @click="goAnalysis(item)">AI 分析</el-button>
@@ -182,7 +191,9 @@ const route = useRoute()
 const detail = ref<any>(null)
 const loading = ref(false)
 const errorText = ref('')
-const applyingId = ref<number | null>(null)
+const pendingApplicationJobIds = ref(new Set<number>())
+const applicationErrorsByJob = ref(new Map<number, string>())
+const applicationIdsByJob = ref(new Map<number, number | string>())
 const batchId = computed(() => Number(route.params.batchId))
 const items = computed(() => detail.value?.items || [])
 
@@ -239,9 +250,13 @@ function goInterviewQuestions(item: any) {
 }
 
 async function addApplication(item: any) {
-  applyingId.value = item.itemId
+  const jobId = Number(item.jobId)
+  if (item.isApplied === 1 || pendingApplicationJobIds.value.has(jobId)) return
+
+  setApplicationPending(jobId, true)
+  setApplicationError(jobId, '')
   try {
-    await createApplicationApi({
+    const result: any = await createApplicationApi({
       jobId: item.jobId,
       resumeId: detail.value.resumeId,
       reportId: item.analysisReportId,
@@ -249,10 +264,47 @@ async function addApplication(item: any) {
       priority: normalizedScore(item.recommendationScore) >= 85 ? 'HIGH' : 'MEDIUM',
       note: `来自岗位推荐批次：${detail.value.title || detail.value.batchId}`
     })
+    items.value.forEach((candidate: any) => {
+      if (Number(candidate.jobId) !== jobId) return
+      candidate.isApplied = 1
+      if (result?.applicationId != null) candidate.applicationId = result.applicationId
+    })
+    if (result?.applicationId != null) {
+      const nextIds = new Map(applicationIdsByJob.value)
+      nextIds.set(jobId, result.applicationId)
+      applicationIdsByJob.value = nextIds
+    }
     ElMessage.success('已加入投递记录')
+  } catch (e: any) {
+    const reason = e?.response?.data?.message || e?.message
+    const message = reason ? `投递记录创建失败：${reason}` : '投递记录创建失败，请稍后重试。'
+    setApplicationError(jobId, message)
+    ElMessage.error(message)
   } finally {
-    applyingId.value = null
+    setApplicationPending(jobId, false)
   }
+}
+
+function isApplicationPending(item: any) {
+  return pendingApplicationJobIds.value.has(Number(item.jobId))
+}
+
+function applicationError(item: any) {
+  return applicationErrorsByJob.value.get(Number(item.jobId)) || ''
+}
+
+function setApplicationPending(jobId: number, pending: boolean) {
+  const nextPending = new Set(pendingApplicationJobIds.value)
+  if (pending) nextPending.add(jobId)
+  else nextPending.delete(jobId)
+  pendingApplicationJobIds.value = nextPending
+}
+
+function setApplicationError(jobId: number, message: string) {
+  const nextErrors = new Map(applicationErrorsByJob.value)
+  if (message) nextErrors.set(jobId, message)
+  else nextErrors.delete(jobId)
+  applicationErrorsByJob.value = nextErrors
 }
 
 function primaryAction(item: any): 'application' | 'analysis' | 'interview' {
@@ -484,6 +536,16 @@ onMounted(loadDetail)
   padding-left: 18px;
   color: var(--color-text-muted);
   line-height: 1.7;
+}
+
+.application-error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+  color: var(--color-danger);
+  font-size: 13px;
 }
 
 .muted {
