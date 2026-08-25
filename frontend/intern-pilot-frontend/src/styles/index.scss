@@ -139,6 +139,12 @@ a {
   margin-bottom: var(--space-5);
 }
 
+.page-container__hero-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
 .page-heading,
 .app-page-header {
   display: flex;

@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { Document } from '@element-plus/icons-vue'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { markRaw } from 'vue'
+import { h, markRaw } from 'vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import AiInsightPanel from '@/components/common/AiInsightPanel.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
@@ -32,6 +32,19 @@ describe('shared product UI primitives', () => {
     expect(wrapper.text()).toContain('目标说明')
     expect(wrapper.text()).toContain('页面内容')
     expect(wrapper.classes()).toContain('page-container--wide')
+  })
+
+  it('uses the hero as the only page-level heading when it supplies a PageHero', () => {
+    const wrapper = mount(PageContainer, {
+      props: { title: '后备标题' },
+      slots: {
+        hero: () => h(PageHero, { title: '页面目标' })
+      },
+      global: { plugins: [router] }
+    })
+
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.get('h1').text()).toBe('页面目标')
   })
 
   it('renders AppEmpty action content in its default slot', () => {
@@ -87,6 +100,8 @@ describe('shared product UI primitives', () => {
     expect(loading.text()).not.toContain('新建记录')
     expect(empty.text()).toContain('没有记录')
     expect(empty.text()).toContain('新建记录')
+    expect(empty.text().match(/没有记录/g)).toHaveLength(1)
+    expect(empty.text()).toContain('请调整筛选条件')
   })
 
   it('exposes AI insight title as a semantic heading', () => {

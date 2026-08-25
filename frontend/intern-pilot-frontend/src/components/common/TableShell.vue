@@ -10,8 +10,7 @@
       v-else-if="empty"
       class="table-shell__empty"
       :title="emptyTitle"
-      :hint="emptyHint"
-      :description="emptyTitle"
+      :description="emptyHint"
     >
       <template v-if="$slots['empty-actions']">
         <slot name="empty-actions" />

@@ -1,12 +1,15 @@
 <template>
   <section class="page-container" :class="`page-container--${width}`">
-    <AppPageHeader :title="displayTitle" :description="description" :eyebrow="eyebrow">
+    <AppPageHeader v-if="!$slots.hero" :title="displayTitle" :description="description" :eyebrow="eyebrow">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
     </AppPageHeader>
     <div v-if="$slots.hero" class="page-container__hero">
       <slot name="hero" />
+      <div v-if="$slots.actions" class="page-container__hero-actions responsive-actions">
+        <slot name="actions" />
+      </div>
     </div>
     <slot />
   </section>
