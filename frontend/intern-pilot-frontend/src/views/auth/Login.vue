@@ -44,13 +44,35 @@
             :model="form"
             :rules="rules"
             label-position="top"
+            :show-message="false"
+            @validate="handleValidate"
             @keyup.enter="handleLogin"
           >
             <el-form-item label="邮箱" prop="account">
-              <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
+              <el-input
+                v-model.trim="form.account"
+                :prefix-icon="Message"
+                placeholder="请输入邮箱"
+                :aria-describedby="validationErrors.account ? 'login-account-error' : undefined"
+                :aria-invalid="validationErrors.account ? 'true' : undefined"
+              />
+              <div v-if="validationErrors.account" id="login-account-error" class="el-form-item__error" role="alert">
+                {{ validationErrors.account }}
+              </div>
             </el-form-item>
             <el-form-item label="密码" prop="password">
-              <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="请输入密码" />
+              <el-input
+                v-model="form.password"
+                :prefix-icon="Lock"
+                type="password"
+                show-password
+                placeholder="请输入密码"
+                :aria-describedby="validationErrors.password ? 'login-password-error' : undefined"
+                :aria-invalid="validationErrors.password ? 'true' : undefined"
+              />
+              <div v-if="validationErrors.password" id="login-password-error" class="el-form-item__error" role="alert">
+                {{ validationErrors.password }}
+              </div>
             </el-form-item>
             <el-button type="primary" :loading="loading" @click="handleLogin">进入工作台</el-button>
             <p class="auth-switch">还没有账号？<router-link to="/register">创建账号</router-link></p>
@@ -76,6 +98,7 @@ const auth = useAuthStore()
 const loading = ref(false)
 const formRef = ref<FormInstance>()
 const form = reactive({ account: '', password: '' })
+const validationErrors = reactive<Record<string, string>>({})
 
 const flowItems = [
   { label: '简历上传', description: '沉淀可复用的求职资料', icon: Document },
@@ -90,6 +113,15 @@ const rules: FormRules = {
     { type: 'email', message: '请输入有效邮箱', trigger: ['blur', 'change'] }
   ],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
+function handleValidate(prop: string | string[], isValid: boolean, message: string) {
+  const field = Array.isArray(prop) ? prop.join('.') : prop
+  if (isValid || !message) {
+    delete validationErrors[field]
+    return
+  }
+  validationErrors[field] = message
 }
 
 async function handleLogin() {

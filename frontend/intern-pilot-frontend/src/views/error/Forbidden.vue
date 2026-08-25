@@ -9,7 +9,7 @@
       </div>
       <div class="forbidden-actions">
         <el-button type="primary" @click="router.push('/dashboard')">返回工作台</el-button>
-        <el-button @click="router.back()">返回上一页</el-button>
+        <el-button @click="returnToPreviousPage">返回上一页</el-button>
       </div>
     </section>
   </main>
@@ -19,4 +19,20 @@
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+function hasSafeInAppBackTarget(target: unknown) {
+  if (typeof target !== 'string' || !target) return false
+
+  const resolvedTarget = new URL(target, window.location.origin)
+  return resolvedTarget.origin === window.location.origin
+}
+
+function returnToPreviousPage() {
+  const backTarget = router.options.history.state.back
+  if (hasSafeInAppBackTarget(backTarget)) {
+    router.back()
+    return
+  }
+  router.replace('/dashboard')
+}
 </script>

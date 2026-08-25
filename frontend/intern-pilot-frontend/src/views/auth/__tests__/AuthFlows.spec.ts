@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { ElMessage } from 'element-plus'
+import { ElForm, ElMessage } from 'element-plus'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loginApi, registerApi, sendRegisterCaptchaApi } from '@/api/auth'
@@ -111,6 +111,51 @@ describe('authentication behavior characterization', () => {
     const accountInput = accountItem.get('input')
     expect(accountLabel.text()).toBe('邮箱')
     expect(accountLabel.attributes('for')).toBe(accountInput.attributes('id'))
+  })
+
+  it.each([
+    {
+      name: 'login',
+      component: Login,
+      path: '/login' as const,
+      fields: [
+        ['account', '请输入邮箱', 'login-account-error'],
+        ['password', '请输入密码', 'login-password-error']
+      ]
+    },
+    {
+      name: 'registration',
+      component: Register,
+      path: '/register' as const,
+      fields: [
+        ['account', '请输入邮箱', 'register-account-error'],
+        ['captchaCode', '请输入验证码', 'register-captcha-error'],
+        ['password', '请输入密码', 'register-password-error'],
+        ['confirmPassword', '请再次输入密码', 'register-confirm-password-error']
+      ]
+    }
+  ])('associates every $name error and clears invalid state after correction', async ({ component, path, fields }) => {
+    const { wrapper } = await mountAuth(component, path)
+    const form = wrapper.getComponent(ElForm)
+
+    for (const [field, message, errorId] of fields) {
+      form.vm.$emit('validate', field, false, message)
+      await flushPromises()
+
+      const error = wrapper.get(`#${errorId}`)
+      const input = error.element.closest('.el-form-item')!.querySelector('input')!
+      expect(error.text()).toBe(message)
+      expect(error.attributes('role')).toBe('alert')
+      expect(input.getAttribute('aria-describedby')).toBe(errorId)
+      expect(input.getAttribute('aria-invalid')).toBe('true')
+
+      form.vm.$emit('validate', field, true, '')
+      await flushPromises()
+
+      expect(wrapper.find(`#${errorId}`).exists()).toBe(false)
+      expect(input.hasAttribute('aria-describedby')).toBe(false)
+      expect(input.hasAttribute('aria-invalid')).toBe(false)
+    }
   })
 
   it('submits the unchanged registration payload and returns to login', async () => {

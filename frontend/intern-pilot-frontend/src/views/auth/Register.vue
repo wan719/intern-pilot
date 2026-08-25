@@ -38,27 +38,80 @@
             <p>先完成账号信息；学校、专业等求职资料可以稍后补充。</p>
           </div>
 
-          <el-form ref="formRef" class="auth-form__fields" :model="form" :rules="rules" label-position="top">
+          <el-form
+            ref="formRef"
+            class="auth-form__fields"
+            :model="form"
+            :rules="rules"
+            label-position="top"
+            :show-message="false"
+            @validate="handleValidate"
+          >
             <div class="auth-section-title">
               <strong>账号信息</strong>
               <span>必填</span>
             </div>
             <el-form-item label="邮箱" prop="account">
-              <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
+              <el-input
+                v-model.trim="form.account"
+                :prefix-icon="Message"
+                placeholder="请输入邮箱"
+                :aria-describedby="validationErrors.account ? 'register-account-error' : undefined"
+                :aria-invalid="validationErrors.account ? 'true' : undefined"
+              />
+              <div v-if="validationErrors.account" id="register-account-error" class="el-form-item__error" role="alert">
+                {{ validationErrors.account }}
+              </div>
             </el-form-item>
             <el-form-item label="验证码" prop="captchaCode">
               <div class="captcha-row">
-                <el-input v-model.trim="form.captchaCode" :prefix-icon="Key" placeholder="请输入验证码" />
+                <el-input
+                  v-model.trim="form.captchaCode"
+                  :prefix-icon="Key"
+                  placeholder="请输入验证码"
+                  :aria-describedby="validationErrors.captchaCode ? 'register-captcha-error' : undefined"
+                  :aria-invalid="validationErrors.captchaCode ? 'true' : undefined"
+                />
                 <el-button :disabled="captchaCountdown > 0" :loading="captchaSending" @click="sendCaptcha">
                   {{ captchaCountdown > 0 ? captchaCountdown + 's' : '发送验证码' }}
                 </el-button>
               </div>
+              <div v-if="validationErrors.captchaCode" id="register-captcha-error" class="el-form-item__error" role="alert">
+                {{ validationErrors.captchaCode }}
+              </div>
             </el-form-item>
             <el-form-item label="密码" prop="password">
-              <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="至少 6 位" />
+              <el-input
+                v-model="form.password"
+                :prefix-icon="Lock"
+                type="password"
+                show-password
+                placeholder="至少 6 位"
+                :aria-describedby="validationErrors.password ? 'register-password-error' : undefined"
+                :aria-invalid="validationErrors.password ? 'true' : undefined"
+              />
+              <div v-if="validationErrors.password" id="register-password-error" class="el-form-item__error" role="alert">
+                {{ validationErrors.password }}
+              </div>
             </el-form-item>
             <el-form-item label="确认密码" prop="confirmPassword">
-              <el-input v-model="form.confirmPassword" :prefix-icon="Lock" type="password" show-password placeholder="再次输入密码" />
+              <el-input
+                v-model="form.confirmPassword"
+                :prefix-icon="Lock"
+                type="password"
+                show-password
+                placeholder="再次输入密码"
+                :aria-describedby="validationErrors.confirmPassword ? 'register-confirm-password-error' : undefined"
+                :aria-invalid="validationErrors.confirmPassword ? 'true' : undefined"
+              />
+              <div
+                v-if="validationErrors.confirmPassword"
+                id="register-confirm-password-error"
+                class="el-form-item__error"
+                role="alert"
+              >
+                {{ validationErrors.confirmPassword }}
+              </div>
             </el-form-item>
 
             <div class="auth-section-title optional">
@@ -108,6 +161,7 @@ const captchaSending = ref(false)
 const captchaCountdown = ref(0)
 const formRef = ref<FormInstance>()
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+const validationErrors = reactive<Record<string, string>>({})
 
 const form = reactive({
   account: '',
@@ -151,6 +205,15 @@ const rules: FormRules = {
     { min: 6, message: '密码至少 6 位', trigger: 'blur' }
   ],
   confirmPassword: [{ validator: validateConfirmPassword, trigger: 'blur' }]
+}
+
+function handleValidate(prop: string | string[], isValid: boolean, message: string) {
+  const field = Array.isArray(prop) ? prop.join('.') : prop
+  if (isValid || !message) {
+    delete validationErrors[field]
+    return
+  }
+  validationErrors[field] = message
 }
 
 async function sendCaptcha() {
