@@ -1,13 +1,11 @@
 <template>
-  <div class="app-shell">
-    <AppSidebar />
-    <main class="app-main">
-      <AppHeader @refresh="refreshPage" />
+  <div class="user-app-shell">
+    <AppHeader @refresh="refreshPage" />
+    <main id="main-content" class="user-app-main">
       <router-view :key="refreshKey" />
     </main>
-    <AiTaskFloat v-if="auth.isLoggedIn" />
+    <MobileBottomNav :items="journeyItems" />
     <AiTaskDrawer />
-    <FeedbackFloat v-if="auth.isLoggedIn" />
     <FeedbackDrawer />
   </div>
 </template>
@@ -15,12 +13,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import AppHeader from './AppHeader.vue'
-import AppSidebar from './AppSidebar.vue'
-import AiTaskFloat from '@/components/ai/AiTaskFloat.vue'
+import MobileBottomNav from './MobileBottomNav.vue'
 import AiTaskDrawer from '@/components/ai/AiTaskDrawer.vue'
-import FeedbackFloat from '@/components/feedback/FeedbackFloat.vue'
 import FeedbackDrawer from '@/components/feedback/FeedbackDrawer.vue'
 import { getCurrentUserApi } from '@/api/user'
+import { journeyItems } from '@/config/navigation'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 

@@ -26,18 +26,20 @@ a {
   text-decoration: none;
 }
 
-.app-shell {
-  display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+.user-app-shell {
   min-height: 100vh;
+  background: var(--color-bg);
 }
 
-.app-sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
+.user-app-main {
+  width: 100%;
+  min-width: 0;
+}
+
+.user-app-main > .page-container {
+  width: min(1440px, 100%);
+  margin-right: auto;
+  margin-left: auto;
 }
 
 .brand {
@@ -89,10 +91,6 @@ a {
   padding: 12px;
 }
 
-.app-main {
-  min-width: 0;
-}
-
 .metric-value,
 .stat-card strong,
 .score-row strong,
@@ -105,21 +103,13 @@ a {
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 72px;
-  padding: 0 28px;
-  border-bottom: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(10px);
-
-  h2 {
-    margin: 2px 0 0;
-    font-size: 20px;
-    font-weight: 700;
-  }
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-nav-soft);
+  background: var(--color-nav);
 }
 
 .eyebrow {
@@ -127,13 +117,6 @@ a {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-}
-
-.header-user {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  color: #344054;
 }
 
 .page-container {
@@ -613,13 +596,13 @@ a {
 }
 
 @media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+  .app-header {
+    height: 60px;
+    padding: 0 var(--space-3);
   }
 
-  .app-sidebar {
-    position: static;
-    height: auto;
+  .user-app-main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
   .page-heading,
