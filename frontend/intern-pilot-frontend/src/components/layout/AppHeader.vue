@@ -188,7 +188,7 @@ onMounted(async () => {
 
 .header-brand small {
   margin-top: 2px;
-  color: var(--color-text-muted);
+  color: var(--color-border-strong);
   font-size: 11px;
 }
 
@@ -334,7 +334,7 @@ onMounted(async () => {
 .account-meta small {
   max-width: 112px;
   margin-top: 2px;
-  color: var(--color-text-muted);
+  color: var(--color-border-strong);
   font-size: 11px;
 }
 

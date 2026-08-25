@@ -40,7 +40,7 @@ const activeKey = computed(() => resolveJourneyKey(route.path))
   min-height: 40px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  color: var(--color-border-strong);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -60,7 +60,7 @@ const activeKey = computed(() => resolveJourneyKey(route.path))
 }
 
 .journey-nav-link.is-active {
-  background: var(--color-primary);
+  background: var(--color-primary-hover);
   color: var(--color-surface);
 }
 

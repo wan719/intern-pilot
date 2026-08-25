@@ -12,35 +12,37 @@
       <span>{{ item.shortLabel }}</span>
     </RouterLink>
     <button
+      ref="moreButton"
       class="mobile-bottom-more"
       :class="{ 'is-active': secondaryActive }"
       type="button"
-      aria-label="更多求职旅程入口"
+      :aria-label="moreButtonLabel"
+      :aria-current="secondaryActiveItem ? 'page' : undefined"
       :aria-expanded="drawerVisible"
       aria-controls="mobile-journey-more"
-      @click="drawerVisible = true"
+      @click="openDrawer"
     >
       <span class="mobile-more-dots" aria-hidden="true">•••</span>
-      <span>更多</span>
+      <span>{{ secondaryActiveItem ? `${secondaryActiveItem.shortLabel} · 更多` : '更多' }}</span>
     </button>
   </nav>
 
-  <div v-if="drawerVisible" class="mobile-nav-overlay" @keydown.esc="closeDrawer">
-    <button class="mobile-nav-backdrop" type="button" aria-label="关闭更多导航" @click="closeDrawer"></button>
-    <section
-      id="mobile-journey-more"
-      class="mobile-nav-drawer"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="mobile-journey-title"
-    >
-      <div class="mobile-nav-drawer-header">
-        <div>
-          <span>完整旅程</span>
-          <h2 id="mobile-journey-title">更多求职阶段</h2>
-        </div>
-        <button type="button" aria-label="关闭更多导航" @click="closeDrawer">×</button>
-      </div>
+  <el-drawer
+    id="mobile-journey-more"
+    v-model="drawerVisible"
+    class="mobile-nav-drawer"
+    title="更多求职阶段"
+    direction="btt"
+    size="auto"
+    :append-to-body="false"
+    :close-on-click-modal="true"
+    :close-on-press-escape="true"
+    @keydown.esc.stop="closeDrawer"
+    @opened="focusFirstSecondaryLink"
+    @close-auto-focus="restoreMoreFocus"
+  >
+    <div ref="drawerBody">
+      <span class="mobile-nav-drawer-eyebrow">完整旅程</span>
       <div class="mobile-nav-secondary">
         <RouterLink
           v-for="item in secondaryItems"
@@ -53,33 +55,53 @@
           <strong>{{ item.label }}</strong>
         </RouterLink>
       </div>
-    </section>
-  </div>
+    </div>
+  </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { resolveJourneyKey, type JourneyItem } from '@/config/navigation'
 
 const props = defineProps<{ items: JourneyItem[] }>()
 const route = useRoute()
 const drawerVisible = ref(false)
+const moreButton = ref<HTMLButtonElement>()
+const drawerBody = ref<HTMLElement>()
 const coreItems = computed(() => props.items.filter((item) => item.mobile))
 const secondaryItems = computed(() => props.items.filter((item) => !item.mobile))
 const activeKey = computed(() => resolveJourneyKey(route.path))
-const secondaryActive = computed(() => secondaryItems.value.some((item) => item.key === activeKey.value))
+const secondaryActiveItem = computed(() => secondaryItems.value.find((item) => item.key === activeKey.value))
+const secondaryActive = computed(() => Boolean(secondaryActiveItem.value))
+const moreButtonLabel = computed(() =>
+  secondaryActiveItem.value
+    ? `更多求职旅程入口，当前阶段：${secondaryActiveItem.value.label}`
+    : '更多求职旅程入口'
+)
+
+function openDrawer() {
+  drawerVisible.value = true
+}
 
 function closeDrawer() {
   drawerVisible.value = false
+}
+
+async function focusFirstSecondaryLink() {
+  await nextTick()
+  drawerBody.value?.querySelector<HTMLAnchorElement>('a')?.focus()
+}
+
+function restoreMoreFocus() {
+  moreButton.value?.focus()
 }
 
 watch(() => route.fullPath, closeDrawer)
 </script>
 
 <style scoped>
-.mobile-bottom-nav,
-.mobile-nav-overlay {
+.mobile-bottom-nav {
   display: none;
 }
 
@@ -126,7 +148,7 @@ watch(() => route.fullPath, closeDrawer)
 
   .mobile-bottom-link:focus-visible,
   .mobile-bottom-more:focus-visible,
-  .mobile-nav-drawer button:focus-visible,
+  :deep(.mobile-nav-drawer button:focus-visible),
   .mobile-nav-secondary a:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
@@ -146,58 +168,32 @@ watch(() => route.fullPath, closeDrawer)
     line-height: 4px;
   }
 
-  .mobile-nav-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .mobile-nav-backdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    border: 0;
-    background: color-mix(in srgb, var(--color-nav) 56%, transparent);
-  }
-
-  .mobile-nav-drawer {
-    position: relative;
-    width: 100%;
-    padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
+  :deep(.mobile-nav-drawer) {
+    max-height: min(70vh, 420px);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-floating);
   }
 
-  .mobile-nav-drawer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-4);
+  :deep(.mobile-nav-drawer .el-drawer__header) {
+    margin-bottom: 0;
+    padding: var(--space-5) var(--space-4) var(--space-3);
+    color: var(--color-text);
   }
 
-  .mobile-nav-drawer-header span {
-    color: var(--color-primary-hover);
-    font-size: 12px;
+  :deep(.mobile-nav-drawer .el-drawer__title) {
+    font-size: 18px;
     font-weight: 700;
   }
 
-  .mobile-nav-drawer-header h2 {
-    margin: var(--space-1) 0 0;
-    font-size: 18px;
+  :deep(.mobile-nav-drawer .el-drawer__body) {
+    padding: 0 var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
   }
 
-  .mobile-nav-drawer-header button {
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--color-border);
-    border-radius: 50%;
-    background: var(--color-surface-muted);
-    color: var(--color-text);
-    font-size: 24px;
-    cursor: pointer;
+  .mobile-nav-drawer-eyebrow {
+    display: block;
+    margin-bottom: var(--space-3);
+    color: var(--color-primary-hover);
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .mobile-nav-secondary {
