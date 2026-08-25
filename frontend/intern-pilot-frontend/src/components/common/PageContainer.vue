@@ -1,10 +1,13 @@
 <template>
-  <section class="page-container">
-    <AppPageHeader :title="displayTitle" :description="description">
+  <section class="page-container" :class="`page-container--${width}`">
+    <AppPageHeader :title="displayTitle" :description="description" :eyebrow="eyebrow">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
     </AppPageHeader>
+    <div v-if="$slots.hero" class="page-container__hero">
+      <slot name="hero" />
+    </div>
     <slot />
   </section>
 </template>
@@ -14,10 +17,14 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   description?: string
-}>()
+  eyebrow?: string
+  width?: 'default' | 'wide'
+}>(), {
+  width: 'default'
+})
 
 const route = useRoute()
 const displayTitle = computed(() => props.title || String(route.meta.title || 'InternPilot'))

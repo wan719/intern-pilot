@@ -5,7 +5,7 @@
       <h1>{{ title }}</h1>
       <p v-if="description">{{ description }}</p>
     </div>
-    <div v-if="$slots.actions" class="app-page-actions">
+    <div v-if="$slots.actions" class="app-page-actions responsive-actions">
       <slot name="actions" />
     </div>
   </header>
