@@ -294,7 +294,8 @@ async function generateRecommendation() {
     type: 'JOB_RECOMMENDATION',
     title: '岗位推荐',
     message: '正在生成岗位推荐...',
-    resumeId: form.resumeId
+    resumeId: form.resumeId,
+    sourcePath: '/job-recommendations'
   })
 
   try {

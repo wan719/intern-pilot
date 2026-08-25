@@ -23,8 +23,8 @@
         :show-text="false"
         :stroke-width="5"
       />
-      <p v-if="canRecover" class="task-recovery" data-task-recovery>
-        返回发起页面后可重新提交，系统不会自动重复请求。
+      <p v-if="isTerminalFailure" class="task-recovery" data-task-recovery>
+        {{ canRecover ? '返回发起页面后可重新提交，系统不会自动重复请求。' : '此任务缺少原始入口，无法从任务中心直接重试；请返回相关功能页面重新发起。' }}
       </p>
       <span class="task-time">{{ timeText }}</span>
     </div>
@@ -36,7 +36,7 @@
       <el-button v-if="task.status === 'COMPLETED' && task.resultPath" size="small" text type="primary" @click="$emit('view', task)">
         查看结果
       </el-button>
-      <el-button v-if="task.status === 'FAILED' || task.status === 'CANCELLED'" size="small" text type="primary" @click="$emit('retry', task)">
+      <el-button v-if="canRecover" size="small" text type="primary" @click="$emit('retry', task)">
         重试
       </el-button>
       <el-button v-if="task.dismissible && !isRunning" size="small" text @click="$emit('dismiss', task)">
@@ -65,7 +65,8 @@ const isRunning = computed(() => runningStatuses.includes(props.task.status))
 const normalizedProgress = computed(() => Math.min(100, Math.max(0, Number(props.task.progress) || 0)))
 const isUnread = computed(() => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(props.task.status) && props.task.dismissible)
 const unreadLabel = computed(() => (props.task.status === 'COMPLETED' ? '待查看' : '待处理'))
-const canRecover = computed(() => ['FAILED', 'CANCELLED'].includes(props.task.status) && Boolean(props.task.sourcePath))
+const isTerminalFailure = computed(() => ['FAILED', 'CANCELLED'].includes(props.task.status))
+const canRecover = computed(() => isTerminalFailure.value && Boolean(props.task.sourcePath))
 const statusClass = computed(() => `task-${props.task.status.toLowerCase().replace(/_/g, '-')}`)
 
 const statusIcon = computed(() => {

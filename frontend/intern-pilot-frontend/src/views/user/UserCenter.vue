@@ -81,7 +81,8 @@
               clearable
               filterable
               placeholder="请选择默认简历"
-              :loading="resumeLoading"
+              :loading="resumeLoading || defaultResumeSaving"
+              :disabled="resumeLoading || defaultResumeSaving"
               @change="changeDefaultResume"
             >
               <el-option
@@ -165,8 +166,11 @@ const profileSaving = ref(false)
 const avatarUploading = ref(false)
 const passwordSaving = ref(false)
 const resumeLoading = ref(false)
+const defaultResumeSaving = ref(false)
 const resumes = ref<any[]>([])
 const selectedDefaultResumeId = ref<number | undefined>()
+const confirmedDefaultResumeId = ref<number | undefined>()
+const pendingDefaultResumeId = ref<number | undefined>()
 
 const profileForm = reactive({
   nickname: '',
@@ -221,6 +225,7 @@ async function loadProfile() {
   profileForm.expectedSalary = profile.value?.expectedSalary || ''
   profileForm.employmentType = profile.value?.employmentType || ''
   selectedDefaultResumeId.value = profile.value?.defaultResumeId
+  confirmedDefaultResumeId.value = profile.value?.defaultResumeId
   syncAuthUser()
 }
 
@@ -274,19 +279,46 @@ async function loadResumes() {
 
 async function changeDefaultResume(value?: number) {
   if (!value) {
+    selectedDefaultResumeId.value = pendingDefaultResumeId.value ?? confirmedDefaultResumeId.value
     return
   }
-  await setDefaultResumeApi(value)
-  resumes.value = resumes.value.map((resume) => ({
-    ...resume,
-    isDefault: resume.resumeId === value
-  }))
-  const selected = resumes.value.find((resume) => resume.resumeId === value)
-  if (profile.value) {
-    profile.value.defaultResumeId = value
-    profile.value.defaultResumeName = selected?.resumeName || selected?.originalFileName || ''
+  if (defaultResumeSaving.value) {
+    selectedDefaultResumeId.value = pendingDefaultResumeId.value ?? confirmedDefaultResumeId.value
+    return
   }
-  ElMessage.success('默认简历已更新')
+  const previousResumeId = confirmedDefaultResumeId.value
+  const previousResumes = resumes.value
+  const previousProfileResumeId = profile.value?.defaultResumeId
+  const previousProfileResumeName = profile.value?.defaultResumeName
+  pendingDefaultResumeId.value = value
+  selectedDefaultResumeId.value = value
+  defaultResumeSaving.value = true
+  try {
+    await setDefaultResumeApi(value)
+    const selected = resumes.value.find((resume) => resume.resumeId === value)
+    resumes.value = resumes.value.map((resume) => ({
+      ...resume,
+      isDefault: resume.resumeId === value
+    }))
+    confirmedDefaultResumeId.value = value
+    selectedDefaultResumeId.value = value
+    if (profile.value) {
+      profile.value.defaultResumeId = value
+      profile.value.defaultResumeName = selected?.resumeName || selected?.originalFileName || ''
+    }
+    ElMessage.success('默认简历已更新')
+  } catch {
+    confirmedDefaultResumeId.value = previousResumeId
+    selectedDefaultResumeId.value = previousResumeId
+    resumes.value = previousResumes
+    if (profile.value) {
+      profile.value.defaultResumeId = previousProfileResumeId
+      profile.value.defaultResumeName = previousProfileResumeName
+    }
+  } finally {
+    pendingDefaultResumeId.value = undefined
+    defaultResumeSaving.value = false
+  }
 }
 
 async function changePassword() {

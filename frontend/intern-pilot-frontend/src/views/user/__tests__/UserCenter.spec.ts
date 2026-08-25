@@ -38,6 +38,16 @@ const profile = {
 
 let capturedPasswordPayload: unknown
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 async function mountPage() {
   const pinia = createPinia()
   const auth = useAuthStore(pinia)
@@ -151,5 +161,61 @@ describe('user center redesign', () => {
 
     expect(auth.user).toBeNull()
     expect(router.currentRoute.value.path).toBe('/login')
+  })
+
+  it('rolls a failed default-resume change back across selection, resumes, and profile', async () => {
+    vi.mocked(setDefaultResumeApi).mockRejectedValueOnce(new Error('保存默认简历失败'))
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false }
+      ]
+    } as any)
+    vi.spyOn(ElMessage, 'error').mockImplementation(() => undefined as any)
+    const { wrapper } = await mountPage()
+
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(3)
+    expect((wrapper.vm as any).profile.defaultResumeId).toBe(3)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 3).isDefault).toBe(true)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(false)
+    expect((wrapper.vm as any).defaultResumeSaving).toBe(false)
+  })
+
+  it('allows only one in-flight default-resume change and keeps a rapid A to B selection consistent', async () => {
+    const firstChange = deferred<any>()
+    vi.mocked(setDefaultResumeApi).mockReturnValueOnce(firstChange.promise)
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false },
+        { resumeId: 5, resumeName: '算法简历', isDefault: false }
+      ]
+    } as any)
+    const { wrapper } = await mountPage()
+
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    const selectA = (wrapper.vm as any).changeDefaultResume(4)
+    ;(wrapper.vm as any).selectedDefaultResumeId = 5
+    await (wrapper.vm as any).changeDefaultResume(5)
+
+    expect(setDefaultResumeApi).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).defaultResumeSaving).toBe(true)
+    const defaultResumeSelect = wrapper
+      .findAllComponents({ name: 'ElSelect' })
+      .find((select) => select.props('placeholder') === '请选择默认简历')
+    expect(defaultResumeSelect?.props('disabled')).toBe(true)
+
+    firstChange.resolve({} as any)
+    await selectA
+
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).profile.defaultResumeId).toBe(4)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 5).isDefault).toBe(false)
+    expect((wrapper.vm as any).defaultResumeSaving).toBe(false)
   })
 })

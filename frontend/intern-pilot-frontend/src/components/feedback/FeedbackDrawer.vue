@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
@@ -94,6 +94,9 @@ const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const submitState = ref<'form' | 'success'>('form')
 const submitError = ref('')
+let sessionGeneration = 0
+let attemptGeneration = 0
+let unmounted = false
 const { responsiveDrawerSize } = useResponsiveSize({ tabletBreakpoint: 900 })
 const drawerSize = responsiveDrawerSize('430px', '78%')
 
@@ -121,6 +124,9 @@ const rules: FormRules = {
 }
 
 watch(drawerVisible, (visible) => {
+  sessionGeneration += 1
+  attemptGeneration += 1
+  submitting.value = false
   if (visible) {
     form.pageUrl = route.fullPath
     form.browserInfo = navigator.userAgent
@@ -133,21 +139,33 @@ watch(drawerVisible, (visible) => {
 })
 
 async function handleSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+  if (submitting.value) return
   submitting.value = true
+  const session = sessionGeneration
+  const attempt = ++attemptGeneration
+  const isCurrentAttempt = () =>
+    !unmounted && drawerVisible.value && session === sessionGeneration && attempt === attemptGeneration
+
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!isCurrentAttempt()) return
+  if (!valid) {
+    submitting.value = false
+    return
+  }
+
   submitError.value = ''
   try {
     await store.submitFeedback({ ...form })
+    if (!isCurrentAttempt()) return
     ElMessage.success('反馈提交成功，感谢你的建议')
     resetForm()
     submitState.value = 'success'
   } catch (error: any) {
+    if (!isCurrentAttempt()) return
     submitError.value = getSubmitErrorMessage(error)
     ElMessage.error(submitError.value)
   } finally {
-    submitting.value = false
+    if (isCurrentAttempt()) submitting.value = false
   }
 }
 
@@ -170,6 +188,12 @@ function resetForm() {
   form.contact = ''
   form.allowContact = false
 }
+
+onBeforeUnmount(() => {
+  unmounted = true
+  sessionGeneration += 1
+  attemptGeneration += 1
+})
 </script>
 
 <style scoped>
@@ -277,7 +301,7 @@ function resetForm() {
   border-top: 1px solid var(--color-border-soft);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   :global(.feedback-drawer.el-drawer) {
     top: 0;
     bottom: calc(72px + env(safe-area-inset-bottom));

@@ -48,6 +48,14 @@ const application = {
   review: ''
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 function button(wrapper: VueWrapper, label: string) {
   const match = wrapper.findAll('button').find((item) => item.text().trim() === label)
   expect(match).toBeTruthy()
@@ -179,5 +187,64 @@ describe('application tracking redesign', () => {
     expect(card.get('[data-application-status-icon]').element.tagName).toBe('I')
     expect(card.get('[data-application-next-action]').text()).toContain('关注 HR 回复')
     expect(card.get('[role="group"]').attributes('aria-label')).toContain('远航人工智能科技有限公司')
+  })
+
+  it('keeps the newest filter result when an older request resolves last', async () => {
+    const wrapper = await mountPage()
+    const firstRequest = deferred<any>()
+    const secondRequest = deferred<any>()
+    mockedList.mockReturnValueOnce(firstRequest.promise).mockReturnValueOnce(secondRequest.promise)
+    mockedDetail.mockImplementation(async (id) => ({
+      ...application,
+      applicationId: id,
+      companyName: id === 21 ? '筛选 A 公司' : '筛选 B 公司'
+    }) as any)
+
+    ;(wrapper.vm as any).query.keyword = '筛选 A'
+    const firstLoad = (wrapper.vm as any).loadApplications()
+    ;(wrapper.vm as any).query.keyword = '筛选 B'
+    const secondLoad = (wrapper.vm as any).loadApplications()
+
+    secondRequest.resolve({ records: [{ ...application, applicationId: 22 }] })
+    await secondLoad
+    expect(wrapper.text()).toContain('筛选 B 公司')
+    expect((wrapper.vm as any).loading).toBe(false)
+
+    firstRequest.resolve({ records: [{ ...application, applicationId: 21 }] })
+    await firstLoad
+    expect(wrapper.text()).toContain('筛选 B 公司')
+    expect(wrapper.text()).not.toContain('筛选 A 公司')
+  })
+
+  it('invalidates a pending application load when the page unmounts', async () => {
+    const wrapper = await mountPage()
+    const pendingRequest = deferred<any>()
+    mockedList.mockReturnValueOnce(pendingRequest.promise)
+    mockedDetail.mockRejectedValueOnce(new Error('detail unavailable after unmount'))
+    const pendingLoad = (wrapper.vm as any).loadApplications()
+
+    wrapper.unmount()
+    pendingRequest.resolve({ records: [{ ...application, applicationId: 23, companyName: '卸载后结果' }] })
+    await pendingLoad
+
+    expect((wrapper.vm as any).applications).toEqual([application])
+  })
+
+  it('does not let a stale request clear loading while the newest request is pending', async () => {
+    const wrapper = await mountPage()
+    const staleRequest = deferred<any>()
+    const latestRequest = deferred<any>()
+    mockedList.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
+    mockedDetail.mockImplementation(async (id) => ({ ...application, applicationId: id }) as any)
+
+    const staleLoad = (wrapper.vm as any).loadApplications()
+    const latestLoad = (wrapper.vm as any).loadApplications()
+    staleRequest.resolve({ records: [{ ...application, applicationId: 24 }] })
+    await staleLoad
+
+    expect((wrapper.vm as any).loading).toBe(true)
+    latestRequest.resolve({ records: [{ ...application, applicationId: 25 }] })
+    await latestLoad
+    expect((wrapper.vm as any).loading).toBe(false)
   })
 })

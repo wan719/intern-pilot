@@ -16,6 +16,16 @@ vi.mock('@/api/feedback', () => ({
   updateFeedbackStatusApi: vi.fn()
 }))
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 async function mountDrawer() {
   const pinia = createPinia()
   const store = useFeedbackStore(pinia)
@@ -136,5 +146,107 @@ describe('feedback drawer redesign', () => {
     expect(wrapper.get('.feedback-error[role="alert"]').text()).toContain('受控反馈失败：输入应保留')
     expect((wrapper.vm as any).form.title).toBe('状态更新失败')
     expect(wrapper.text()).toContain('提交反馈')
+  })
+
+  it('ignores completion from a closed session without clearing or relabelling the reopened draft', async () => {
+    const firstRequest = deferred<any>()
+    const secondRequest = deferred<any>()
+    vi.mocked(createFeedbackApi)
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(secondRequest.promise)
+    const { wrapper, store } = await mountDrawer()
+    ;(wrapper.vm as any).formRef = { validate: vi.fn().mockResolvedValue(true) }
+    Object.assign((wrapper.vm as any).form, {
+      type: 'BUG',
+      title: '反馈 A',
+      content: '旧会话内容'
+    })
+    const firstSubmit = (wrapper.vm as any).handleSubmit()
+    await flushPromises()
+
+    store.closeDrawer()
+    await flushPromises()
+    store.openDrawer()
+    await flushPromises()
+    Object.assign((wrapper.vm as any).form, {
+      type: 'SUGGESTION',
+      title: '反馈 B',
+      content: '新会话内容'
+    })
+    const secondSubmit = (wrapper.vm as any).handleSubmit()
+    await flushPromises()
+
+    firstRequest.resolve({ id: 41 })
+    await firstSubmit
+    await flushPromises()
+
+    expect((wrapper.vm as any).form).toMatchObject({ title: '反馈 B', content: '新会话内容' })
+    expect((wrapper.vm as any).submitState).toBe('form')
+    expect((wrapper.vm as any).submitting).toBe(true)
+    expect(wrapper.find('.feedback-error').exists()).toBe(false)
+
+    secondRequest.resolve({ id: 42 })
+    await secondSubmit
+    await flushPromises()
+    expect(wrapper.get('.feedback-success').text()).toContain('反馈已提交')
+  })
+
+  it('locks before deferred validation so simultaneous calls create only one feedback', async () => {
+    const validation = deferred<boolean>()
+    const { wrapper } = await mountDrawer()
+    ;(wrapper.vm as any).formRef = { validate: vi.fn(() => validation.promise) }
+    Object.assign((wrapper.vm as any).form, {
+      type: 'BUG',
+      title: '防止重复提交',
+      content: '验证期间再次触发提交。'
+    })
+
+    const firstSubmit = (wrapper.vm as any).handleSubmit()
+    const duplicateSubmit = (wrapper.vm as any).handleSubmit()
+    expect((wrapper.vm as any).submitting).toBe(true)
+    validation.resolve(true)
+    await Promise.all([firstSubmit, duplicateSubmit])
+
+    expect(createFeedbackApi).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases the single-flight lock when validation fails', async () => {
+    const { wrapper } = await mountDrawer()
+    const validate = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    ;(wrapper.vm as any).formRef = { validate }
+    Object.assign((wrapper.vm as any).form, {
+      type: 'BUG',
+      title: '修正后可提交',
+      content: '首次验证失败，修正后再次提交。'
+    })
+
+    await (wrapper.vm as any).handleSubmit()
+    expect((wrapper.vm as any).submitting).toBe(false)
+    await (wrapper.vm as any).handleSubmit()
+
+    expect(validate).toHaveBeenCalledTimes(2)
+    expect(createFeedbackApi).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates a pending submission when the drawer component unmounts', async () => {
+    const pendingRequest = deferred<any>()
+    vi.mocked(createFeedbackApi).mockReturnValueOnce(pendingRequest.promise)
+    const { wrapper } = await mountDrawer()
+    ;(wrapper.vm as any).formRef = { validate: vi.fn().mockResolvedValue(true) }
+    Object.assign((wrapper.vm as any).form, {
+      type: 'BUG',
+      title: '卸载前草稿',
+      content: '旧请求完成时不能再修改组件状态。'
+    })
+    const draft = (wrapper.vm as any).form
+    const pendingSubmit = (wrapper.vm as any).handleSubmit()
+    await flushPromises()
+
+    wrapper.unmount()
+    pendingRequest.resolve({ id: 43 })
+    await pendingSubmit
+
+    expect(draft).toMatchObject({ title: '卸载前草稿', content: '旧请求完成时不能再修改组件状态。' })
+    expect(ElMessage.success).not.toHaveBeenCalled()
   })
 })

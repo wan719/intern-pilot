@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, Briefcase, Calendar, CircleCheck, CircleClose, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -242,6 +242,8 @@ const createDialogWidth = responsiveDialogWidth('620px')
 const statusDialogWidth = responsiveDialogWidth('360px')
 const noteDialogWidth = responsiveDialogWidth('560px')
 const detailDrawerSize = responsiveDrawerSize('52%')
+let applicationLoadEpoch = 0
+let applicationPageActive = true
 
 const filteredApplications = computed(() => {
   if (!priorityFilter.value) return applications.value
@@ -256,12 +258,19 @@ const applicationStats = computed(() => ({
 }))
 
 async function loadApplications() {
+  const epoch = ++applicationLoadEpoch
+  const querySnapshot = { keyword: query.keyword, status: query.status, pageNum: 1, pageSize: 100 }
   loading.value = true
   try {
-    const res: any = await getApplicationListApi({ ...query, pageNum: 1, pageSize: 100 })
-    applications.value = await hydrateApplications(res.records || [])
+    const res: any = await getApplicationListApi(querySnapshot)
+    const hydrated = await hydrateApplications(res.records || [])
+    if (applicationPageActive && epoch === applicationLoadEpoch) {
+      applications.value = hydrated
+    }
   } finally {
-    loading.value = false
+    if (applicationPageActive && epoch === applicationLoadEpoch) {
+      loading.value = false
+    }
   }
 }
 
@@ -419,6 +428,11 @@ function timelineActive(status?: string) {
 onMounted(() => {
   loadApplications()
   loadOptions()
+})
+
+onBeforeUnmount(() => {
+  applicationPageActive = false
+  applicationLoadEpoch += 1
 })
 </script>
 

@@ -1,7 +1,18 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AiTaskDrawer from '@/components/ai/AiTaskDrawer.vue'
 import AiTaskItem from '@/components/ai/AiTaskItem.vue'
 import type { GlobalAiTask } from '@/stores/aiTaskCenter'
+import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
+
+const { push } = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('@/router', () => ({ default: { push } }))
+
+beforeEach(() => {
+  localStorage.clear()
+  push.mockReset()
+})
 
 function makeTask(overrides: Partial<GlobalAiTask>): GlobalAiTask {
   return {
@@ -76,5 +87,52 @@ describe('AI task item redesign', () => {
 
     expect(wrapper.get('[data-task-recovery]').text()).toContain('返回发起页面')
     expect(wrapper.text()).toContain('重试')
+  })
+
+  it('only offers retry when a failed task has a real recovery route', async () => {
+    const recoverable = makeTask({ status: 'FAILED', cancellable: false, sourcePath: '/analysis/match' })
+    const recoverableWrapper = mount(AiTaskItem, { props: { task: recoverable } })
+
+    await recoverableWrapper.get('button').trigger('click')
+    expect(recoverableWrapper.emitted('retry')?.[0]?.[0]).toEqual(recoverable)
+
+    const unavailableWrapper = mount(AiTaskItem, {
+      props: { task: makeTask({ status: 'FAILED', cancellable: false, sourcePath: undefined }) }
+    })
+
+    expect(unavailableWrapper.findAll('button').some((item) => item.text().trim() === '重试')).toBe(false)
+    expect(unavailableWrapper.get('[data-task-recovery]').text()).toContain('无法从任务中心直接重试')
+  })
+
+  it('navigates a real failed task through the drawer retry action', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useAiTaskCenterStore()
+    store.upsertByTaskNo({
+      type: 'JOB_RECOMMENDATION',
+      title: '岗位推荐',
+      taskNo: 'FAILED_RECOMMENDATION',
+      status: 'FAILED',
+      sourcePath: '/job-recommendations',
+      silent: true
+    })
+    store.openDrawer()
+    const wrapper = mount(AiTaskDrawer, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          teleport: true,
+          ElDrawer: {
+            props: ['modelValue', 'title'],
+            template: '<aside role="dialog" :aria-label="title"><slot /></aside>'
+          }
+        }
+      }
+    })
+
+    await wrapper.get('.task-failed button').trigger('click')
+
+    expect(push).toHaveBeenCalledWith('/job-recommendations')
+    expect(store.tasks.some((task) => task.backendTaskNo === 'FAILED_RECOMMENDATION')).toBe(false)
   })
 })

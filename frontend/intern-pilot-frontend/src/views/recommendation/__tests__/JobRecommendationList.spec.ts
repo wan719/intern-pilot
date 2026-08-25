@@ -138,7 +138,8 @@ describe('job recommendation list legacy behavior', () => {
       type: 'JOB_RECOMMENDATION',
       title: '岗位推荐',
       message: '正在生成岗位推荐...',
-      resumeId: 3
+      resumeId: 3,
+      sourcePath: '/job-recommendations'
     })
     expect(taskCenter.completeTask).toHaveBeenCalledWith('LOCAL_RECOMMENDATION_TASK', {
       resultId: 32,
