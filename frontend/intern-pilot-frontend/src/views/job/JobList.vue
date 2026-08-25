@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="" description="维护目标岗位 JD，用于 AI 匹配分析和投递跟踪。">
+  <PageContainer title="锁定目标岗位" description="维护目标岗位 JD，用于 AI 匹配分析和投递跟踪。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
     </template>
@@ -11,59 +11,88 @@
       <StatCard label="待完善" :value="jobStats.incomplete" :icon="WarningFilled" />
     </div>
 
-    <section class="panel toolbar">
-      <el-input v-model="query.keyword" placeholder="搜索公司或岗位" clearable />
-      <el-input v-model="query.jobType" placeholder="岗位类型" clearable />
-      <el-input v-model="query.location" placeholder="地点" clearable />
-      <el-button type="primary" @click="loadJobs">搜索</el-button>
-      <el-button @click="resetQuery">重置</el-button>
+    <FilterBar @reset="resetQuery">
+      <template #filters>
+        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable />
+        <el-input v-model="query.jobType" aria-label="岗位类型" placeholder="岗位类型" clearable />
+        <el-input v-model="query.location" aria-label="地点" placeholder="地点" clearable />
+      </template>
+      <template #actions>
+        <el-button type="primary" @click="loadJobs">搜索</el-button>
+      </template>
+    </FilterBar>
+
+    <section v-if="errorText" class="panel state-panel" role="alert">
+      <div>
+        <strong>目标岗位暂时无法加载</strong>
+        <p>{{ errorText }}</p>
+      </div>
+      <el-button data-job-retry type="primary" @click="loadJobs">重新加载</el-button>
     </section>
 
-    <section v-loading="loading" class="job-library">
-      <AppEmpty
-        v-if="!jobs.length && !loading"
-        title="还没有岗位 JD"
-        description="新增岗位后即可用于 AI 匹配分析"
-        hint="建议填写公司、岗位、地点、薪资和完整 JD 内容，答辩演示会更清晰。"
-      >
-        <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
-      </AppEmpty>
+    <TableShell
+      v-else
+      class="job-library"
+      :loading="loading"
+      :empty="!jobs.length"
+      empty-title="还没有目标岗位"
+      empty-hint="新增岗位后即可用于 AI 匹配分析。建议填写公司、岗位、地点、薪资和完整 JD 内容。"
+    >
+      <template #empty-actions>
+        <el-button data-job-empty-action type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
+      </template>
 
-      <article v-for="item in jobs" v-else :key="item.jobId" class="job-card">
-        <div class="job-card-main">
-          <div class="job-card-heading">
-            <div>
-              <span class="company-name">{{ item.companyName || '未知公司' }}</span>
-              <h3>{{ item.jobTitle || '未命名岗位' }}</h3>
+      <div class="job-card-list" aria-label="目标岗位列表">
+        <article v-for="item in jobs" :key="item.jobId" class="job-card">
+          <div class="job-card-main">
+            <div class="job-card-heading">
+              <div>
+                <span class="company-name" :title="item.companyName || '未知公司'">{{ item.companyName || '未知公司' }}</span>
+                <h3>{{ item.jobTitle || '未命名岗位' }}</h3>
+              </div>
+              <el-tag v-if="item.jobType" effect="plain">{{ item.jobType }}</el-tag>
             </div>
-            <el-tag v-if="item.jobType" effect="plain">{{ item.jobType }}</el-tag>
+
+            <div class="job-meta">
+              <span>{{ item.location || '地点未填写' }}</span>
+              <span>{{ item.salaryRange || '薪资未填写' }}</span>
+              <span>{{ item.sourcePlatform || '来源未填写' }}</span>
+              <span>{{ formatDateTime(item.createdAt) }}</span>
+            </div>
+
+            <div class="job-jd">
+              <p :id="`job-jd-${item.jobId}`" class="job-summary" :data-job-jd="item.jobId">{{ displayedJd(item) }}</p>
+              <el-button
+                v-if="shouldCollapseJd(item.jdContent)"
+                :data-job-jd-toggle="item.jobId"
+                class="job-jd-toggle"
+                link
+                type="primary"
+                :aria-expanded="isJdExpanded(item.jobId)"
+                :aria-controls="`job-jd-${item.jobId}`"
+                @click="toggleJd(item.jobId)"
+              >
+                {{ isJdExpanded(item.jobId) ? '收起 JD' : '展开 JD' }}
+              </el-button>
+            </div>
+
+            <div class="skill-tags">
+              <el-tag v-for="skill in skillTags(item.skillRequirements)" :key="skill" type="primary" effect="plain">
+                {{ skill }}
+              </el-tag>
+              <span v-if="!skillTags(item.skillRequirements).length" class="empty-skill">暂未填写技能要求</span>
+            </div>
           </div>
 
-          <div class="job-meta">
-            <span>{{ item.location || '地点未填写' }}</span>
-            <span>{{ item.salaryRange || '薪资未填写' }}</span>
-            <span>{{ item.sourcePlatform || '来源未填写' }}</span>
-            <span>{{ formatDateTime(item.createdAt) }}</span>
+          <div class="job-actions">
+            <el-button type="primary" :icon="MagicStick" @click="startAnalysis(item.jobId)">开始分析</el-button>
+            <el-button @click="openDetail(item.jobId)">详情</el-button>
+            <el-button @click="openEdit(item.jobId)">编辑</el-button>
+            <el-button type="danger" plain @click="removeJob(item)">删除</el-button>
           </div>
-
-          <p class="job-summary">{{ jdSummary(item.jdContent) }}</p>
-
-          <div class="skill-tags">
-            <el-tag v-for="skill in skillTags(item.skillRequirements)" :key="skill" type="primary" effect="plain">
-              {{ skill }}
-            </el-tag>
-            <span v-if="!skillTags(item.skillRequirements).length" class="empty-skill">暂未填写技能要求</span>
-          </div>
-        </div>
-
-        <div class="job-actions">
-          <el-button type="primary" :icon="MagicStick" @click="startAnalysis(item.jobId)">开始分析</el-button>
-          <el-button @click="openDetail(item.jobId)">详情</el-button>
-          <el-button @click="openEdit(item.jobId)">编辑</el-button>
-          <el-button type="danger" plain @click="removeJob(item)">删除</el-button>
-        </div>
-      </article>
-    </section>
+        </article>
+      </div>
+    </TableShell>
 
     <el-dialog v-model="formVisible" :title="form.jobId ? '编辑岗位' : '新建岗位'" :width="formDialogWidth">
       <el-form :model="form" label-position="top">
@@ -152,8 +181,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Briefcase, DocumentChecked, MagicStick, OfficeBuilding, Plus, WarningFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
-import AppEmpty from '@/components/common/AppEmpty.vue'
+import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
+import TableShell from '@/components/common/TableShell.vue'
 import router from '@/router'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
 import { formatDateTime } from '@/utils/format'
@@ -162,9 +192,11 @@ import { useResponsiveSize } from '@/utils/useResponsiveSize'
 const jobs = ref<any[]>([])
 const detail = ref<any>(null)
 const loading = ref(false)
+const errorText = ref('')
 const saving = ref(false)
 const formVisible = ref(false)
 const detailVisible = ref(false)
+const expandedJobIds = ref(new Set<number>())
 const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
 const formDialogWidth = responsiveDialogWidth('720px')
 const detailDrawerSize = responsiveDrawerSize('48%')
@@ -198,10 +230,14 @@ const jobStats = computed(() => {
 
 async function loadJobs() {
   loading.value = true
+  errorText.value = ''
   try {
     const res: any = await getJobListApi({ ...query, pageNum: 1, pageSize: 100 })
     const records = res.records || []
     jobs.value = await hydrateJobDetails(records)
+  } catch (e: any) {
+    jobs.value = []
+    errorText.value = e?.message || e?.response?.data?.message || '请检查网络连接后重试。'
   } finally {
     loading.value = false
   }
@@ -287,6 +323,25 @@ function jdSummary(content?: string) {
   return text.length > 128 ? `${text.slice(0, 128)}...` : text
 }
 
+function shouldCollapseJd(content?: string) {
+  return Boolean(content && content.replace(/\s+/g, ' ').trim().length > 128)
+}
+
+function isJdExpanded(jobId: number) {
+  return expandedJobIds.value.has(jobId)
+}
+
+function displayedJd(item: any) {
+  return isJdExpanded(item.jobId) ? item.jdContent : jdSummary(item.jdContent)
+}
+
+function toggleJd(jobId: number) {
+  const next = new Set(expandedJobIds.value)
+  if (next.has(jobId)) next.delete(jobId)
+  else next.add(jobId)
+  expandedJobIds.value = next
+}
+
 function skillTags(value?: string) {
   if (!value) {
     return []
@@ -310,6 +365,10 @@ onMounted(loadJobs)
 }
 
 .job-library {
+  margin-top: 18px;
+}
+
+.job-card-list {
   display: grid;
   gap: 14px;
 }
@@ -333,9 +392,11 @@ onMounted(loadJobs)
 }
 
 .company-name {
+  display: block;
   color: var(--color-primary);
   font-size: 13px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .job-card h3 {
@@ -353,9 +414,33 @@ onMounted(loadJobs)
 }
 
 .job-summary {
-  margin: 0 0 12px;
+  margin: 0;
   color: var(--color-text-muted);
   line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.job-jd {
+  margin-bottom: 12px;
+}
+
+.job-jd-toggle {
+  margin-top: 4px;
+  padding-inline: 0;
+}
+
+.state-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.state-panel p {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
 }
 
 .skill-tags {
@@ -393,6 +478,11 @@ onMounted(loadJobs)
 
   .job-actions {
     width: 100%;
+  }
+
+  .state-panel {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 </style>

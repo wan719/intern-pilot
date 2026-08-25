@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="岗位推荐" description="基于简历画像、求职偏好和 AI 匹配结果推荐适合投递的岗位。">
+  <PageContainer title="发现更值得投入的岗位" description="基于简历画像、求职偏好和 AI 匹配结果推荐适合投递的岗位。">
     <div class="recommendation-summary-grid">
       <StatCard label="推荐批次" :value="batchStats.total" :icon="Files" />
       <StatCard label="推荐岗位" :value="batchStats.recommendedTotal" :icon="Briefcase" />
@@ -51,57 +51,96 @@
           <el-button type="primary" :icon="MagicStick" :loading="generating" @click="generateRecommendation">
             生成推荐
           </el-button>
+          <div v-if="generationErrorText" data-generation-error class="inline-error" role="alert">
+            <span>{{ generationErrorText }}</span>
+            <el-button data-generation-retry link type="primary" :disabled="generating" @click="generateRecommendation">重新生成</el-button>
+          </div>
         </el-form>
       </section>
 
-      <section v-loading="loading" class="recommendation-library">
-        <div class="panel toolbar">
-          <el-segmented v-model="levelFilter" :options="levelFilterOptions" />
-          <el-button type="primary" @click="loadHistory">刷新</el-button>
-        </div>
+      <section class="recommendation-library" aria-label="岗位推荐批次">
+        <FilterBar @reset="resetLevelFilter">
+          <template #filters>
+            <el-segmented v-model="levelFilter" aria-label="按推荐等级筛选" :options="levelFilterOptions" />
+          </template>
+          <template #actions>
+            <el-button type="primary" @click="loadHistory">刷新</el-button>
+          </template>
+        </FilterBar>
 
-        <AppEmpty
-          v-if="!filteredHistory.length && !loading"
-          title="还没有岗位推荐"
-          description="选择简历后生成推荐结果，快速判断哪些岗位更值得投递。"
-          hint="建议先完善简历和岗位 JD，推荐理由会更清晰。"
+        <section v-if="historyErrorText" class="panel state-panel" role="alert">
+          <div>
+            <strong>推荐批次暂时无法加载</strong>
+            <p>{{ historyErrorText }}</p>
+          </div>
+          <el-button data-recommendation-retry type="primary" @click="loadHistory">重新加载</el-button>
+        </section>
+
+        <TableShell
+          v-else
+          :loading="loading"
+          :empty="!filteredHistory.length"
+          empty-title="还没有岗位推荐"
+          empty-hint="选择简历后生成推荐结果，快速判断哪些岗位更值得投递。建议先完善简历和岗位 JD。"
         >
-          <el-button type="primary" :icon="MagicStick" :disabled="!resumes.length" @click="generateRecommendation">
-            生成第一批推荐
-          </el-button>
-        </AppEmpty>
+          <template #empty-actions>
+            <el-button
+              data-recommendation-empty-action
+              type="primary"
+              :icon="MagicStick"
+              :disabled="!resumes.length"
+              @click="generateRecommendation"
+            >
+              生成第一批推荐
+            </el-button>
+          </template>
 
-        <article v-for="batch in filteredHistory" v-else :key="batch.batchId" class="batch-card">
-          <div class="batch-card-main">
-            <div class="batch-heading">
-              <div>
-                <span class="eyebrow">岗位推荐批次</span>
-                <h3>{{ batch.title || `推荐批次 #${batch.batchId}` }}</h3>
+          <div class="batch-card-list">
+            <article v-for="batch in filteredHistory" :key="batch.batchId" class="batch-card">
+              <div class="batch-card-main">
+                <div class="batch-heading">
+                  <div>
+                    <span class="eyebrow">岗位推荐批次</span>
+                    <h3>{{ batch.title || `推荐批次 #${batch.batchId}` }}</h3>
+                  </div>
+                  <el-tag :type="batchLevelType(batch)" effect="plain">{{ batchLevelText(batch) }}</el-tag>
+                </div>
+
+                <div class="batch-meta">
+                  <span>{{ batch.recommendedCount || 0 }} 个推荐岗位</span>
+                  <span>{{ batch.jobCount || 0 }} 个候选岗位</span>
+                  <span>{{ strategyLabel(batch.strategy) }}</span>
+                  <span>{{ formatDateTime(batch.createdAt) }}</span>
+                </div>
+
+                <div class="preview-jobs">
+                  <div v-for="item in previewItems(batch)" :key="item.itemId || item.jobId" class="preview-job">
+                    <div class="preview-job__heading">
+                      <strong :title="item.companyName || '未知公司'">{{ item.companyName || '未知公司' }}</strong>
+                      <span>{{ item.jobTitle || '未知岗位' }}</span>
+                    </div>
+                    <div class="preview-job__signals">
+                      <span class="preview-job__score">{{ item.recommendationScore || 0 }} 分 · {{ levelLabel(item.recommendationLevel) }}</span>
+                      <span>证据：{{ signalText(item.matchedSkills, '待查看') }}</span>
+                      <span>风险：{{ signalText(item.missingSkills, '暂无明显风险') }}</span>
+                      <span>状态：{{ item.isApplied === 1 ? '已投递' : '待投递' }}</span>
+                    </div>
+                  </div>
+                  <div v-if="batch.previewError" :data-batch-preview-error="batch.batchId" class="preview-job preview-job--error">
+                    <span>预览暂不可用，可重试或进入详情查看推荐岗位。</span>
+                    <el-button :data-batch-retry="batch.batchId" link type="primary" @click="loadHistory">重试</el-button>
+                  </div>
+                  <div v-else-if="!previewItems(batch).length" class="preview-job empty">进入详情查看推荐岗位</div>
+                </div>
               </div>
-              <el-tag :type="batchLevelType(batch)" effect="plain">{{ batchLevelText(batch) }}</el-tag>
-            </div>
 
-            <div class="batch-meta">
-              <span>{{ batch.recommendedCount || 0 }} 个推荐岗位</span>
-              <span>{{ batch.jobCount || 0 }} 个候选岗位</span>
-              <span>{{ strategyLabel(batch.strategy) }}</span>
-              <span>{{ formatDateTime(batch.createdAt) }}</span>
-            </div>
-
-            <div class="preview-jobs">
-              <div v-for="item in previewItems(batch)" :key="item.itemId || item.jobId" class="preview-job">
-                <strong>{{ item.companyName || '未知公司' }} - {{ item.jobTitle || '未知岗位' }}</strong>
-                <span>{{ item.recommendationScore || 0 }} 分 · {{ levelLabel(item.recommendationLevel) }}</span>
+              <div class="batch-actions">
+                <el-button type="primary" @click="viewDetail(batch.batchId)">查看详情</el-button>
+                <el-button type="danger" plain @click="removeBatch(batch)">删除</el-button>
               </div>
-              <div v-if="!previewItems(batch).length" class="preview-job empty">进入详情查看推荐岗位</div>
-            </div>
+            </article>
           </div>
-
-          <div class="batch-actions">
-            <el-button type="primary" @click="viewDetail(batch.batchId)">查看详情</el-button>
-            <el-button type="danger" plain @click="removeBatch(batch)">删除</el-button>
-          </div>
-        </article>
+        </TableShell>
       </section>
     </div>
   </PageContainer>
@@ -112,8 +151,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Briefcase, CircleCheck, Clock, Files, MagicStick } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
-import AppEmpty from '@/components/common/AppEmpty.vue'
+import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
+import TableShell from '@/components/common/TableShell.vue'
 import router from '@/router'
 import {
   deleteJobRecommendationApi,
@@ -132,6 +172,8 @@ const versions = ref<any[]>([])
 const history = ref<any[]>([])
 const loading = ref(false)
 const generating = ref(false)
+const historyErrorText = ref('')
+const generationErrorText = ref('')
 const levelFilter = ref('all')
 
 const levelFilterOptions = [
@@ -188,12 +230,14 @@ async function loadVersions() {
 
 async function loadHistory() {
   loading.value = true
+  historyErrorText.value = ''
   try {
     const res: any = await getJobRecommendationListApi({ pageNum: 1, pageSize: 100 })
     history.value = await hydrateBatches(res.records || [])
   } catch (e: any) {
     history.value = []
-    ElMessage.error(e?.message || '岗位推荐加载失败，请稍后重试')
+    historyErrorText.value = e?.message || e?.response?.data?.message || '岗位推荐加载失败，请稍后重试'
+    ElMessage.error(historyErrorText.value)
   } finally {
     loading.value = false
   }
@@ -206,7 +250,7 @@ async function hydrateBatches(records: any[]) {
         const detail = (await getJobRecommendationDetailApi(batch.batchId)) as any
         return { ...batch, items: detail.items || [] }
       } catch {
-        return batch
+        return { ...batch, previewError: true }
       }
     })
   )
@@ -218,6 +262,7 @@ async function generateRecommendation() {
     return
   }
   generating.value = true
+  generationErrorText.value = ''
 
   const localTaskId = aiTaskCenter.createTask({
     type: 'JOB_RECOMMENDATION',
@@ -236,7 +281,9 @@ async function generateRecommendation() {
     ElMessage.success('推荐生成成功')
     await loadHistory()
     viewDetail(res.batchId)
-  } catch {
+  } catch (e: any) {
+    const reason = e?.response?.data?.message || e?.message
+    generationErrorText.value = reason ? `推荐生成失败：${reason}` : '推荐生成失败，请稍后重试。'
     aiTaskCenter.failTask(localTaskId, '推荐生成失败')
   } finally {
     generating.value = false
@@ -268,6 +315,14 @@ async function removeBatch(batch: any) {
 
 function previewItems(batch: any) {
   return (batch.items || []).slice(0, 3)
+}
+
+function signalText(values: string[] | undefined, fallback: string) {
+  return values?.length ? values.slice(0, 3).join('、') : fallback
+}
+
+function resetLevelFilter() {
+  levelFilter.value = 'all'
 }
 
 function topScore(batch: any) {
@@ -343,6 +398,11 @@ onMounted(async () => {
   gap: 14px;
 }
 
+.batch-card-list {
+  display: grid;
+  gap: 14px;
+}
+
 .batch-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -387,8 +447,8 @@ onMounted(async () => {
 }
 
 .preview-job {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid #dbeafe;
@@ -396,14 +456,66 @@ onMounted(async () => {
   background: #eff6ff;
 }
 
-.preview-job strong {
+.preview-job strong,
+.preview-job__heading span {
+  display: block;
   overflow-wrap: anywhere;
 }
 
-.preview-job span,
+.preview-job__heading span,
+.preview-job__signals,
 .preview-job.empty {
   color: var(--color-text-soft);
   font-size: 13px;
+}
+
+.preview-job__heading span {
+  margin-top: 4px;
+}
+
+.preview-job__signals {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  text-align: right;
+}
+
+.preview-job__score {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.preview-job--error {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  background: #fef2f2;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.state-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.state-panel p {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
 }
 
 .batch-actions {
@@ -431,6 +543,32 @@ onMounted(async () => {
 
   .batch-actions {
     width: 100%;
+  }
+
+  .preview-job,
+  .preview-job--error {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-job__signals {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .state-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .recommendation-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .batch-card {
+    padding: 14px;
   }
 }
 </style>
