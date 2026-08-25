@@ -1,88 +1,121 @@
 <template>
-  <PageContainer title="" description="查看简历与岗位 JD 的 AI 匹配结果，辅助判断投递优先级和简历优化方向。">
-    <template #actions>
-      <el-button type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
+  <PageContainer title="" width="wide">
+    <template #hero>
+      <PageHero
+        eyebrow="AI 分析报告"
+        title="把匹配结果变成下一步行动"
+        description="先看结论与风险，再决定投递、优化简历或进入面试准备。每份报告都保留生成时的岗位与简历上下文。"
+      >
+        <template #actions>
+          <el-button type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
+        </template>
+      </PageHero>
     </template>
 
-    <div v-loading="loading" class="report-summary-grid">
-      <StatCard label="报告总数" :value="reportStats.total" :icon="Files" />
-      <StatCard label="平均匹配分" :value="reportStats.avgScore" :icon="TrendCharts" />
-      <StatCard label="高匹配岗位" :value="reportStats.highCount" :icon="CircleCheck" />
-      <StatCard label="最近分析" :value="reportStats.latestText" :icon="Clock" />
+    <div class="report-summary-grid">
+      <StatCard label="报告总数" :value="reportStats.total" :icon="Files" :loading="loading" />
+      <StatCard label="平均匹配分" :value="reportStats.avgScore" :icon="TrendCharts" :loading="loading" />
+      <StatCard label="高匹配岗位" :value="reportStats.highCount" :icon="CircleCheck" :loading="loading" />
+      <StatCard label="最近分析" :value="reportStats.latestText" :icon="Clock" :loading="loading" />
     </div>
 
-    <section class="panel toolbar">
-      <el-segmented v-model="scoreFilter" :options="scoreFilterOptions" @change="applyScoreFilter" />
-      <el-input-number v-model="query.minScore" :min="0" :max="100" placeholder="最低分" />
-      <el-button type="primary" @click="loadReports">筛选</el-button>
-      <el-button @click="resetQuery">重置</el-button>
-    </section>
+    <FilterBar class="report-filter" @reset="resetQuery">
+      <template #filters>
+        <el-segmented v-model="scoreFilter" :options="scoreFilterOptions" @change="applyScoreFilter" />
+        <label class="score-input">
+          <span>最低匹配分</span>
+          <el-input-number v-model="query.minScore" :min="0" :max="100" placeholder="不限" />
+        </label>
+      </template>
+      <template #actions>
+        <el-button type="primary" @click="loadReports">应用筛选</el-button>
+      </template>
+    </FilterBar>
 
-    <section v-loading="loading" class="report-library">
-      <el-alert
-        v-if="loadError"
-        class="report-alert"
-        type="error"
-        show-icon
-        :closable="false"
-        :title="loadError"
-      >
-        <el-button size="small" type="primary" @click="loadReports">重试</el-button>
-      </el-alert>
+    <section class="report-library" aria-label="分析报告列表" :aria-busy="loading">
+      <div v-if="loading" class="report-loading" data-report-loading role="status" aria-live="polite">
+        <article v-for="index in 2" :key="index" class="report-card report-card--skeleton">
+          <el-skeleton :rows="6" animated />
+        </article>
+        <span class="sr-only">正在加载分析报告</span>
+      </div>
+
+      <section v-else-if="loadError" class="report-error" role="alert">
+        <div>
+          <strong>分析报告暂时无法加载</strong>
+          <p>{{ loadError }}</p>
+        </div>
+        <el-button type="primary" data-report-retry @click="loadReports">重新加载</el-button>
+      </section>
 
       <AppEmpty
-        v-else-if="!reports.length && !loading"
+        v-else-if="!reports.length"
         title="还没有分析报告"
-        description="选择一份简历和目标岗位，生成第一份 AI 匹配分析报告。"
-        hint="报告会展示匹配分、优势短板、缺失技能和优化建议。"
+        description="选择一份简历和目标岗位，生成第一份可解释的 AI 匹配报告。"
+        hint="报告会展示匹配等级、优势证据、风险短板和下一步行动。"
       >
-        <el-button type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
+        <el-button data-report-empty-action type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">
+          开始第一次匹配
+        </el-button>
       </AppEmpty>
 
-      <article v-for="item in reports" v-else :key="item.reportId" class="report-card">
-        <div class="score-panel" :class="scoreClass(item.matchScore)">
+      <article v-for="item in reports" v-else :key="item.reportId" class="report-card" data-report-card>
+        <div class="score-panel" :class="scoreClass(item.matchScore)" :aria-label="`匹配分 ${normalizedScore(item.matchScore)}，${item.matchLevel || scoreLabel(item.matchScore)}`">
+          <span>匹配分</span>
           <strong>{{ normalizedScore(item.matchScore) }}</strong>
-          <span>{{ scoreLabel(item.matchScore) }}</span>
+          <b>{{ item.matchLevel || scoreLabel(item.matchScore) }}</b>
         </div>
 
         <div class="report-card-main">
           <div class="report-card-heading">
             <div>
-              <span class="company-name">{{ item.companyName || '未知公司' }}</span>
-              <h3>{{ item.jobTitle || '未知岗位' }}</h3>
+              <span class="company-name" :title="item.companyName || '未知公司'">{{ item.companyName || '未知公司' }}</span>
+              <h2 :title="item.jobTitle || '未知岗位'">{{ item.jobTitle || '未知岗位' }}</h2>
             </div>
             <div class="report-badges">
               <el-tag :type="scoreTagType(item.matchScore)" effect="plain">{{ deliveryAdvice(item.matchScore) }}</el-tag>
-              <el-tag v-if="item.cacheHit" type="info" effect="plain">缓存命中</el-tag>
+              <el-tag v-if="item.cacheHit" type="info" effect="plain">缓存结果</el-tag>
             </div>
           </div>
 
-          <div class="report-meta">
-            <span>{{ item.resumeName || '简历名称未返回' }}</span>
-            <span>{{ item.matchLevel || scoreLabel(item.matchScore) }}</span>
-            <span>{{ formatDateTime(item.createdAt) }}</span>
-          </div>
+          <dl class="report-meta">
+            <div>
+              <dt>分析简历</dt>
+              <dd>{{ item.resumeName || '简历名称未返回' }}</dd>
+            </div>
+            <div>
+              <dt>文本等级</dt>
+              <dd>{{ item.matchLevel || scoreLabel(item.matchScore) }}</dd>
+            </div>
+            <div>
+              <dt>生成时间</dt>
+              <dd>{{ formatDateTime(item.createdAt) }}</dd>
+            </div>
+          </dl>
 
           <div class="insight-preview">
-            <div class="insight-box good">
-              <strong>优势摘要</strong>
+            <AiInsightPanel title="优势证据" tone="strength" data-report-strengths>
               <ul>
                 <li v-for="text in previewList(item.strengths, '暂无优势摘要，请进入详情查看完整报告。')" :key="text">{{ text }}</li>
               </ul>
-            </div>
-            <div class="insight-box risk">
-              <strong>风险短板</strong>
+            </AiInsightPanel>
+            <AiInsightPanel title="风险短板" tone="risk" data-report-risks>
               <ul>
-                <li v-for="text in previewList(item.weaknesses, '暂无短板摘要，请进入详情查看完整报告。')" :key="text">{{ text }}</li>
+                <li v-for="text in previewList(item.weaknesses, '暂无明显风险，请进入详情核对完整报告。')" :key="text">{{ text }}</li>
               </ul>
-            </div>
+            </AiInsightPanel>
+            <AiInsightPanel title="下一步行动" tone="action" data-report-actions>
+              <ol>
+                <li v-for="text in previewActions(item)" :key="text">{{ text }}</li>
+              </ol>
+            </AiInsightPanel>
           </div>
         </div>
 
-        <div class="report-actions">
-          <el-button :icon="Printer" @click="openPrintPage(item.reportId)">导出 PDF</el-button>
+        <div class="report-actions" aria-label="报告操作">
           <el-button type="primary" @click="openDetail(item.reportId)">查看详情</el-button>
           <el-button @click="goInterviewQuestions(item)">生成面试题</el-button>
+          <el-button :icon="Printer" @click="openPrintPage(item.reportId)">导出 PDF</el-button>
           <el-button
             v-if="authStore.hasPermission('analysis:delete')"
             type="danger"
@@ -97,7 +130,7 @@
     </section>
 
     <el-drawer v-model="detailVisible" title="分析报告详情" :size="detailDrawerSize">
-      <section v-if="detailLoading" class="panel flat">
+      <section v-if="detailLoading" class="panel flat" role="status" aria-live="polite">
         <el-skeleton :rows="8" animated />
       </section>
 
@@ -114,7 +147,7 @@
           <div>
             <span class="company-name">{{ detail.companyName || '未知公司' }}</span>
             <h2>{{ detail.jobTitle || '未知岗位' }}</h2>
-            <div class="report-meta">
+            <div class="detail-meta">
               <span>{{ detail.resumeName || '简历名称未返回' }}</span>
               <span>{{ formatDateTime(detail.createdAt) }}</span>
               <span>{{ detail.aiProvider || 'AI' }} / {{ detail.aiModel || '模型未返回' }}</span>
@@ -128,7 +161,7 @@
 
         <section class="panel flat conclusion-panel">
           <div class="panel-header">
-            <h3>综合结论</h3>
+            <h2>综合结论</h2>
             <el-tag :type="scoreTagType(detail.matchScore)" effect="plain">{{ deliveryAdvice(detail.matchScore) }}</el-tag>
           </div>
           <p>{{ conclusionText(detail) }}</p>
@@ -141,8 +174,10 @@
 
         <section class="panel flat">
           <div class="panel-header">
-            <h3>匹配维度</h3>
-            <span>基于报告分数、优势短板和缺失技能推导的展示视图</span>
+            <div>
+              <h2>匹配维度</h2>
+              <p>基于报告分数、优势短板和缺失技能推导的辅助视图。</p>
+            </div>
           </div>
           <div class="dimension-list">
             <div v-for="item in dimensionScores(detail)" :key="item.label" class="dimension-row">
@@ -153,22 +188,26 @@
         </section>
 
         <section class="two-column">
-          <div class="panel flat insight-detail good">
-            <h3>优势</h3>
-            <el-tag v-for="item in detail.strengths || []" :key="item" type="success" effect="plain">{{ item }}</el-tag>
-            <span v-if="!detail.strengths?.length" class="empty-text">暂无优势摘要</span>
-          </div>
-          <div class="panel flat insight-detail risk">
-            <h3>短板</h3>
-            <el-tag v-for="item in detail.weaknesses || []" :key="item" type="warning" effect="plain">{{ item }}</el-tag>
-            <span v-if="!detail.weaknesses?.length" class="empty-text">暂无短板摘要</span>
-          </div>
+          <AiInsightPanel title="优势" tone="strength">
+            <ul>
+              <li v-for="item in detail.strengths || []" :key="item">{{ item }}</li>
+              <li v-if="!detail.strengths?.length">暂无优势摘要</li>
+            </ul>
+          </AiInsightPanel>
+          <AiInsightPanel title="风险与短板" tone="risk">
+            <ul>
+              <li v-for="item in detail.weaknesses || []" :key="item">{{ item }}</li>
+              <li v-if="!detail.weaknesses?.length">暂无短板摘要</li>
+            </ul>
+          </AiInsightPanel>
         </section>
 
         <section class="panel flat">
           <div class="panel-header">
-            <h3>缺失技能</h3>
-            <span>建议优先补充到简历关键词或面试准备清单中</span>
+            <div>
+              <h2>缺失技能</h2>
+              <p>建议优先补充到简历关键词或面试准备清单中。</p>
+            </div>
           </div>
           <div class="tag-row">
             <el-tag v-for="item in detail.missingSkills || []" :key="item" type="danger" effect="plain">{{ item }}</el-tag>
@@ -177,20 +216,18 @@
         </section>
 
         <section class="two-column">
-          <div class="panel flat checklist-card">
-            <h3>简历优化建议</h3>
+          <AiInsightPanel title="简历优化建议" tone="action">
             <ol>
               <li v-for="item in detail.suggestions || []" :key="item">{{ item }}</li>
+              <li v-if="!detail.suggestions?.length">暂无优化建议</li>
             </ol>
-            <span v-if="!detail.suggestions?.length" class="empty-text">暂无优化建议</span>
-          </div>
-          <div class="panel flat checklist-card">
-            <h3>面试准备</h3>
+          </AiInsightPanel>
+          <AiInsightPanel title="面试准备" tone="action">
             <ol>
               <li v-for="item in detail.interviewTips || []" :key="item">{{ item }}</li>
+              <li v-if="!detail.interviewTips?.length">暂无面试准备建议</li>
             </ol>
-            <span v-if="!detail.interviewTips?.length" class="empty-text">暂无面试准备建议</span>
-          </div>
+          </AiInsightPanel>
         </section>
       </div>
     </el-drawer>
@@ -203,7 +240,10 @@ import { CircleCheck, Clock, Files, MagicStick, Printer, TrendCharts } from '@el
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
+import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
+import AiInsightPanel from '@/components/common/AiInsightPanel.vue'
+import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { deleteAnalysisReportApi, getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
@@ -213,12 +253,11 @@ import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 const route = useRoute()
-
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
 const detailVisible = ref(false)
 const { responsiveDrawerSize } = useResponsiveSize()
-const detailDrawerSize = responsiveDrawerSize('62%', '78%')
+const detailDrawerSize = responsiveDrawerSize('62%', '94%')
 const loading = ref(false)
 const loadError = ref('')
 const detailLoading = ref(false)
@@ -226,6 +265,7 @@ const detailError = ref('')
 const deletingId = ref<number | null>(null)
 const scoreFilter = ref('all')
 const query = reactive<{ minScore?: number }>({})
+let reportRequestId = 0
 
 const scoreFilterOptions = [
   { label: '全部', value: 'all' },
@@ -246,16 +286,19 @@ const reportStats = computed(() => {
 })
 
 async function loadReports() {
+  const requestId = ++reportRequestId
   loading.value = true
   loadError.value = ''
   try {
     const res: any = await getAnalysisReportsApi({ ...query, pageNum: 1, pageSize: 100 })
-    reports.value = await hydrateReportDetails(res.records || [])
-  } catch (e: any) {
+    const nextReports = await hydrateReportDetails(res.records || [])
+    if (requestId === reportRequestId) reports.value = nextReports
+  } catch (error: any) {
+    if (requestId !== reportRequestId) return
     reports.value = []
-    loadError.value = e?.message || e?.response?.data?.message || '分析报告加载失败，请稍后重试。'
+    loadError.value = error?.message || error?.response?.data?.message || '分析报告加载失败，请稍后重试。'
   } finally {
-    loading.value = false
+    if (requestId === reportRequestId) loading.value = false
   }
 }
 
@@ -279,8 +322,8 @@ async function openDetail(id: number) {
   detail.value = { reportId: id }
   try {
     detail.value = await getAnalysisReportDetailApi(id)
-  } catch (e: any) {
-    detailError.value = e?.message || e?.response?.data?.message || '报告不存在、已被删除，或当前账号没有访问权限。'
+  } catch (error: any) {
+    detailError.value = error?.message || error?.response?.data?.message || '报告不存在、已被删除，或当前账号没有访问权限。'
   } finally {
     detailLoading.value = false
   }
@@ -288,9 +331,7 @@ async function openDetail(id: number) {
 
 function openReportFromQuery() {
   const reportId = Number(route.query.reportId)
-  if (Number.isFinite(reportId) && reportId > 0) {
-    openDetail(reportId)
-  }
+  if (Number.isFinite(reportId) && reportId > 0) openDetail(reportId)
 }
 
 async function handleDelete(row: any) {
@@ -308,8 +349,8 @@ async function handleDelete(row: any) {
     await deleteAnalysisReportApi(row.reportId)
     ElMessage.success('删除成功')
     await loadReports()
-  } catch (e: any) {
-    ElMessage.error(e?.message || e?.response?.data?.message || '删除失败，请稍后重试')
+  } catch (error: any) {
+    ElMessage.error(error?.message || error?.response?.data?.message || '删除失败，请稍后重试')
   } finally {
     deletingId.value = null
   }
@@ -372,26 +413,27 @@ function scoreClass(value?: number) {
 
 function scoreColor(value?: number) {
   const score = normalizedScore(value)
-  if (score >= 80) return '#16a34a'
-  if (score >= 60) return '#f59e0b'
-  return '#ef4444'
+  if (score >= 80) return '#15803d'
+  if (score >= 60) return '#b45309'
+  return '#b91c1c'
 }
 
 function previewList(items?: string[], fallback = '暂无摘要') {
-  const list = (items || []).filter(Boolean).slice(0, 3)
+  const list = (items || []).filter(Boolean).slice(0, 2)
   return list.length ? list : [fallback]
+}
+
+function previewActions(report: any) {
+  const actions = [...(report.suggestions || []), ...(report.interviewTips || [])].filter(Boolean).slice(0, 2)
+  return actions.length ? actions : [deliveryAdvice(report.matchScore), '打开详情查看完整优化建议']
 }
 
 function conclusionText(report: any) {
   const score = normalizedScore(report.matchScore)
   const company = report.companyName || '该公司'
   const job = report.jobTitle || '该岗位'
-  if (score >= 80) {
-    return `与 ${company} 的 ${job} 匹配度较高，建议优先投递，并围绕优势技能和项目经历准备面试表达。`
-  }
-  if (score >= 60) {
-    return `与 ${company} 的 ${job} 具备一定匹配基础，建议先补齐关键短板，再根据岗位要求有选择地投递。`
-  }
+  if (score >= 80) return `与 ${company} 的 ${job} 匹配度较高，建议优先投递，并围绕优势技能和项目经历准备面试表达。`
+  if (score >= 60) return `与 ${company} 的 ${job} 具备一定匹配基础，建议先补齐关键短板，再根据岗位要求有选择地投递。`
   return `当前简历与 ${company} 的 ${job} 匹配度偏低，建议优先优化简历关键词、项目描述和缺失技能后再投递。`
 }
 
@@ -413,10 +455,7 @@ function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-watch(
-  () => route.query.reportId,
-  () => openReportFromQuery()
-)
+watch(() => route.query.reportId, openReportFromQuery)
 
 onMounted(async () => {
   await loadReports()
@@ -428,28 +467,58 @@ onMounted(async () => {
 .report-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
-.report-alert {
-  margin-bottom: 16px;
+.report-filter {
+  margin-bottom: var(--space-5);
 }
 
-.report-library {
+.score-input {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.report-library,
+.report-loading {
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
+}
+
+.report-error {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5);
+  border: 1px solid var(--color-danger-border, #fecaca);
+  border-radius: var(--radius-card);
+  background: var(--color-danger-soft, #fef2f2);
+}
+
+.report-error p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
 }
 
 .report-card {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 18px;
+  grid-template-columns: 118px minmax(0, 1fr) 136px;
+  gap: var(--space-5);
+  min-width: 0;
+  padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+}
+
+.report-card--skeleton {
+  grid-template-columns: 1fr;
 }
 
 .score-panel,
@@ -457,12 +526,13 @@ onMounted(async () => {
   display: grid;
   place-items: center;
   align-content: center;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   text-align: center;
 }
 
 .score-panel {
-  min-height: 116px;
+  min-height: 124px;
+  padding: var(--space-3);
 }
 
 .score-panel.high,
@@ -474,108 +544,123 @@ onMounted(async () => {
 .score-panel.medium,
 .detail-score.medium {
   background: #fffbeb;
-  color: #b45309;
+  color: #92400e;
 }
 
 .score-panel.low,
 .detail-score.low {
   background: #fef2f2;
-  color: #dc2626;
+  color: #b91c1c;
 }
 
 .score-panel strong,
 .detail-score strong {
-  font-size: 34px;
+  margin: var(--space-1) 0;
+  font-size: 36px;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .score-panel span,
+.score-panel b,
 .detail-score span {
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.report-card-main {
+  min-width: 0;
 }
 
 .report-card-heading,
 .report-hero,
 .panel-header {
   display: flex;
-  gap: 14px;
+  gap: var(--space-4);
   align-items: flex-start;
   justify-content: space-between;
 }
 
 .company-name {
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 700;
+  display: block;
+  color: var(--color-primary-strong);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
-.report-card h3,
-.report-hero h2 {
-  margin: 6px 0 0;
-}
-
-.report-card h3 {
-  font-size: 18px;
+.report-card h2,
+.report-hero h2,
+.panel-header h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xl);
+  overflow-wrap: anywhere;
 }
 
 .report-badges,
-.report-meta,
-.tag-row {
+.tag-row,
+.detail-actions,
+.detail-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .report-meta {
-  margin: 12px 0;
-  color: var(--color-text-soft);
-  font-size: 13px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.report-meta div {
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+}
+
+.report-meta dt,
+.report-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-meta dt {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.report-meta dd {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
 }
 
 .insight-preview,
 .two-column {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
-.insight-box {
-  padding: 12px;
-  border-radius: 8px;
+.insight-preview :deep(.ai-insight-panel:last-child) {
+  grid-column: 1 / -1;
 }
 
-.insight-box.good,
-.insight-detail.good {
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-}
-
-.insight-box.risk,
-.insight-detail.risk {
-  border: 1px solid #fde68a;
-  background: #fffbeb;
-}
-
-.insight-box strong {
-  display: block;
-  margin-bottom: 8px;
-}
-
-.insight-box ul,
-.checklist-card ol {
+.insight-preview ul,
+.insight-preview ol,
+.two-column ul,
+.two-column ol {
   margin: 0;
   padding-left: 18px;
-  color: var(--color-text-muted);
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .report-actions {
   display: flex;
-  width: 132px;
+  width: 136px;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .report-actions .el-button {
@@ -585,86 +670,135 @@ onMounted(async () => {
 
 .detail-stack {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .report-hero {
-  padding: 20px;
+  padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+}
+
+.detail-meta {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .detail-score {
   min-width: 128px;
   min-height: 108px;
-  padding: 12px;
+  padding: var(--space-3);
 }
 
-.conclusion-panel p {
-  margin: 12px 0 0;
+.conclusion-panel p,
+.panel-header p {
+  margin: var(--space-2) 0 0;
   color: var(--color-text-muted);
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  margin-top: var(--space-4);
 }
 
 .dimension-list {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
 .dimension-row {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
 }
 
-.dimension-row span {
-  color: var(--color-text-muted);
-  font-size: 13px;
-}
-
-.insight-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-}
-
-.insight-detail h3,
-.checklist-card h3 {
-  width: 100%;
-  margin: 0 0 8px;
-}
-
+.dimension-row > span,
 .empty-text {
-  color: var(--color-text-soft);
-  font-size: 13px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-@media (max-width: 900px) {
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1050px) {
+  .report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-card {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .report-actions {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
   .report-summary-grid,
   .report-card,
+  .report-meta,
   .insight-preview,
   .two-column {
     grid-template-columns: 1fr;
   }
 
-  .report-actions {
-    width: 100%;
+  .report-card {
+    gap: var(--space-4);
+    padding: var(--space-4);
   }
 
+  .score-panel {
+    min-height: 96px;
+  }
+
+  .insight-preview :deep(.ai-insight-panel:last-child),
+  .report-actions {
+    grid-column: auto;
+  }
+
+  .report-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-card-heading,
   .report-hero,
-  .panel-header {
+  .panel-header,
+  .report-error {
+    align-items: stretch;
     flex-direction: column;
+  }
+
+  .score-input {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dimension-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .report-actions {
+    grid-template-columns: 1fr;
   }
 }
 </style>

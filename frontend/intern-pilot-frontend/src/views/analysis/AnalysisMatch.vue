@@ -1,31 +1,54 @@
 <template>
-  <PageContainer title="" description="选择简历和岗位 JD，生成匹配分、优势短板、缺失技能和优化建议。">
-    <section class="analysis-hero">
+  <PageContainer title="" width="wide">
+    <template #hero>
+      <PageHero
+        eyebrow="AI 匹配分析"
+        title="确认这次 AI 匹配"
+        description="按顺序选好简历与目标岗位，再确认输入。任务提交后可离开页面，进度会继续同步到 AI 任务中心。"
+      >
+        <ol class="setup-sequence" aria-label="AI 匹配设置步骤">
+          <li class="setup-step" data-setup-step="resume" :class="{ complete: Boolean(form.resumeId) }">
+            <span>1</span>
+            <strong>选择简历</strong>
+          </li>
+          <li class="setup-step" data-setup-step="job" :class="{ complete: Boolean(form.jobId) }">
+            <span>2</span>
+            <strong>选择目标岗位</strong>
+          </li>
+          <li class="setup-step" data-setup-step="confirm" :class="{ complete: canSubmit }">
+            <span>3</span>
+            <strong>确认并开始</strong>
+          </li>
+        </ol>
+      </PageHero>
+    </template>
+
+    <section v-if="optionsError" class="inline-state inline-state--error" role="alert" data-options-error>
       <div>
-        <span class="eyebrow">AI 匹配分析</span>
-        <h2>从简历和 JD 出发，生成可解释的投递判断</h2>
-        <p>分析完成后可以进入报告详情、继续生成面试题，形成完整答辩演示链路。</p>
+        <strong>分析选项暂时无法加载</strong>
+        <p>{{ optionsError }}</p>
       </div>
-      <div class="hero-flow">
-        <span>简历</span>
-        <span>岗位 JD</span>
-        <span>AI 报告</span>
-        <span>面试题</span>
-      </div>
+      <el-button type="primary" plain data-options-retry @click="loadOptions">重新加载</el-button>
     </section>
 
-    <div class="analysis-grid">
-      <section class="panel config-panel">
-        <div class="panel-header">
+    <div class="setup-grid" :aria-busy="optionsLoading">
+      <section class="panel setup-card">
+        <div class="step-heading">
+          <span class="step-number">01</span>
           <div>
-            <h3>分析配置</h3>
-            <span>选择本次 AI 分析的输入材料</span>
+            <h2>选择用于分析的简历</h2>
+            <p>默认使用当前版本，也可以指定一份更贴近目标岗位的版本。</p>
           </div>
         </div>
 
         <el-form :model="form" label-position="top">
           <el-form-item label="简历">
-            <el-select v-model="form.resumeId" placeholder="请选择简历" filterable>
+            <el-select
+              v-model="form.resumeId"
+              placeholder="请选择简历"
+              filterable
+              :disabled="optionsLoading || running"
+            >
               <el-option
                 v-for="item in resumes"
                 :key="item.resumeId"
@@ -36,7 +59,13 @@
           </el-form-item>
 
           <el-form-item label="简历版本">
-            <el-select v-model="form.resumeVersionId" placeholder="默认使用当前版本" clearable filterable :disabled="!form.resumeId">
+            <el-select
+              v-model="form.resumeVersionId"
+              placeholder="默认使用当前版本"
+              clearable
+              filterable
+              :disabled="!form.resumeId || running"
+            >
               <el-option
                 v-for="item in versions"
                 :key="item.versionId"
@@ -45,9 +74,32 @@
               />
             </el-select>
           </el-form-item>
+        </el-form>
 
-          <el-form-item label="岗位 JD">
-            <el-select v-model="form.jobId" placeholder="请选择岗位" filterable>
+        <div class="selection-summary" :class="{ muted: !selectedResume }">
+          <span>本次简历</span>
+          <strong>{{ selectedResume?.resumeName || selectedResume?.originalFileName || '尚未选择' }}</strong>
+          <small>{{ selectedVersion ? displayVersionName(selectedVersion) : '默认当前版本' }}</small>
+        </div>
+      </section>
+
+      <section class="panel setup-card">
+        <div class="step-heading">
+          <span class="step-number">02</span>
+          <div>
+            <h2>选择要对比的目标岗位</h2>
+            <p>完整的岗位职责和技能要求会让匹配结论更有解释力。</p>
+          </div>
+        </div>
+
+        <el-form :model="form" label-position="top">
+          <el-form-item label="目标岗位 JD">
+            <el-select
+              v-model="form.jobId"
+              placeholder="请选择岗位"
+              filterable
+              :disabled="optionsLoading || running"
+            >
               <el-option
                 v-for="item in jobs"
                 :key="item.jobId"
@@ -56,25 +108,40 @@
               />
             </el-select>
           </el-form-item>
-
-          <el-form-item label="分析模式">
-            <el-segmented v-model="analysisMode" :options="analysisModeOptions" />
-          </el-form-item>
-
-          <el-form-item label="强制重新分析">
-            <el-switch v-model="form.forceRefresh" />
-            <p class="field-hint">关闭时会优先复用已有缓存结果；开启后会重新调用 AI 生成报告。</p>
-          </el-form-item>
-
-          <el-button type="primary" :icon="MagicStick" :loading="running" :disabled="running" @click="startTask">
-            {{ running ? '分析中' : '开始 AI 分析' }}
-          </el-button>
         </el-form>
 
-        <div class="quality-check">
-          <h4>输入质量检查</h4>
+        <div v-if="selectedJob" class="job-preview">
+          <strong>{{ selectedJob.companyName || '未知公司' }}</strong>
+          <h3>{{ selectedJob.jobTitle || '未知岗位' }}</h3>
+          <p>{{ selectedJob.location || '地点未填写' }} · {{ selectedJob.salaryRange || '薪资未填写' }}</p>
+          <div class="jd-summary">
+            <span>JD 摘要</span>
+            <p>{{ jdSummary }}</p>
+          </div>
+          <div class="skill-tags">
+            <el-tag v-for="skill in skillTags" :key="skill" type="primary" effect="plain">{{ skill }}</el-tag>
+            <span v-if="!skillTags.length" class="empty-text">暂无技能关键词</span>
+          </div>
+        </div>
+        <AppEmpty
+          v-else
+          title="还没有选择目标岗位"
+          description="选择岗位后，这里会展示 JD 摘要与技能关键词。"
+        />
+      </section>
+
+      <section class="panel setup-card confirm-card">
+        <div class="step-heading">
+          <span class="step-number">03</span>
+          <div>
+            <h2>确认输入并生成报告</h2>
+            <p>系统会输出匹配分、优势、风险和下一步行动，不会改动你的简历或岗位。</p>
+          </div>
+        </div>
+
+        <div class="quality-check" aria-label="输入确认">
           <div v-for="item in qualityChecks" :key="item.label" class="check-row">
-            <el-icon :class="item.ok ? 'ok' : 'warn'">
+            <el-icon :class="item.ok ? 'ok' : 'warn'" aria-hidden="true">
               <CircleCheck v-if="item.ok" />
               <Warning v-else />
             </el-icon>
@@ -84,91 +151,106 @@
             </div>
           </div>
         </div>
-      </section>
 
-      <section class="preview-column">
-        <section class="panel preview-panel">
-          <div class="panel-header">
-            <div>
-              <h3>分析预览</h3>
-              <span>开始前确认简历、岗位和输出内容</span>
-            </div>
-          </div>
+        <label class="refresh-choice">
+          <span>
+            <strong>重新调用 AI 生成</strong>
+            <small>关闭时优先复用已有缓存报告；开启后会创建新的分析结果。</small>
+          </span>
+          <el-switch v-model="form.forceRefresh" :disabled="running" aria-label="强制重新分析" />
+        </label>
 
-          <div v-if="selectedResume || selectedJob" class="preview-stack">
-            <div class="preview-card">
-              <strong>简历</strong>
-              <span>{{ selectedResume?.resumeName || selectedResume?.originalFileName || '未选择简历' }}</span>
-              <small>{{ selectedVersion ? displayVersionName(selectedVersion) : '默认当前版本' }}</small>
-            </div>
+        <div v-if="submissionError" class="submission-error" role="alert" data-submission-error>
+          {{ submissionError }}
+        </div>
 
-            <div class="preview-card">
-              <strong>岗位</strong>
-              <span>{{ selectedJob?.companyName || '未选择公司' }} - {{ selectedJob?.jobTitle || '未选择岗位' }}</span>
-              <small>{{ selectedJob?.location || '地点未填写' }} · {{ selectedJob?.salaryRange || '薪资未填写' }}</small>
-            </div>
-
-            <div class="jd-preview">
-              <div class="panel-header compact">
-                <h4>JD 摘要</h4>
-                <el-tag v-if="selectedJobDetail?.jobType" effect="plain">{{ selectedJobDetail.jobType }}</el-tag>
-              </div>
-              <p>{{ jdSummary }}</p>
-              <div class="skill-tags">
-                <el-tag v-for="skill in skillTags" :key="skill" type="primary" effect="plain">{{ skill }}</el-tag>
-                <span v-if="!skillTags.length" class="empty-text">暂无技能关键词</span>
-              </div>
-            </div>
-          </div>
-
-          <AppEmpty
-            v-else
-            title="请选择简历和岗位"
-            description="选择后会在这里展示分析输入预览。"
-          />
-        </section>
-
-        <section class="panel output-panel">
-          <h3>本次分析会输出</h3>
-          <div class="output-grid">
-            <span>匹配分</span>
-            <span>优势短板</span>
-            <span>缺失技能</span>
-            <span>简历建议</span>
-            <span>面试准备</span>
-            <span>投递判断</span>
-          </div>
-        </section>
+        <el-button
+          class="primary-action"
+          data-analysis-submit
+          type="primary"
+          :icon="MagicStick"
+          :loading="submissionPending"
+          :disabled="!canSubmit || optionsLoading || running"
+          @click="startTask"
+        >
+          {{ primaryActionText }}
+        </el-button>
+        <p class="action-hint">任务提交成功后可在页面或 AI 任务中心继续查看进度。</p>
       </section>
     </div>
 
-    <section class="panel progress-panel">
+    <section class="panel progress-panel" aria-labelledby="analysis-progress-title">
       <div class="panel-header">
         <div>
-          <h3>实时进度</h3>
-          <span>{{ task.taskNo ? `任务编号：${task.taskNo}` : '等待启动分析任务' }}</span>
+          <span class="section-eyebrow">异步任务</span>
+          <h2 id="analysis-progress-title">分析进度</h2>
+          <p>{{ task.taskNo ? `任务编号：${task.taskNo}` : '提交任务后会在这里显示实时进度。' }}</p>
         </div>
         <StatusTag v-if="task.taskNo" :status="task.status" />
       </div>
 
       <template v-if="task.taskNo">
-        <el-steps :active="activeStep" finish-status="success" align-center>
-          <el-step v-for="step in progressSteps" :key="step.title" :title="step.title" :description="step.description" />
-        </el-steps>
-
-        <el-progress class="task-progress" :percentage="task.progress" :status="progressStatus" :stroke-width="10" />
-
-        <div class="progress-message" :class="{ failed: task.status === 'FAILED' }">
-          {{ task.errorMessage || task.message || '正在推进分析任务...' }}
+        <div class="progress-overview" aria-live="polite">
+          <div class="progress-number" data-progress-percentage>{{ task.progress }}%</div>
+          <div>
+            <strong data-progress-stage>{{ task.errorMessage || task.message || currentStageText }}</strong>
+            <p>{{ currentStageText }}</p>
+          </div>
         </div>
 
-        <div v-if="task.status === 'FAILED'" class="failed-actions">
+        <el-progress
+          class="task-progress"
+          :percentage="task.progress"
+          :status="progressStatus"
+          :stroke-width="12"
+          :show-text="false"
+        />
+
+        <ol class="progress-steps" aria-label="分析处理阶段">
+          <li
+            v-for="(step, index) in progressSteps"
+            :key="step.title"
+            :class="{ active: index === activeStep, complete: index < activeStep || task.status === 'COMPLETED' }"
+          >
+            <span>{{ index + 1 }}</span>
+            <div>
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.description }}</small>
+            </div>
+          </li>
+        </ol>
+
+        <div v-if="running" class="connection-row">
+          <span data-connection-state :class="`connection-state connection-state--${connectionState}`">
+            {{ connectionText }}
+          </span>
+          <div class="connection-actions">
+            <el-button
+              v-if="connectionState === 'fallback'"
+              data-reconnect-action
+              :icon="Refresh"
+              @click="retryConnection"
+            >
+              重新连接
+            </el-button>
+            <el-button data-open-task-center @click="aiTaskCenter.openDrawer()">在任务中心查看</el-button>
+          </div>
+        </div>
+
+        <div v-if="task.status === 'FAILED'" class="terminal-state terminal-state--failed" role="alert">
+          <div>
+            <strong>本次分析未完成</strong>
+            <p>{{ task.errorMessage || 'AI 分析失败，请检查输入后重试。' }}</p>
+          </div>
           <el-button type="primary" :icon="Refresh" @click="startTask">重试分析</el-button>
         </div>
 
-        <div v-if="task.status === 'COMPLETED'" class="success-actions">
-          <el-result icon="success" title="分析完成" :sub-title="`报告 ID：${task.reportId || '-'}`" />
+        <div v-if="task.status === 'COMPLETED'" class="terminal-state terminal-state--success">
           <div>
+            <strong>匹配报告已生成</strong>
+            <p>报告 ID：{{ task.reportId || '-' }}。现在可以查看结论，或继续准备面试题。</p>
+          </div>
+          <div class="responsive-actions">
             <el-button type="primary" @click="goReports">查看分析报告</el-button>
             <el-button @click="goInterviewQuestions">生成面试题</el-button>
           </div>
@@ -176,11 +258,16 @@
       </template>
 
       <AppEmpty
-        v-else
+        v-else-if="!submissionPending"
         title="等待发起 AI 匹配分析"
-        description="选择简历和目标岗位后，系统会展示实时进度。"
-        hint="答辩演示建议使用一份已解析简历和完整 JD，进度会从任务创建、读取输入到报告生成逐步推进。"
+        description="按上方三步确认输入，提交后会显示百分比、当前阶段和连接状态。"
+        hint="刷新页面不会重复提交正在处理的任务，系统会使用任务编号恢复进度。"
       />
+
+      <div v-else class="submitting-state" role="status" aria-live="polite">
+        <el-skeleton :rows="3" animated />
+        <span>正在提交分析任务，请稍候…</span>
+      </div>
     </section>
   </PageContainer>
 </template>
@@ -192,6 +279,7 @@ import { CircleCheck, MagicStick, Refresh, Warning } from '@element-plus/icons-v
 import { useRoute } from 'vue-router'
 import type { Client } from '@stomp/stompjs'
 import PageContainer from '@/components/common/PageContainer.vue'
+import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import router from '@/router'
@@ -202,23 +290,27 @@ import { getResumeVersionListApi } from '@/api/resumeVersion'
 import type { AnalysisProgressMessage } from '@/utils/analysisSocket'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
+type ConnectionState = 'idle' | 'connecting' | 'connected' | 'fallback'
+
 const aiTaskCenter = useAiTaskCenterStore()
 const resumes = ref<any[]>([])
 const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
 const selectedJobDetail = ref<any>(null)
+const optionsLoading = ref(false)
+const optionsError = ref('')
 const running = ref(false)
-const analysisMode = ref('quick')
+const submissionPending = ref(false)
+const submissionError = ref('')
+const connectionState = ref<ConnectionState>('idle')
 const route = useRoute()
 const TASK_STORAGE_KEY = 'internpilot:analysis:lastTaskNo'
 let stompClient: Client | null = null
 let pollingTimer: number | undefined
 let currentLocalTaskId = ''
-
-const analysisModeOptions = [
-  { label: '快速分析', value: 'quick' },
-  { label: '深度分析', value: 'deep' }
-]
+let activeTaskNo = ''
+let taskSession = 0
+let socketAttempt = 0
 
 const progressSteps = [
   { title: '创建任务', description: '记录分析请求' },
@@ -248,12 +340,20 @@ const task = reactive({
 const selectedResume = computed(() => resumes.value.find((item) => item.resumeId === form.resumeId))
 const selectedVersion = computed(() => versions.value.find((item) => item.versionId === form.resumeVersionId))
 const selectedJob = computed(() => jobs.value.find((item) => item.jobId === form.jobId))
+const canSubmit = computed(() => Boolean(form.resumeId && form.jobId))
+
+const primaryActionText = computed(() => {
+  if (submissionPending.value) return '正在提交分析任务'
+  if (running.value && task.taskNo) return `AI 正在分析 · ${task.progress}%`
+  if (!canSubmit.value) return '请先选择简历和岗位'
+  return '开始生成匹配报告'
+})
 
 const jdSummary = computed(() => {
   const content = selectedJobDetail.value?.jdContent || ''
-  if (!content) return '暂未读取到完整 JD 内容，建议进入岗位管理补充岗位职责、任职要求和加分项。'
+  if (!content) return '暂未读取到完整 JD 内容，建议先补充岗位职责、任职要求和加分项。'
   const text = content.replace(/\s+/g, ' ').trim()
-  return text.length > 160 ? `${text.slice(0, 160)}...` : text
+  return text.length > 180 ? `${text.slice(0, 180)}...` : text
 })
 
 const skillTags = computed(() => {
@@ -268,22 +368,22 @@ const skillTags = computed(() => {
 
 const qualityChecks = computed(() => [
   {
-    label: '已选择简历',
+    label: '简历已确认',
     ok: Boolean(form.resumeId),
     text: form.resumeId ? selectedResume.value?.resumeName || selectedResume.value?.originalFileName || '已选择' : '请选择要分析的简历'
   },
   {
-    label: '已选择岗位 JD',
+    label: '目标岗位已确认',
     ok: Boolean(form.jobId),
     text: form.jobId ? `${selectedJob.value?.companyName || '未知公司'} - ${selectedJob.value?.jobTitle || '未知岗位'}` : '请选择目标岗位'
   },
   {
-    label: 'JD 内容完整',
+    label: 'JD 内容可用',
     ok: Boolean(selectedJobDetail.value?.jdContent),
-    text: selectedJobDetail.value?.jdContent ? '已读取到岗位 JD，可用于 AI 匹配' : '建议补充 JD 内容，分析会更准确'
+    text: selectedJobDetail.value?.jdContent ? '已读取岗位 JD，可用于 AI 匹配' : '缺少完整 JD 时，结论可能不够具体'
   },
   {
-    label: '技能关键词',
+    label: '技能关键词可用',
     ok: skillTags.value.length > 0,
     text: skillTags.value.length ? `已识别 ${skillTags.value.length} 个技能关键词` : '建议补充岗位技能要求'
   }
@@ -295,8 +395,10 @@ const activeStep = computed(() => {
   if (task.progress < 45) return 2
   if (task.progress < 70) return 3
   if (task.progress < 95) return 4
-  return 6
+  return 5
 })
+
+const currentStageText = computed(() => progressSteps[activeStep.value]?.description || '正在推进分析任务')
 
 const progressStatus = computed(() => {
   if (task.status === 'FAILED') return 'exception'
@@ -304,14 +406,29 @@ const progressStatus = computed(() => {
   return undefined
 })
 
+const connectionText = computed(() => {
+  if (connectionState.value === 'connected') return '实时连接正常'
+  if (connectionState.value === 'fallback') return '实时连接中断，轮询同步中'
+  if (connectionState.value === 'connecting') return '正在连接实时进度…'
+  return '等待连接'
+})
+
 async function loadOptions() {
-  const [resumeRes, jobRes]: any[] = await Promise.all([
-    getResumeListApi({ pageNum: 1, pageSize: 100 }),
-    getJobListApi({ pageNum: 1, pageSize: 100 })
-  ])
-  resumes.value = resumeRes.records || []
-  jobs.value = jobRes.records || []
-  await applyQueryDefaults()
+  optionsLoading.value = true
+  optionsError.value = ''
+  try {
+    const [resumeRes, jobRes]: any[] = await Promise.all([
+      getResumeListApi({ pageNum: 1, pageSize: 100 }),
+      getJobListApi({ pageNum: 1, pageSize: 100 })
+    ])
+    resumes.value = resumeRes.records || []
+    jobs.value = jobRes.records || []
+    await applyQueryDefaults()
+  } catch (error: any) {
+    optionsError.value = error?.message || error?.response?.data?.message || '请检查网络后重新加载简历与岗位。'
+  } finally {
+    optionsLoading.value = false
+  }
 }
 
 async function applyQueryDefaults() {
@@ -331,24 +448,28 @@ async function applyQueryDefaults() {
 }
 
 async function loadVersions() {
-  if (!form.resumeId) {
+  const resumeId = form.resumeId
+  if (!resumeId) {
     versions.value = []
     form.resumeVersionId = undefined
     return
   }
-  const res: any = await getResumeVersionListApi(form.resumeId)
+  const res: any = await getResumeVersionListApi(resumeId)
+  if (form.resumeId !== resumeId) return
   versions.value = res || []
   const current = versions.value.find((item) => item.isCurrent === 1)
   form.resumeVersionId = current?.versionId
 }
 
 async function loadSelectedJobDetail() {
+  const jobId = form.jobId
   selectedJobDetail.value = null
-  if (!form.jobId) return
+  if (!jobId) return
   try {
-    selectedJobDetail.value = await getJobDetailApi(form.jobId)
+    const detail = await getJobDetailApi(jobId)
+    if (form.jobId === jobId) selectedJobDetail.value = detail
   } catch {
-    selectedJobDetail.value = selectedJob.value || null
+    if (form.jobId === jobId) selectedJobDetail.value = selectedJob.value || null
   }
 }
 
@@ -357,14 +478,30 @@ async function startTask() {
     ElMessage.warning('请选择简历和岗位')
     return
   }
+  if (running.value) return
 
   cleanupTaskWatchers()
+  const session = ++taskSession
+  activeTaskNo = ''
+  currentLocalTaskId = ''
   running.value = true
-  task.errorMessage = ''
+  submissionPending.value = true
+  submissionError.value = ''
+  connectionState.value = 'idle'
+  Object.assign(task, {
+    taskNo: '',
+    status: 'SUBMITTED',
+    progress: 0,
+    message: '正在提交分析任务',
+    reportId: undefined,
+    errorMessage: ''
+  })
 
   try {
     const res: any = await createAnalysisTaskApi(form)
-    
+    if (session !== taskSession) return
+
+    activeTaskNo = res.taskNo
     currentLocalTaskId = aiTaskCenter.upsertByTaskNo({
       type: 'ANALYSIS_MATCH',
       title: 'AI 简历匹配分析',
@@ -375,40 +512,91 @@ async function startTask() {
       sourcePath: '/analysis/match'
     })
 
-    applyTaskMessage(res)
+    applyTaskMessage(res, res.taskNo, session)
     localStorage.setItem(TASK_STORAGE_KEY, res.taskNo)
-    connectSocket(res.taskNo)
-    startPolling(res.taskNo)
-  } catch {
+    connectSocket(res.taskNo, session)
+    startPolling(res.taskNo, session)
+  } catch (error: any) {
+    if (session !== taskSession) return
     running.value = false
+    submissionError.value = error?.message || error?.response?.data?.message || '任务创建失败，请稍后重试。'
+    task.status = 'FAILED'
+    task.errorMessage = submissionError.value
     aiTaskCenter.updateTask(currentLocalTaskId, { status: 'FAILED', errorMessage: '任务创建失败' })
+  } finally {
+    if (session === taskSession) submissionPending.value = false
   }
 }
 
-function connectSocket(taskNo: string) {
+function connectSocket(taskNo: string, session = taskSession) {
+  connectionState.value = 'connecting'
+  const attempt = ++socketAttempt
+  const browserRuntime = globalThis as typeof globalThis & { global?: typeof globalThis }
+  browserRuntime.global ||= globalThis
   import('@/utils/analysisSocket')
     .then(({ createAnalysisSocket }) => {
-      stompClient = createAnalysisSocket(
+      if (session !== taskSession || taskNo !== activeTaskNo || attempt !== socketAttempt) return
+      const client = createAnalysisSocket(
         taskNo,
-        (message) => applyTaskMessage(message),
+        (message) => {
+          if (session !== taskSession || taskNo !== activeTaskNo) return
+          connectionState.value = 'connected'
+          applyTaskMessage(message, taskNo, session)
+        },
         () => {
+          if (session !== taskSession || taskNo !== activeTaskNo) return
+          connectionState.value = 'fallback'
           ElMessage.warning('WebSocket 连接异常，已使用轮询兜底')
         }
       )
+      const previousCloseHandler = client.onWebSocketClose
+      client.onWebSocketClose = (event) => {
+        previousCloseHandler?.(event)
+        if (session !== taskSession || taskNo !== activeTaskNo || isTerminalStatus(task.status)) return
+        connectionState.value = 'fallback'
+      }
+      stompClient = client
     })
-    .catch(() => {
+    .catch((error) => {
+      if (session !== taskSession || taskNo !== activeTaskNo) return
+      console.warn('Failed to initialize analysis progress socket', error)
+      connectionState.value = 'fallback'
       ElMessage.warning('WebSocket 初始化失败，已使用轮询兜底')
     })
 }
 
-function startPolling(taskNo: string) {
+async function retryConnection() {
+  if (!activeTaskNo || isTerminalStatus(task.status)) return
+  const reconnectTaskNo = activeTaskNo
+  const reconnectSession = taskSession
+  const previousClient = stompClient
+  stompClient = null
+  socketAttempt += 1
+  if (previousClient) await previousClient.deactivate()
+  if (reconnectSession !== taskSession || reconnectTaskNo !== activeTaskNo || isTerminalStatus(task.status)) return
+  connectSocket(reconnectTaskNo, reconnectSession)
+}
+
+function startPolling(taskNo: string, session = taskSession) {
+  if (pollingTimer) window.clearInterval(pollingTimer)
   pollingTimer = window.setInterval(async () => {
-    const detail: any = await getAnalysisTaskDetailApi(taskNo)
-    applyTaskMessage(detail)
+    try {
+      const detail: any = await getAnalysisTaskDetailApi(taskNo)
+      if (session !== taskSession || taskNo !== activeTaskNo) return
+      applyTaskMessage(detail, taskNo, session)
+    } catch {
+      if (session === taskSession && taskNo === activeTaskNo && connectionState.value !== 'connected') {
+        connectionState.value = 'fallback'
+      }
+    }
   }, 3000)
 }
 
-function applyTaskMessage(message: AnalysisProgressMessage) {
+function applyTaskMessage(message: AnalysisProgressMessage, expectedTaskNo = activeTaskNo, session = taskSession) {
+  if (session !== taskSession) return
+  if (expectedTaskNo && message.taskNo !== expectedTaskNo) return
+  if (activeTaskNo && message.taskNo !== activeTaskNo) return
+
   task.taskNo = message.taskNo
   task.status = message.status
   task.progress = message.progress || 0
@@ -416,9 +604,7 @@ function applyTaskMessage(message: AnalysisProgressMessage) {
   task.reportId = message.reportId
   task.errorMessage = message.errorMessage || ''
 
-  if (message.taskNo) {
-    localStorage.setItem(TASK_STORAGE_KEY, message.taskNo)
-  }
+  if (message.taskNo) localStorage.setItem(TASK_STORAGE_KEY, message.taskNo)
 
   const updates: any = {
     backendTaskNo: message.taskNo,
@@ -428,24 +614,18 @@ function applyTaskMessage(message: AnalysisProgressMessage) {
     resultId: message.reportId,
     errorMessage: message.errorMessage || ''
   }
-  
-  if (message.reportId) {
-    updates.resultPath = `/analysis/reports?reportId=${message.reportId}`
-  }
-  
+  if (message.reportId) updates.resultPath = `/analysis/reports?reportId=${message.reportId}`
   aiTaskCenter.updateTask(currentLocalTaskId, updates)
 
   if (isTerminalStatus(message.status)) {
     running.value = false
+    submissionPending.value = false
     cleanupTaskWatchers()
-    
-    if (message.status === 'COMPLETED') {
-      ElMessage.success('AI 分析完成')
-    } else if (message.status === 'FAILED') {
-      ElMessage.error(message.errorMessage || 'AI 分析失败')
-    } else if (message.status === 'CANCELLED') {
-      ElMessage.info('任务已取消')
-    }
+    connectionState.value = 'idle'
+
+    if (message.status === 'COMPLETED') ElMessage.success('AI 分析完成')
+    else if (message.status === 'FAILED') ElMessage.error(message.errorMessage || 'AI 分析失败')
+    else if (message.status === 'CANCELLED') ElMessage.info('任务已取消')
   }
 }
 
@@ -455,9 +635,12 @@ async function restoreLastTask() {
   const taskNo = queryTaskNo || savedTaskNo
   if (!taskNo) return
 
+  const session = ++taskSession
+  activeTaskNo = taskNo
   try {
     const detail: any = await getAnalysisTaskDetailApi(taskNo)
-    
+    if (session !== taskSession) return
+
     if (detail.resumeId && !form.resumeId) {
       form.resumeId = detail.resumeId
       await loadVersions()
@@ -466,7 +649,7 @@ async function restoreLastTask() {
       form.jobId = detail.jobId
       await loadSelectedJobDetail()
     }
-    
+
     currentLocalTaskId = aiTaskCenter.upsertByTaskNo({
       type: 'ANALYSIS_MATCH',
       title: 'AI 简历匹配分析',
@@ -477,18 +660,18 @@ async function restoreLastTask() {
       reportId: detail.reportId,
       sourcePath: '/analysis/match'
     })
+    applyTaskMessage(detail, taskNo, session)
 
-    applyTaskMessage(detail)
-    
     if (!isTerminalStatus(detail.status)) {
       running.value = true
-      connectSocket(detail.taskNo)
-      startPolling(detail.taskNo)
-    } else {
-      running.value = false
+      connectSocket(detail.taskNo, session)
+      startPolling(detail.taskNo, session)
     }
   } catch {
-    localStorage.removeItem(TASK_STORAGE_KEY)
+    if (session === taskSession) {
+      activeTaskNo = ''
+      localStorage.removeItem(TASK_STORAGE_KEY)
+    }
   }
 }
 
@@ -496,11 +679,16 @@ function isTerminalStatus(status: string) {
   return status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED'
 }
 
-function cleanupTaskWatchers() {
+function cleanupSocket() {
+  socketAttempt += 1
   if (stompClient) {
     stompClient.deactivate()
     stompClient = null
   }
+}
+
+function cleanupTaskWatchers() {
+  cleanupSocket()
   if (pollingTimer) {
     window.clearInterval(pollingTimer)
     pollingTimer = undefined
@@ -527,114 +715,200 @@ function displayVersionName(item: any) {
   return item?.versionName || (item?.versionType === 'ORIGINAL' ? '原始版本' : '未命名版本')
 }
 
-watch(() => form.resumeId, loadVersions)
-watch(() => form.jobId, loadSelectedJobDetail)
+watch(() => form.resumeId, () => { void loadVersions() })
+watch(() => form.jobId, () => { void loadSelectedJobDetail() })
 
 onMounted(async () => {
   await loadOptions()
   await loadSelectedJobDetail()
   await restoreLastTask()
 })
-onBeforeUnmount(cleanupTaskWatchers)
+
+onBeforeUnmount(() => {
+  taskSession += 1
+  cleanupTaskWatchers()
+})
 </script>
 
 <style scoped>
-.analysis-hero {
+.setup-sequence {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-step {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 20px;
-  padding: 22px 24px;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  color: var(--color-text-muted);
 }
 
-.eyebrow {
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 700;
+.setup-step > span,
+.step-number {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
-.analysis-hero h2 {
-  margin: 6px 0 8px;
-  font-size: 24px;
+.setup-step.complete {
+  border-color: var(--color-primary-soft);
+  color: var(--color-primary-strong);
 }
 
-.analysis-hero p,
-.panel-header span,
-.field-hint {
-  color: var(--color-text-soft);
+.setup-step.complete > span {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.inline-state {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger-border, #fecaca);
+  border-radius: var(--radius-card);
+  background: var(--color-danger-soft, #fef2f2);
+}
+
+.inline-state p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.setup-card {
+  min-width: 0;
+}
+
+.confirm-card {
+  grid-column: 1 / -1;
+}
+
+.step-heading {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}
+
+.step-heading h2,
+.panel-header h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.step-heading p,
+.panel-header p,
+.action-hint,
+.progress-overview p,
+.terminal-state p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
   line-height: 1.6;
 }
 
-.analysis-hero p {
-  margin: 0;
+.selection-summary,
+.job-preview,
+.quality-check,
+.refresh-choice {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
 }
 
-.hero-flow {
+.selection-summary {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+}
+
+.selection-summary > span,
+.selection-summary small,
+.job-preview > p,
+.jd-summary > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.selection-summary.muted strong {
+  color: var(--color-text-muted);
+}
+
+.job-preview {
+  padding: var(--space-4);
+}
+
+.job-preview h3 {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.job-preview > strong {
+  color: var(--color-primary-strong);
+  overflow-wrap: anywhere;
+}
+
+.jd-summary {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.jd-summary p {
+  margin: var(--space-2) 0;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.skill-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  max-width: 360px;
-}
-
-.hero-flow span,
-.output-grid span {
-  padding: 8px 10px;
-  border: 1px solid #dbeafe;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.analysis-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.config-panel {
-  position: sticky;
-  top: 96px;
-}
-
-.field-hint {
-  margin: 6px 0 0;
-  font-size: 12px;
+  gap: var(--space-2);
 }
 
 .quality-check {
   display: grid;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--color-border);
-}
-
-.quality-check h4 {
-  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
 
 .check-row {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--space-2);
   align-items: flex-start;
 }
 
 .check-row .ok {
-  color: #16a34a;
+  color: var(--color-success, #15803d);
 }
 
 .check-row .warn {
-  color: #f59e0b;
+  color: var(--color-warning, #b45309);
 }
 
 .check-row strong,
@@ -643,127 +917,254 @@ onBeforeUnmount(cleanupTaskWatchers)
 }
 
 .check-row span {
-  margin-top: 3px;
-  color: var(--color-text-soft);
-  font-size: 13px;
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-.preview-column {
-  display: grid;
-  gap: 16px;
+.refresh-choice {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-4);
+  padding: var(--space-4);
 }
 
-.preview-stack {
-  display: grid;
-  gap: 12px;
-}
-
-.preview-card,
-.jd-preview {
-  padding: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.preview-card strong,
-.preview-card span,
-.preview-card small {
+.refresh-choice span,
+.refresh-choice strong,
+.refresh-choice small {
   display: block;
 }
 
-.preview-card span {
-  margin-top: 6px;
-  color: var(--color-text);
-  font-weight: 700;
-}
-
-.preview-card small {
-  margin-top: 4px;
-  color: var(--color-text-soft);
-}
-
-.panel-header.compact {
-  margin-bottom: 8px;
-}
-
-.panel-header.compact h4 {
-  margin: 0;
-}
-
-.jd-preview p {
-  margin: 0 0 12px;
+.refresh-choice small {
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
-  line-height: 1.8;
+  line-height: 1.5;
 }
 
-.skill-tags,
-.output-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.submission-error {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-soft, #fef2f2);
+  color: var(--color-danger, #b91c1c);
 }
 
-.empty-text {
-  color: var(--color-text-soft);
-  font-size: 13px;
+.primary-action {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-4);
 }
 
-.output-panel h3 {
-  margin: 0 0 12px;
+.action-hint {
+  text-align: center;
+  font-size: var(--font-size-sm);
 }
 
 .progress-panel {
-  margin-top: 20px;
+  margin-top: var(--space-5);
+}
+
+.panel-header {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.section-eyebrow {
+  color: var(--color-primary-strong);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.progress-overview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-primary-soft);
+  border-radius: var(--radius-card);
+  background: var(--color-primary-soft);
+}
+
+.progress-number {
+  color: var(--color-primary-strong);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .task-progress {
-  margin-top: 24px;
+  margin-top: var(--space-4);
 }
 
-.progress-message {
-  margin: 16px 0;
-  padding: 12px 14px;
-  border: 1px solid #dbeafe;
-  border-radius: 8px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  line-height: 1.7;
+.progress-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.progress-message.failed {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #dc2626;
+.progress-steps li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text-muted);
 }
 
-.failed-actions {
-  margin-top: 12px;
+.progress-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
 }
 
-.success-actions {
+.progress-steps strong,
+.progress-steps small {
+  display: block;
+}
+
+.progress-steps small {
+  margin-top: var(--space-1);
+  line-height: 1.4;
+}
+
+.progress-steps li.active,
+.progress-steps li.complete {
+  color: var(--color-primary-strong);
+}
+
+.progress-steps li.active > span,
+.progress-steps li.complete > span {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
+
+.connection-row,
+.terminal-state {
   display: flex;
-  flex-direction: column;
+  gap: var(--space-4);
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.connection-state {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.connection-state::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+.connection-state--connected {
+  color: var(--color-success, #15803d);
+}
+
+.connection-state--fallback {
+  color: var(--color-warning, #b45309);
+}
+
+.connection-actions,
+.responsive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.terminal-state--failed {
+  border-color: var(--color-danger-border, #fecaca);
+  background: var(--color-danger-soft, #fef2f2);
+}
+
+.terminal-state--success {
+  border-color: var(--color-success-border, #bbf7d0);
+  background: var(--color-success-soft, #f0fdf4);
+}
+
+.submitting-state {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.empty-text {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 @media (max-width: 900px) {
-  .analysis-hero,
-  .analysis-grid {
+  .setup-grid,
+  .quality-check {
     grid-template-columns: 1fr;
   }
 
-  .analysis-hero {
+  .confirm-card {
+    grid-column: auto;
+  }
+
+  .progress-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .setup-sequence {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-state,
+  .panel-header,
+  .connection-row,
+  .terminal-state {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .hero-flow {
-    justify-content: flex-start;
+  .progress-overview {
+    grid-template-columns: 1fr;
   }
 
-  .config-panel {
-    position: static;
+  .progress-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-actions,
+  .responsive-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .connection-actions .el-button,
+  .responsive-actions .el-button {
+    width: 100%;
+    margin-left: 0;
   }
 }
 </style>
