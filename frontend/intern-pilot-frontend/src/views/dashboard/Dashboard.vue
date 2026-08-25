@@ -358,7 +358,9 @@ const completeAction = {
   icon: Tickets, path: '/analysis/reports'
 }
 const primaryAction = computed(() => {
-  if (interviewError.value) {
+  const stage = journeyStages.value.find((item) => item.done !== true)
+  if (!stage) return completeAction
+  if (stage.done === null && interviewError.value) {
     return {
       key: 'interview-unknown',
       label: '重试面试阶段数据',
@@ -368,8 +370,6 @@ const primaryAction = computed(() => {
       retry: true
     }
   }
-  const stage = journeyStages.value.find((item) => !item.done)
-  if (!stage) return completeAction
   return { key: stage.key, label: stage.actionLabel, description: stage.description, icon: stage.icon, path: stage.path }
 })
 const heroNextStep = computed(() => {

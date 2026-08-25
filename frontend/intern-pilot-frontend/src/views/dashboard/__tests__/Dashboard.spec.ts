@@ -141,6 +141,32 @@ describe('career action workspace', () => {
     expect(wrapper.get('[data-primary-action]').text()).toContain('重试面试阶段数据')
   })
 
+  it.each([
+    {
+      state: 'resume is incomplete',
+      results: { resumes: 0, jobs: 1, reports: 1, applications: 1 },
+      expectedAction: '上传第一份简历'
+    },
+    {
+      state: 'analysis is incomplete',
+      results: { resumes: 1, jobs: 1, reports: 0, applications: 1 },
+      expectedAction: '开始 AI 匹配'
+    },
+    {
+      state: 'the first three stages are complete',
+      results: { resumes: 1, jobs: 1, reports: 1, applications: 0 },
+      expectedAction: '重试面试阶段数据'
+    }
+  ])('keeps journey-order primary guidance when $state and interview is unknown', async ({ results, expectedAction }) => {
+    setResults(results)
+    mockedInterviewReports.mockRejectedValue(new Error('interview unavailable'))
+
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.get('[data-primary-action]').text()).toContain(expectedAction)
+    expect(wrapper.get('[data-interview-retry]').text()).toContain('重试面试阶段数据')
+  })
+
   it('retries only the failed interview count and restores journey guidance after recovery', async () => {
     setResults({ resumes: 1, jobs: 1, reports: 1, applications: 1 })
     mockedInterviewReports
