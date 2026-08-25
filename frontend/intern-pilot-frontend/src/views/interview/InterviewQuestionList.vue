@@ -7,7 +7,7 @@
         description="用目标岗位的真实语境反复演练：先独立作答，再对照参考答案、关键要点和追问。"
       >
         <template #actions>
-          <el-button type="primary" :icon="Plus" :disabled="!canGenerate" @click="openGenerate">
+          <el-button type="primary" :icon="Plus" :disabled="!canGenerate || generating" @click="openGenerate">
             生成面试题
           </el-button>
         </template>
@@ -129,7 +129,7 @@
         description="选择简历和目标岗位，生成一套可以反复演练的专属面试题。"
         hint="建议先完善岗位 JD 和简历解析结果，问题会更贴近真实面试。"
       >
-        <el-button data-empty-generate type="primary" :icon="Plus" :disabled="!canGenerate" @click="openGenerate">
+        <el-button data-empty-generate type="primary" :icon="Plus" :disabled="!canGenerate || generating" @click="openGenerate">
           生成第一套面试题
         </el-button>
       </AppEmpty>
@@ -290,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Briefcase, Clock, Files, Plus, Tickets } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -315,6 +315,13 @@ import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
+import {
+  activeInterviewGenerations,
+  findActiveInterviewGeneration,
+  registerInterviewGeneration,
+  type ActiveInterviewGeneration,
+  type InterviewGenerationOutcome
+} from './interviewGenerationRegistry'
 
 type MetadataState = 'loading' | 'available' | 'unavailable'
 type ReportTaxonomy = { categories: string[]; difficulties: string[]; status: string; state: MetadataState }
@@ -334,7 +341,9 @@ const reportMetadata = ref<Record<number, ReportTaxonomy>>({})
 const metadataCache = new Map<string, Pick<ReportTaxonomy, 'categories' | 'difficulties'>>()
 const activeMetadataKeys = new Map<number, string>()
 let reportLoadEpoch = 0
-let lastRequestedQueryKey = ''
+let lastRequestedServerFilterKey = ''
+let componentActive = true
+const generationObservations = new Map<string, Promise<void>>()
 const loading = ref(false)
 const loadingOptions = ref(false)
 const generating = ref(false)
@@ -452,7 +461,7 @@ async function loadOptions() {
 async function loadReports() {
   const epoch = ++reportLoadEpoch
   const querySnapshot: ReportQuerySnapshot = { ...query }
-  lastRequestedQueryKey = reportQueryKey(querySnapshot)
+  lastRequestedServerFilterKey = serverFilterKey(querySnapshot)
   loading.value = true
   loadError.value = ''
   try {
@@ -514,7 +523,8 @@ async function hydrateSingleReportMetadata(item: any, epoch: number): Promise<bo
   const reportId = Number(item.reportId)
   const key = reportMetadataKey(item)
   try {
-    const detail: any = await getInterviewQuestionDetailApi(reportId)
+    if (!isCurrentMetadataRequest(reportId, key, epoch)) return false
+    const detail: any = await getInterviewQuestionDetailApi(reportId, { silentError: true })
     if (!isCurrentMetadataRequest(reportId, key, epoch)) return false
     const questions = Array.isArray(detail?.questions) ? detail.questions : []
     const available = {
@@ -556,15 +566,17 @@ async function retryReportMetadata(item: any) {
 }
 
 function search() {
+  if (serverFilterKey(query) === lastRequestedServerFilterKey) return
   query.pageNum = 1
-  if (reportQueryKey(query) !== lastRequestedQueryKey) loadReports()
+  loadReports()
 }
 function resetQuery() {
   query.resumeId = undefined
   query.jobId = undefined
-  query.pageNum = 1
   clearClientFilters()
-  if (reportQueryKey(query) !== lastRequestedQueryKey) loadReports()
+  if (serverFilterKey(query) === lastRequestedServerFilterKey) return
+  query.pageNum = 1
+  loadReports()
 }
 function clearClientFilters() {
   filters.category = undefined
@@ -588,29 +600,36 @@ async function generate() {
     ElMessage.warning('请选择简历和岗位')
     return
   }
-  generating.value = true
-  generationError.value = ''
+  const payload = generationPayload()
+  const signature = JSON.stringify(payload)
+  const existing = findActiveInterviewGeneration('INTERVIEW_QUESTION', signature)
+  if (existing) return observeGeneration(existing)
+
   const localTaskId = aiTaskCenter.createTask({
     type: 'INTERVIEW_QUESTION', title: '面试题生成', message: '正在生成面试题...',
     resumeId: form.resumeId, jobId: form.jobId, reportId: form.analysisReportId,
     sourcePath: '/interview-questions'
   })
-  try {
-    const res: any = await generateInterviewQuestionsApi(form)
-    aiTaskCenter.completeTask(localTaskId, { resultId: res.reportId, resultPath: `/interview-questions/${res.reportId}`, message: '面试题生成完成' })
-    ElMessage.success('面试题生成成功')
-    generateVisible.value = false
-    query.pageNum = 1
-    await loadReports()
-    router.push(`/interview-questions/${res.reportId}`)
-  } catch (e: any) {
-    aiTaskCenter.failTask(localTaskId, '面试题生成失败')
-    generateVisible.value = false
-    generationError.value = getErrorMessage(e, '面试题生成失败，请检查简历、岗位和 AI 服务配置。')
-    ElMessage.error(generationError.value)
-  } finally {
-    generating.value = false
-  }
+  const entry = registerInterviewGeneration({
+    kind: 'INTERVIEW_QUESTION',
+    signature,
+    localTaskId,
+    run: async () => {
+      try {
+        const res: any = await generateInterviewQuestionsApi(payload)
+        aiTaskCenter.completeTask(localTaskId, {
+          resultId: res.reportId,
+          resultPath: `/interview-questions/${res.reportId}`,
+          message: '面试题生成完成'
+        })
+        return { ok: true, reportId: Number(res.reportId) }
+      } catch (error) {
+        aiTaskCenter.failTask(localTaskId, '面试题生成失败')
+        return { ok: false, error }
+      }
+    }
+  })
+  return observeGeneration(entry)
 }
 
 function goDetail(reportId: number) { router.push(`/interview-questions/${reportId}`) }
@@ -634,22 +653,34 @@ async function regenerateReport(row: any) {
   try {
     await ElMessageBox.confirm(`确认重新生成“${row.title || '面试题报告'}”吗？旧的题目将被替换。`, '重新生成确认', { type: 'warning' })
   } catch { return }
+  const signature = String(row.reportId)
+  const existing = findActiveInterviewGeneration('INTERVIEW_REGENERATE', signature)
+  if (existing) return observeGeneration(existing)
   const localTaskId = aiTaskCenter.createTask({
     type: 'INTERVIEW_REGENERATE', title: '面试题重新生成', message: '正在重新生成面试题...',
     reportId: row.reportId, sourcePath: '/interview-questions'
   })
-  regeneratingId.value = row.reportId
-  try {
-    const res: any = await regenerateInterviewQuestionsApi(row.reportId)
-    aiTaskCenter.completeTask(localTaskId, { resultId: res.reportId, resultPath: `/interview-questions/${res.reportId}`, message: '面试题重新生成完成' })
-    ElMessage.success('面试题重新生成成功')
-    invalidateReportMetadata(row.reportId)
-    await loadReports()
-    router.push(`/interview-questions/${res.reportId}`)
-  } catch (e: any) {
-    aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
-    ElMessage.error(getErrorMessage(e, '重新生成失败，请稍后重试'))
-  } finally { regeneratingId.value = null }
+  const entry = registerInterviewGeneration({
+    kind: 'INTERVIEW_REGENERATE',
+    signature,
+    localTaskId,
+    reportId: Number(row.reportId),
+    run: async () => {
+      try {
+        const res: any = await regenerateInterviewQuestionsApi(row.reportId)
+        aiTaskCenter.completeTask(localTaskId, {
+          resultId: res.reportId,
+          resultPath: `/interview-questions/${res.reportId}`,
+          message: '面试题重新生成完成'
+        })
+        return { ok: true, reportId: Number(res.reportId) }
+      } catch (error) {
+        aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
+        return { ok: false, error }
+      }
+    }
+  })
+  return observeGeneration(entry)
 }
 
 function reportMetadataFor(item: any): ReportTaxonomy {
@@ -694,33 +725,102 @@ function reportMetadataKey(item: any) {
   return [item.reportId, item.updatedAt || item.createdAt || '', item.resumeVersionId || '', item.questionCount || ''].join(':')
 }
 function isCurrentMetadataRequest(reportId: number, key: string, epoch: number) {
-  return epoch === reportLoadEpoch && activeMetadataKeys.get(reportId) === key
+  return componentActive && epoch === reportLoadEpoch && activeMetadataKeys.get(reportId) === key
 }
 function invalidateReportMetadata(reportId: number) {
   const key = activeMetadataKeys.get(Number(reportId))
   if (key) metadataCache.delete(key)
 }
-function reportQueryKey(value: Partial<ReportQuerySnapshot>) {
-  return JSON.stringify({
-    resumeId: value.resumeId,
-    resumeVersionId: value.resumeVersionId,
-    jobId: value.jobId,
-    pageNum: value.pageNum,
-    pageSize: value.pageSize
+function serverFilterKey(value: Partial<ReportQuerySnapshot>) {
+  return JSON.stringify({ resumeId: value.resumeId, resumeVersionId: value.resumeVersionId, jobId: value.jobId })
+}
+function generationPayload() {
+  return {
+    resumeId: form.resumeId,
+    resumeVersionId: form.resumeVersionId,
+    jobId: form.jobId,
+    analysisReportId: form.analysisReportId,
+    questionCount: form.questionCount,
+    categories: form.categories ? [...form.categories] : undefined,
+    difficulties: form.difficulties ? [...form.difficulties] : undefined,
+    includeAnswer: form.includeAnswer,
+    includeFollowUps: form.includeFollowUps
+  }
+}
+function observeGeneration(entry: ActiveInterviewGeneration): Promise<void> {
+  const observationKey = `${entry.kind}:${entry.signature}`
+  const existing = generationObservations.get(observationKey)
+  if (existing) return existing
+
+  if (entry.kind === 'INTERVIEW_QUESTION') {
+    generating.value = true
+    generationError.value = ''
+  } else {
+    regeneratingId.value = entry.reportId ?? null
+  }
+  const observation = entry.promise.then(async (outcome) => {
+    if (!componentActive) return
+    if (entry.kind === 'INTERVIEW_QUESTION') await finishGeneration(outcome)
+    else await finishRegeneration(entry, outcome)
+  }).finally(() => {
+    generationObservations.delete(observationKey)
+    if (!componentActive) return
+    if (entry.kind === 'INTERVIEW_QUESTION') generating.value = false
+    else regeneratingId.value = null
   })
+  generationObservations.set(observationKey, observation)
+  return observation
+}
+async function finishGeneration(outcome: InterviewGenerationOutcome) {
+  generateVisible.value = false
+  if (!outcome.ok) {
+    generationError.value = getErrorMessage(outcome.error, '面试题生成失败，请检查简历、岗位和 AI 服务配置。')
+    ElMessage.error(generationError.value)
+    return
+  }
+  ElMessage.success('面试题生成成功')
+  query.pageNum = 1
+  await loadReports()
+  if (componentActive) router.push(`/interview-questions/${outcome.reportId}`)
+}
+async function finishRegeneration(entry: ActiveInterviewGeneration, outcome: InterviewGenerationOutcome) {
+  if (!outcome.ok) {
+    ElMessage.error(getErrorMessage(outcome.error, '重新生成失败，请稍后重试'))
+    return
+  }
+  ElMessage.success('面试题重新生成成功')
+  if (entry.reportId) invalidateReportMetadata(entry.reportId)
+  await loadReports()
+  if (componentActive) router.push(`/interview-questions/${outcome.reportId}`)
+}
+function attachActiveGenerations() {
+  activeInterviewGenerations().forEach((entry) => { void observeGeneration(entry) })
 }
 function reconcileInterruptedGenerationTasks() {
+  const activeTaskIds = new Set(activeInterviewGenerations().map((entry) => entry.localTaskId))
   aiTaskCenter.tasks.forEach((task) => {
     if (!['INTERVIEW_QUESTION', 'INTERVIEW_REGENERATE'].includes(task.type)) return
     if (task.backendTaskNo || !RUNNING_TASK_STATUSES.has(task.status)) return
+    if (activeTaskIds.has(task.localTaskId)) return
     aiTaskCenter.updateTask(task.localTaskId, { sourcePath: '/interview-questions' }, { notify: false })
     aiTaskCenter.failTask(task.localTaskId, '面试题生成已中断，请返回面试题页面重试')
   })
 }
 
 onMounted(async () => {
+  componentActive = true
+  attachActiveGenerations()
+  const initialization = aiTaskCenter.initialize()
+  const pageLoad = Promise.allSettled([loadOptions(), loadReports()])
+  await initialization
+  if (!componentActive) return
   reconcileInterruptedGenerationTasks()
-  await Promise.allSettled([loadOptions(), loadReports()])
+  attachActiveGenerations()
+  await pageLoad
+})
+onBeforeUnmount(() => {
+  componentActive = false
+  reportLoadEpoch += 1
 })
 </script>
 

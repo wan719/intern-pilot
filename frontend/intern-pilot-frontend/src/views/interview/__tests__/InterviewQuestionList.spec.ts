@@ -19,6 +19,7 @@ const { push, taskCenter } = vi.hoisted(() => ({
   push: vi.fn(),
   taskCenter: {
     tasks: [] as any[],
+    initialize: vi.fn(async () => undefined),
     createTask: vi.fn(() => 'LOCAL_INTERVIEW_TASK'),
     updateTask: vi.fn(),
     completeTask: vi.fn(),
@@ -299,7 +300,7 @@ describe('interview preparation queue redesign', () => {
     ;(wrapper.vm as any).query.pageNum = 2
     await (wrapper.vm as any).loadReports()
     await flushPromises()
-    expect(mockedDetail).toHaveBeenCalledWith(99)
+    expect(mockedDetail).toHaveBeenCalledWith(99, { silentError: true })
 
     staleDetails.forEach((request) => request.resolve({ questions: [{ questionType: 'JAVA_BASIC', difficulty: 'EASY' }] }))
     await flushPromises()
@@ -348,6 +349,27 @@ describe('interview preparation queue redesign', () => {
     expect(mockedDetail).toHaveBeenCalledTimes(6)
   })
 
+  it('stops metadata scheduling and commits after the page unmounts', async () => {
+    const firstBatch = Array.from({ length: 4 }, () => deferred<any>())
+    mockedReports.mockResolvedValueOnce({
+      records: Array.from({ length: 10 }, (_, index) => reportWithId(index + 1)),
+      total: 10
+    } as any)
+    mockedDetail.mockReset().mockImplementation((reportId: number) => {
+      if (reportId <= 4) return firstBatch[reportId - 1].promise
+      return Promise.resolve({ questions: [{ questionType: 'PROJECT', difficulty: 'HARD' }] }) as any
+    })
+    const wrapper = await mountPage()
+    expect(mockedDetail).toHaveBeenCalledTimes(4)
+
+    wrapper.unmount()
+    firstBatch.forEach((request) => request.resolve({ questions: [] }))
+    await flushPromises()
+
+    expect(mockedDetail).toHaveBeenCalledTimes(4)
+    expect(mockedDetail).not.toHaveBeenCalledWith(5, expect.anything())
+  })
+
   it('does not refetch list or detail when applying only local taxonomy filters', async () => {
     const wrapper = await mountPage()
     const listCalls = mockedReports.mock.calls.length
@@ -357,6 +379,32 @@ describe('interview preparation queue redesign', () => {
     await button(wrapper, '应用筛选').trigger('click')
     await flushPromises()
 
+    expect(mockedReports).toHaveBeenCalledTimes(listCalls)
+    expect(mockedDetail).toHaveBeenCalledTimes(detailCalls)
+  })
+
+  it('keeps page two and performs no requests when applying and resetting only local filters', async () => {
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).handlePageChange(2)
+    await flushPromises()
+    const listCalls = mockedReports.mock.calls.length
+    const detailCalls = mockedDetail.mock.calls.length
+
+    Object.assign((wrapper.vm as any).filters, {
+      category: 'SPRING_BOOT',
+      difficulty: 'MEDIUM',
+      status: 'COMPLETED'
+    })
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as any).query.pageNum).toBe(2)
+    expect(mockedReports).toHaveBeenCalledTimes(listCalls)
+    expect(mockedDetail).toHaveBeenCalledTimes(detailCalls)
+
+    await button(wrapper, '重置').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as any).query.pageNum).toBe(2)
+    expect((wrapper.vm as any).filters).toEqual({})
     expect(mockedReports).toHaveBeenCalledTimes(listCalls)
     expect(mockedDetail).toHaveBeenCalledTimes(detailCalls)
   })
@@ -403,20 +451,21 @@ describe('interview preparation queue redesign', () => {
     await flushPromises()
 
     expect(mockedDetail.mock.calls.length).toBeLessThanOrEqual(4)
+    expect(mockedDetail.mock.calls.every(([, options]) => options?.silentError === true)).toBe(true)
+    expect(ElMessage.error).not.toHaveBeenCalled()
     expect(wrapper.get('[data-metadata-bulk-warning]').text()).toContain('部分题单分类暂时无法确认')
     expect(wrapper.findAll('[data-metadata-state="unavailable"]')).toHaveLength(10)
   })
 
-  it('reconciles restored local generation, uses a retry path, and deduplicates live submission', async () => {
+  it('reconciles a fresh-module restored generation only after task-center initialization', async () => {
     taskCenter.tasks = [{
       localTaskId: 'RESTORED_INTERVIEW',
       type: 'INTERVIEW_QUESTION',
       status: 'RUNNING'
     }]
-    const generation = deferred<any>()
-    mockedGenerate.mockReturnValueOnce(generation.promise)
     const wrapper = await mountPage()
 
+    expect(taskCenter.initialize).toHaveBeenCalledTimes(1)
     expect(taskCenter.failTask).toHaveBeenCalledWith(
       'RESTORED_INTERVIEW',
       '面试题生成已中断，请返回面试题页面重试'
@@ -427,15 +476,66 @@ describe('interview preparation queue redesign', () => {
       { notify: false }
     )
 
-    Object.assign((wrapper.vm as any).form, { resumeId: 3, jobId: 7 })
-    const firstSubmission = (wrapper.vm as any).generate()
-    const duplicateSubmission = (wrapper.vm as any).generate()
+    wrapper.unmount()
+  })
+
+  it('waits for delayed task-center initialization before reconciling a restored orphan', async () => {
+    const initialization = deferred<void>()
+    taskCenter.initialize.mockImplementationOnce(async () => {
+      await initialization.promise
+      taskCenter.tasks = [{
+        localTaskId: 'DELAYED_RESTORED_INTERVIEW',
+        type: 'INTERVIEW_QUESTION',
+        status: 'RUNNING'
+      }]
+    })
+    const wrapper = await mountPage()
+    expect(taskCenter.failTask).not.toHaveBeenCalled()
+
+    initialization.resolve()
     await flushPromises()
+
+    expect(taskCenter.failTask).toHaveBeenCalledWith(
+      'DELAYED_RESTORED_INTERVIEW',
+      '面试题生成已中断，请返回面试题页面重试'
+    )
+    wrapper.unmount()
+  })
+
+  it('attaches to a live SPA generation across unmount/remount without failing or duplicating it', async () => {
+    const generation = deferred<any>()
+    mockedGenerate.mockReset().mockReturnValueOnce(generation.promise).mockResolvedValue({ reportId: 99 } as any)
+    taskCenter.createTask.mockImplementationOnce(() => {
+      taskCenter.tasks = [{
+        localTaskId: 'LIVE_INTERVIEW_TASK',
+        type: 'INTERVIEW_QUESTION',
+        status: 'RUNNING'
+      }]
+      return 'LIVE_INTERVIEW_TASK'
+    })
+    const firstPage = await mountPage()
+    Object.assign((firstPage.vm as any).form, { resumeId: 3, jobId: 7 })
+    const submission = (firstPage.vm as any).generate()
+    await flushPromises()
+    expect(mockedGenerate).toHaveBeenCalledTimes(1)
+
+    firstPage.unmount()
+    const secondPage = await mountPage()
+    expect((secondPage.vm as any).generating).toBe(true)
+    expect(button(secondPage, '生成面试题').attributes('disabled')).toBeDefined()
+    expect(taskCenter.failTask).not.toHaveBeenCalled()
+
+    await (secondPage.vm as any).generate()
     expect(mockedGenerate).toHaveBeenCalledTimes(1)
     expect(taskCenter.createTask).toHaveBeenCalledTimes(1)
 
     generation.resolve({ reportId: 42 })
-    await Promise.all([firstSubmission, duplicateSubmission])
+    await submission
+    await flushPromises()
+    expect(taskCenter.completeTask).toHaveBeenCalledTimes(1)
+    expect(taskCenter.completeTask).toHaveBeenCalledWith('LIVE_INTERVIEW_TASK', expect.objectContaining({ resultId: 42 }))
+    expect((secondPage.vm as any).generating).toBe(false)
+    secondPage.unmount()
   })
 
   it('uses one action-oriented heading and FilterBar with category, difficulty and status values', async () => {
@@ -458,7 +558,7 @@ describe('interview preparation queue redesign', () => {
     const wrapper = await mountPage()
     const card = wrapper.get('.preparation-card')
 
-    expect(mockedDetail).toHaveBeenCalledWith(41)
+    expect(mockedDetail).toHaveBeenCalledWith(41, { silentError: true })
     expect(card.text()).toContain('星河科技')
     expect(card.text()).toContain('前端实习生')
     expect(card.text()).toContain('Spring Boot')

@@ -3,6 +3,16 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { getToken, removeToken } from '@/utils/token'
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silentError?: boolean
+  }
+
+  export interface InternalAxiosRequestConfig {
+    silentError?: boolean
+  }
+}
+
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 60000
@@ -20,7 +30,7 @@ request.interceptors.response.use(
   (response) => {
     const body = response.data
     if (body?.code !== 200) {
-      ElMessage.error(getFriendlyErrorMessage(body?.message, body?.code))
+      if (!response.config.silentError) ElMessage.error(getFriendlyErrorMessage(body?.message, body?.code))
       if (body?.code === 401) {
         removeToken()
         router.push('/login')
@@ -35,7 +45,7 @@ request.interceptors.response.use(
       removeToken()
       router.push('/login')
     }
-    ElMessage.error(getFriendlyErrorMessage(error.response?.data?.message, status))
+    if (!error.config?.silentError) ElMessage.error(getFriendlyErrorMessage(error.response?.data?.message, status))
     return Promise.reject(error)
   }
 )

@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
+import { listRecentTasksApi, listRunningTasksApi } from '@/api/analysisTask'
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }))
 
@@ -39,5 +40,16 @@ describe('AI task center interview retry', () => {
 
     expect(push).toHaveBeenCalledWith('/interview-questions')
     expect(taskCenter.tasks.some((task) => task.localTaskId === localTaskId)).toBe(false)
+  })
+
+  it('initializes storage and backend reconciliation only once for concurrent callers', async () => {
+    const taskCenter = useAiTaskCenterStore()
+
+    const first = taskCenter.initialize()
+    const second = taskCenter.initialize()
+    await Promise.all([first, second])
+
+    expect(listRunningTasksApi).toHaveBeenCalledTimes(1)
+    expect(listRecentTasksApi).toHaveBeenCalledTimes(1)
   })
 })

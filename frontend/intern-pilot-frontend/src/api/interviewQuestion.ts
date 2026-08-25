@@ -8,8 +8,9 @@ export function getInterviewQuestionReportsApi(params = {}) {
   return request.get('/api/interview-questions', { params })
 }
 
-export function getInterviewQuestionDetailApi(reportId: number) {
-  return request.get(`/api/interview-questions/${reportId}`)
+export function getInterviewQuestionDetailApi(reportId: number, config?: { silentError?: boolean }) {
+  const path = `/api/interview-questions/${reportId}`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function deleteInterviewQuestionReportApi(reportId: number) {

@@ -77,6 +77,7 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
   const tasks = ref<GlobalAiTask[]>([])
   const dismissedBackendTaskNos = ref<Set<string>>(new Set())
   const drawerVisible = ref(false)
+  let initializationPromise: Promise<void> | null = null
 
   const visibleTasks = computed(() => tasks.value.filter((task) => task.status !== 'DISMISSED'))
   const runningTasks = computed(() => visibleTasks.value.filter((task) => RUNNING_STATUSES.includes(task.status)))
@@ -433,11 +434,15 @@ export const useAiTaskCenterStore = defineStore('aiTaskCenter', () => {
     closeDrawer()
   }
 
-  function initialize(): void {
+  function initialize(): Promise<void> {
+    if (initializationPromise) return initializationPromise
     restoreDismissedBackendTasks()
     restoreFromStorage()
-    syncRunningAnalysisTasks()
-    loadRecentTasks()
+    initializationPromise = Promise.allSettled([
+      syncRunningAnalysisTasks(),
+      loadRecentTasks()
+    ]).then(() => undefined)
+    return initializationPromise
   }
 
   function notifyTask(task: GlobalAiTask): void {
