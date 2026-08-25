@@ -39,3 +39,4 @@ deploy/ssl/*
 # system
 .DS_Store
 Thumbs.db
+.superpowers/
