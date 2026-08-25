@@ -1,9 +1,16 @@
 <template>
-  <main class="forbidden-page">
-    <section class="forbidden-panel">
-      <h1>403</h1>
-      <p>当前账号没有访问该页面的权限。</p>
-      <el-button type="primary" @click="router.push('/dashboard')">返回数据看板</el-button>
+  <main class="forbidden-page" aria-labelledby="forbidden-title">
+    <section class="forbidden-panel" aria-describedby="forbidden-description">
+      <span class="forbidden-code" aria-hidden="true">403</span>
+      <div class="forbidden-copy">
+        <span class="eyebrow">访问受限</span>
+        <h1 id="forbidden-title">这个页面暂时无法访问</h1>
+        <p id="forbidden-description">当前账号无法打开此页面。你可以回到工作台继续求职流程，或返回上一页。</p>
+      </div>
+      <div class="forbidden-actions">
+        <el-button type="primary" @click="router.push('/dashboard')">返回工作台</el-button>
+        <el-button @click="router.back()">返回上一页</el-button>
+      </div>
     </section>
   </main>
 </template>
@@ -13,32 +20,3 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 </script>
-
-<style scoped>
-.forbidden-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
-  background: #f3f6fb;
-}
-
-.forbidden-panel {
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-  padding: 32px;
-  text-align: center;
-}
-
-.forbidden-panel h1 {
-  margin: 0;
-  color: #1f2937;
-  font-size: 48px;
-}
-
-.forbidden-panel p {
-  margin: 0;
-  color: #64748b;
-}
-</style>

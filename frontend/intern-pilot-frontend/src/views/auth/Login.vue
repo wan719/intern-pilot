@@ -1,12 +1,16 @@
 <template>
-  <div class="auth-page">
-    <section class="auth-panel">
-      <div class="auth-copy">
+  <section class="auth-page auth-page--career">
+    <div class="auth-panel">
+      <aside class="auth-copy">
         <div class="auth-brand">
           <img class="auth-brand-logo" :src="brandLogo" alt="InternPilot logo">
-          <span class="eyebrow">InternPilot</span>
+          <div>
+            <span class="eyebrow">InternPilot</span>
+            <strong>职业工作室</strong>
+          </div>
         </div>
-        <p>从简历、岗位 JD 到 AI 匹配分析和投递跟进，一站式管理你的实习求职流程。</p>
+        <h2>把下一次机会，推进到更近一步</h2>
+        <p>从简历准备、岗位判断到面试复盘，在一个清晰的工作区里持续行动。</p>
 
         <div class="auth-flow">
           <div v-for="item in flowItems" :key="item.label" class="auth-flow-item">
@@ -24,33 +28,37 @@
           <span>面试题生成</span>
           <span>投递跟进</span>
         </div>
-      </div>
+      </aside>
 
-      <el-form
-        ref="formRef"
-        class="auth-form"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        @keyup.enter="handleLogin"
-      >
-        <div class="auth-form-title">
-          <span>Welcome back</span>
-          <h2>登录工作台</h2>
-          <p>使用邮箱登录，继续管理你的求职流程。</p>
+      <main class="auth-form" aria-labelledby="auth-title">
+        <div class="auth-form__inner">
+          <div class="auth-form-title">
+            <span>继续你的求职旅程</span>
+            <h1 id="auth-title">登录职业工作室</h1>
+            <p>使用邮箱登录，查看待办并推进今天最重要的一步。</p>
+          </div>
+
+          <el-form
+            ref="formRef"
+            class="auth-form__fields"
+            :model="form"
+            :rules="rules"
+            label-position="top"
+            @keyup.enter="handleLogin"
+          >
+            <el-form-item label="邮箱" prop="account">
+              <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
+            </el-form-item>
+            <el-form-item label="密码" prop="password">
+              <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="请输入密码" />
+            </el-form-item>
+            <el-button type="primary" :loading="loading" @click="handleLogin">进入工作台</el-button>
+            <p class="auth-switch">还没有账号？<router-link to="/register">创建账号</router-link></p>
+          </el-form>
         </div>
-
-        <el-form-item label="邮箱" prop="account">
-          <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="请输入密码" />
-        </el-form-item>
-        <el-button type="primary" :loading="loading" @click="handleLogin">进入工作台</el-button>
-        <p class="auth-switch">还没有账号？<router-link to="/register">创建账号</router-link></p>
-      </el-form>
-    </section>
-  </div>
+      </main>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">

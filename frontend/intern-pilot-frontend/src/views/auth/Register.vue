@@ -1,10 +1,16 @@
 <template>
-  <div class="auth-page">
-    <section class="auth-panel auth-panel-register">
-      <div class="auth-copy">
-        <span class="eyebrow">InternPilot</span>
-        <h1>创建  求职工作台账号</h1>
-        <p>用邮箱完成注册，登录后即可管理简历、岗位、分析报告和投递记录。</p>
+  <section class="auth-page auth-page--career">
+    <div class="auth-panel auth-panel-register">
+      <aside class="auth-copy">
+        <div class="auth-brand">
+          <img class="auth-brand-logo" :src="brandLogo" alt="InternPilot logo">
+          <div>
+            <span class="eyebrow">InternPilot</span>
+            <strong>职业工作室</strong>
+          </div>
+        </div>
+        <h2>先建立工作区，再把目标拆成行动</h2>
+        <p>创建账号后即可集中管理简历、目标岗位、AI 分析与每一次投递进展。</p>
 
         <div class="auth-flow">
           <div v-for="item in flowItems" :key="item.label" class="auth-flow-item">
@@ -22,65 +28,69 @@
           <span>AI 分析</span>
           <span>安全账号</span>
         </div>
-      </div>
+      </aside>
 
-      <el-form ref="formRef" class="auth-form" :model="form" :rules="rules" label-position="top">
-        <div class="auth-form-title">
-          <span>Get started</span>
-          <h2>创建账号</h2>
-          <p>先完成账号信息，求职资料也可以稍后在用户中心补充。</p>
-        </div>
-
-        <div class="auth-section-title">
-          <strong>账号信息</strong>
-          <span>必填</span>
-        </div>
-        <el-form-item label="邮箱" prop="account">
-          <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="验证码" prop="captchaCode">
-          <div class="captcha-row">
-            <el-input v-model.trim="form.captchaCode" :prefix-icon="Key" placeholder="请输入验证码" />
-            <el-button :disabled="captchaCountdown > 0" :loading="captchaSending" @click="sendCaptcha">
-              {{ captchaCountdown > 0 ? captchaCountdown + 's' : '发送验证码' }}
-            </el-button>
+      <main class="auth-form" aria-labelledby="auth-title">
+        <div class="auth-form__inner">
+          <div class="auth-form-title">
+            <span>开始建立求职节奏</span>
+            <h1 id="auth-title">创建职业工作室账号</h1>
+            <p>先完成账号信息；学校、专业等求职资料可以稍后补充。</p>
           </div>
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="至少 6 位" />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input v-model="form.confirmPassword" :prefix-icon="Lock" type="password" show-password placeholder="再次输入密码" />
-        </el-form-item>
 
-        <div class="auth-section-title optional">
-          <strong>求职资料</strong>
-          <span>可选</span>
-        </div>
-        <div class="auth-optional-box">
-          <div class="form-grid two">
-            <el-form-item label="学校">
-              <el-input v-model="form.school" :prefix-icon="User" placeholder="例如：西南大学" />
+          <el-form ref="formRef" class="auth-form__fields" :model="form" :rules="rules" label-position="top">
+            <div class="auth-section-title">
+              <strong>账号信息</strong>
+              <span>必填</span>
+            </div>
+            <el-form-item label="邮箱" prop="account">
+              <el-input v-model.trim="form.account" :prefix-icon="Message" placeholder="请输入邮箱" />
             </el-form-item>
-            <el-form-item label="专业">
-              <el-input v-model="form.major" :prefix-icon="Briefcase" placeholder="例如：软件工程" />
+            <el-form-item label="验证码" prop="captchaCode">
+              <div class="captcha-row">
+                <el-input v-model.trim="form.captchaCode" :prefix-icon="Key" placeholder="请输入验证码" />
+                <el-button :disabled="captchaCountdown > 0" :loading="captchaSending" @click="sendCaptcha">
+                  {{ captchaCountdown > 0 ? captchaCountdown + 's' : '发送验证码' }}
+                </el-button>
+              </div>
             </el-form-item>
-          </div>
-          <div class="form-grid two">
-            <el-form-item label="年级">
-              <el-input v-model="form.grade" placeholder="例如：大二 / 2024级" />
+            <el-form-item label="密码" prop="password">
+              <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="至少 6 位" />
             </el-form-item>
-            <el-form-item label="用户名">
-              <el-input v-model.trim="form.username" :prefix-icon="User" placeholder="可不填，系统自动生成" />
+            <el-form-item label="确认密码" prop="confirmPassword">
+              <el-input v-model="form.confirmPassword" :prefix-icon="Lock" type="password" show-password placeholder="再次输入密码" />
             </el-form-item>
-          </div>
-        </div>
 
-        <el-button type="primary" :loading="loading" @click="handleRegister">创建账号</el-button>
-        <p class="auth-switch">已有账号？<router-link to="/login">去登录</router-link></p>
-      </el-form>
-    </section>
-  </div>
+            <div class="auth-section-title optional">
+              <strong>求职资料</strong>
+              <span>可选</span>
+            </div>
+            <div class="auth-optional-box">
+              <div class="form-grid two">
+                <el-form-item label="学校">
+                  <el-input v-model="form.school" :prefix-icon="User" placeholder="例如：西南大学" />
+                </el-form-item>
+                <el-form-item label="专业">
+                  <el-input v-model="form.major" :prefix-icon="Briefcase" placeholder="例如：软件工程" />
+                </el-form-item>
+              </div>
+              <div class="form-grid two">
+                <el-form-item label="年级">
+                  <el-input v-model="form.grade" placeholder="例如：大二 / 2024级" />
+                </el-form-item>
+                <el-form-item label="用户名">
+                  <el-input v-model.trim="form.username" :prefix-icon="User" placeholder="可不填，系统自动生成" />
+                </el-form-item>
+              </div>
+            </div>
+
+            <el-button type="primary" :loading="loading" @click="handleRegister">创建账号</el-button>
+            <p class="auth-switch">已有账号？<router-link to="/login">去登录</router-link></p>
+          </el-form>
+        </div>
+      </main>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -90,6 +100,7 @@ import { ElMessage } from 'element-plus'
 import { Briefcase, Document, Key, List, Lock, MagicStick, Message, User } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { registerApi, sendRegisterCaptchaApi } from '@/api/auth'
+import brandLogo from '@/assets/brand-logo-optimized.png'
 
 const router = useRouter()
 const loading = ref(false)
