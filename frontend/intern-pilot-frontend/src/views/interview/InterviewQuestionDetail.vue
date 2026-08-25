@@ -187,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -196,6 +196,12 @@ import AppEmpty from '@/components/common/AppEmpty.vue'
 import { getInterviewQuestionDetailApi, regenerateInterviewQuestionsApi } from '@/api/interviewQuestion'
 import { formatDateTime } from '@/utils/format'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
+import {
+  findActiveInterviewGeneration,
+  registerInterviewGeneration,
+  type ActiveInterviewGeneration,
+  type InterviewGenerationOutcome
+} from './interviewGenerationRegistry'
 
 const route = useRoute()
 const router = useRouter()
@@ -207,6 +213,8 @@ const regenerationError = ref('')
 const activeType = ref('')
 const visibleAnswerIds = ref<Set<number>>(new Set())
 const regenerating = ref(false)
+let componentActive = true
+let regenerationObservation: Promise<void> | null = null
 
 const groupedQuestions = computed(() => {
   const map = new Map<string, any[]>()
@@ -303,33 +311,84 @@ async function loadDetail() {
 
 async function regenerate() {
   const id = Number(route.params.id)
-  if (!Number.isFinite(id)) return
+  if (!Number.isFinite(id) || regenerating.value) return
   regenerationError.value = ''
+  const signature = String(id)
+  const existing = findActiveInterviewGeneration('INTERVIEW_REGENERATE', signature)
+  if (existing) return observeRegeneration(existing)
   const localTaskId = aiTaskCenter.createTask({
     type: 'INTERVIEW_REGENERATE', title: '面试题重新生成', message: '正在重新生成面试题...',
     reportId: id, sourcePath: `/interview-questions/${id}`
   })
-  regenerating.value = true
-  try {
-    const res: any = await regenerateInterviewQuestionsApi(id)
-    aiTaskCenter.completeTask(localTaskId, {
-      resultId: res?.reportId || id,
-      resultPath: `/interview-questions/${res?.reportId || id}`,
-      message: '面试题重新生成完成'
-    })
-    ElMessage.success('面试题重新生成成功')
-    if (res?.reportId && res.reportId !== id) await router.replace(`/interview-questions/${res.reportId}`)
-    await loadDetail()
-  } catch (e: any) {
-    aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
-    regenerationError.value = e?.message || e?.response?.data?.message || '重新生成失败，请稍后重试'
-    ElMessage.error(regenerationError.value)
-  } finally {
-    regenerating.value = false
-  }
+  const entry = registerInterviewGeneration({
+    kind: 'INTERVIEW_REGENERATE',
+    signature,
+    localTaskId,
+    reportId: id,
+    run: async () => {
+      try {
+        const res: any = await regenerateInterviewQuestionsApi(id)
+        const reportId = Number(res?.reportId || id)
+        aiTaskCenter.completeTask(localTaskId, {
+          resultId: reportId,
+          resultPath: `/interview-questions/${reportId}`,
+          message: '面试题重新生成完成'
+        })
+        return { ok: true, reportId }
+      } catch (error) {
+        aiTaskCenter.failTask(localTaskId, '面试题重新生成失败')
+        return { ok: false, error }
+      }
+    }
+  })
+  return observeRegeneration(entry)
 }
 
-onMounted(loadDetail)
+function observeRegeneration(entry: ActiveInterviewGeneration): Promise<void> {
+  if (regenerationObservation) return regenerationObservation
+  regenerating.value = true
+  regenerationError.value = ''
+  regenerationObservation = entry.promise.then(async (outcome) => {
+    if (!componentActive) return
+    await finishRegeneration(outcome)
+  }).finally(() => {
+    regenerationObservation = null
+    if (componentActive) regenerating.value = false
+  })
+  return regenerationObservation
+}
+
+async function finishRegeneration(outcome: InterviewGenerationOutcome) {
+  if (!outcome.ok) {
+    const error: any = outcome.error
+    regenerationError.value = error?.message || error?.response?.data?.message || '重新生成失败，请稍后重试'
+    ElMessage.error(regenerationError.value)
+    return
+  }
+  ElMessage.success('面试题重新生成成功')
+  const currentId = Number(route.params.id)
+  if (outcome.reportId !== currentId) {
+    await router.replace(`/interview-questions/${outcome.reportId}`)
+    if (!componentActive) return
+  }
+  await loadDetail()
+}
+
+function attachActiveRegeneration() {
+  const id = Number(route.params.id)
+  if (!Number.isFinite(id)) return
+  const active = findActiveInterviewGeneration('INTERVIEW_REGENERATE', String(id))
+  if (active) void observeRegeneration(active)
+}
+
+onMounted(() => {
+  componentActive = true
+  void loadDetail()
+  attachActiveRegeneration()
+})
+onBeforeUnmount(() => {
+  componentActive = false
+})
 </script>
 
 <style scoped>
