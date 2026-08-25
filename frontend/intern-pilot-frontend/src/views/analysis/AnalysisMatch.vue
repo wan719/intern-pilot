@@ -31,6 +31,11 @@
       <el-button type="primary" plain data-options-retry @click="loadOptions">重新加载</el-button>
     </section>
 
+    <section v-if="optionsLoading" class="options-loading" role="status" aria-live="polite" data-options-loading>
+      <el-skeleton :rows="2" animated />
+      <span>正在加载简历与岗位…</span>
+    </section>
+
     <div class="setup-grid" :aria-busy="optionsLoading">
       <section class="panel setup-card">
         <div class="step-heading">
@@ -41,13 +46,22 @@
           </div>
         </div>
 
-        <el-form :model="form" label-position="top">
+        <div v-if="!optionsLoading && !optionsError && resumes.length === 0" data-resumes-empty>
+          <AppEmpty
+            title="还没有可用于分析的简历"
+            description="先上传一份简历，系统才能读取经历并与目标岗位比较。"
+          >
+            <el-button type="primary" plain data-upload-resume @click="goResumes">上传简历</el-button>
+          </AppEmpty>
+        </div>
+
+        <el-form v-else :model="form" label-position="top">
           <el-form-item label="简历">
             <el-select
               v-model="form.resumeId"
               placeholder="请选择简历"
               filterable
-              :disabled="optionsLoading || running"
+              :disabled="optionsLoading || running || restoringTask"
             >
               <el-option
                 v-for="item in resumes"
@@ -64,7 +78,7 @@
               placeholder="默认使用当前版本"
               clearable
               filterable
-              :disabled="!form.resumeId || running"
+              :disabled="!form.resumeId || running || restoringTask"
             >
               <el-option
                 v-for="item in versions"
@@ -92,13 +106,22 @@
           </div>
         </div>
 
-        <el-form :model="form" label-position="top">
+        <div v-if="!optionsLoading && !optionsError && jobs.length === 0" data-jobs-empty>
+          <AppEmpty
+            title="还没有可用于分析的岗位"
+            description="先添加目标岗位与 JD，再回来生成匹配报告。"
+          >
+            <el-button type="primary" plain data-add-job @click="goJobs">添加岗位</el-button>
+          </AppEmpty>
+        </div>
+
+        <el-form v-else :model="form" label-position="top">
           <el-form-item label="目标岗位 JD">
             <el-select
               v-model="form.jobId"
               placeholder="请选择岗位"
               filterable
-              :disabled="optionsLoading || running"
+              :disabled="optionsLoading || running || restoringTask"
             >
               <el-option
                 v-for="item in jobs"
@@ -124,7 +147,7 @@
           </div>
         </div>
         <AppEmpty
-          v-else
+          v-else-if="!optionsLoading && !optionsError && jobs.length > 0"
           title="还没有选择目标岗位"
           description="选择岗位后，这里会展示 JD 摘要与技能关键词。"
         />
@@ -157,7 +180,7 @@
             <strong>重新调用 AI 生成</strong>
             <small>关闭时优先复用已有缓存报告；开启后会创建新的分析结果。</small>
           </span>
-          <el-switch v-model="form.forceRefresh" :disabled="running" aria-label="强制重新分析" />
+          <el-switch v-model="form.forceRefresh" :disabled="running || restoringTask" aria-label="强制重新分析" />
         </label>
 
         <div v-if="submissionError" class="submission-error" role="alert" data-submission-error>
@@ -170,7 +193,7 @@
           type="primary"
           :icon="MagicStick"
           :loading="submissionPending"
-          :disabled="!canSubmit || optionsLoading || running"
+          :disabled="!canSubmit || optionsLoading || running || restoringTask"
           @click="startTask"
         >
           {{ primaryActionText }}
@@ -229,9 +252,11 @@
               v-if="connectionState === 'fallback'"
               data-reconnect-action
               :icon="Refresh"
+              :loading="reconnectPending"
+              :disabled="reconnectPending"
               @click="retryConnection"
             >
-              重新连接
+              {{ reconnectPending ? '正在重新连接' : '重新连接' }}
             </el-button>
             <el-button data-open-task-center @click="aiTaskCenter.openDrawer()">在任务中心查看</el-button>
           </div>
@@ -256,6 +281,11 @@
           </div>
         </div>
       </template>
+
+      <div v-else-if="restoringTask" class="submitting-state" role="status" aria-live="polite" data-restore-state>
+        <el-skeleton :rows="3" animated />
+        <span>正在恢复上次分析任务，请稍候…</span>
+      </div>
 
       <AppEmpty
         v-else-if="!submissionPending"
@@ -301,16 +331,21 @@ const optionsLoading = ref(false)
 const optionsError = ref('')
 const running = ref(false)
 const submissionPending = ref(false)
+const reconnectPending = ref(false)
 const submissionError = ref('')
 const connectionState = ref<ConnectionState>('idle')
 const route = useRoute()
 const TASK_STORAGE_KEY = 'internpilot:analysis:lastTaskNo'
+const initialQueryTaskNo = typeof route.query.taskNo === 'string' ? route.query.taskNo : ''
+const restoringTask = ref(Boolean(initialQueryTaskNo || localStorage.getItem(TASK_STORAGE_KEY)))
 let stompClient: Client | null = null
 let pollingTimer: number | undefined
 let currentLocalTaskId = ''
 let activeTaskNo = ''
 let taskSession = 0
 let socketAttempt = 0
+let pollingGeneration = 0
+let reconnectPromise: Promise<void> | null = null
 
 const progressSteps = [
   { title: '创建任务', description: '记录分析请求' },
@@ -343,6 +378,7 @@ const selectedJob = computed(() => jobs.value.find((item) => item.jobId === form
 const canSubmit = computed(() => Boolean(form.resumeId && form.jobId))
 
 const primaryActionText = computed(() => {
+  if (restoringTask.value) return '正在恢复上次分析任务'
   if (submissionPending.value) return '正在提交分析任务'
   if (running.value && task.taskNo) return `AI 正在分析 · ${task.progress}%`
   if (!canSubmit.value) return '请先选择简历和岗位'
@@ -474,12 +510,11 @@ async function loadSelectedJobDetail() {
 }
 
 async function startTask() {
+  if (restoringTask.value || submissionPending.value || running.value) return
   if (!form.resumeId || !form.jobId) {
     ElMessage.warning('请选择简历和岗位')
     return
   }
-  if (running.value) return
-
   cleanupTaskWatchers()
   const session = ++taskSession
   activeTaskNo = ''
@@ -539,12 +574,12 @@ function connectSocket(taskNo: string, session = taskSession) {
       const client = createAnalysisSocket(
         taskNo,
         (message) => {
-          if (session !== taskSession || taskNo !== activeTaskNo) return
+          if (session !== taskSession || taskNo !== activeTaskNo || attempt !== socketAttempt) return
           connectionState.value = 'connected'
           applyTaskMessage(message, taskNo, session)
         },
         () => {
-          if (session !== taskSession || taskNo !== activeTaskNo) return
+          if (session !== taskSession || taskNo !== activeTaskNo || attempt !== socketAttempt) return
           connectionState.value = 'fallback'
           ElMessage.warning('WebSocket 连接异常，已使用轮询兜底')
         }
@@ -552,44 +587,71 @@ function connectSocket(taskNo: string, session = taskSession) {
       const previousCloseHandler = client.onWebSocketClose
       client.onWebSocketClose = (event) => {
         previousCloseHandler?.(event)
-        if (session !== taskSession || taskNo !== activeTaskNo || isTerminalStatus(task.status)) return
+        if (
+          session !== taskSession || taskNo !== activeTaskNo || attempt !== socketAttempt
+          || isTerminalStatus(task.status)
+        ) return
         connectionState.value = 'fallback'
       }
       stompClient = client
     })
     .catch((error) => {
-      if (session !== taskSession || taskNo !== activeTaskNo) return
+      if (session !== taskSession || taskNo !== activeTaskNo || attempt !== socketAttempt) return
       console.warn('Failed to initialize analysis progress socket', error)
       connectionState.value = 'fallback'
       ElMessage.warning('WebSocket 初始化失败，已使用轮询兜底')
     })
 }
 
-async function retryConnection() {
-  if (!activeTaskNo || isTerminalStatus(task.status)) return
-  const reconnectTaskNo = activeTaskNo
-  const reconnectSession = taskSession
-  const previousClient = stompClient
-  stompClient = null
-  socketAttempt += 1
-  if (previousClient) await previousClient.deactivate()
-  if (reconnectSession !== taskSession || reconnectTaskNo !== activeTaskNo || isTerminalStatus(task.status)) return
-  connectSocket(reconnectTaskNo, reconnectSession)
+function retryConnection() {
+  if (reconnectPromise) return reconnectPromise
+  if (!activeTaskNo || isTerminalStatus(task.status)) return Promise.resolve()
+
+  reconnectPending.value = true
+  reconnectPromise = (async () => {
+    const reconnectTaskNo = activeTaskNo
+    const reconnectSession = taskSession
+    const previousClient = stompClient
+    stompClient = null
+    socketAttempt += 1
+    if (previousClient) await previousClient.deactivate()
+    if (reconnectSession !== taskSession || reconnectTaskNo !== activeTaskNo || isTerminalStatus(task.status)) return
+    connectSocket(reconnectTaskNo, reconnectSession)
+  })().finally(() => {
+    reconnectPending.value = false
+    reconnectPromise = null
+  })
+  return reconnectPromise
 }
 
 function startPolling(taskNo: string, session = taskSession) {
-  if (pollingTimer) window.clearInterval(pollingTimer)
-  pollingTimer = window.setInterval(async () => {
+  stopPolling()
+  const generation = pollingGeneration
+
+  const poll = async () => {
+    pollingTimer = undefined
     try {
       const detail: any = await getAnalysisTaskDetailApi(taskNo)
-      if (session !== taskSession || taskNo !== activeTaskNo) return
+      if (generation !== pollingGeneration || session !== taskSession || taskNo !== activeTaskNo) return
       applyTaskMessage(detail, taskNo, session)
     } catch {
-      if (session === taskSession && taskNo === activeTaskNo && connectionState.value !== 'connected') {
+      if (
+        generation === pollingGeneration && session === taskSession && taskNo === activeTaskNo
+        && connectionState.value !== 'connected'
+      ) {
         connectionState.value = 'fallback'
       }
+    } finally {
+      if (
+        generation === pollingGeneration && session === taskSession && taskNo === activeTaskNo
+        && !isTerminalStatus(task.status)
+      ) {
+        pollingTimer = window.setTimeout(() => { void poll() }, 3000)
+      }
     }
-  }, 3000)
+  }
+
+  pollingTimer = window.setTimeout(() => { void poll() }, 3000)
 }
 
 function applyTaskMessage(message: AnalysisProgressMessage, expectedTaskNo = activeTaskNo, session = taskSession) {
@@ -633,8 +695,12 @@ async function restoreLastTask() {
   const queryTaskNo = typeof route.query.taskNo === 'string' ? route.query.taskNo : ''
   const savedTaskNo = localStorage.getItem(TASK_STORAGE_KEY) || ''
   const taskNo = queryTaskNo || savedTaskNo
-  if (!taskNo) return
+  if (!taskNo) {
+    restoringTask.value = false
+    return
+  }
 
+  restoringTask.value = true
   const session = ++taskSession
   activeTaskNo = taskNo
   try {
@@ -672,6 +738,8 @@ async function restoreLastTask() {
       activeTaskNo = ''
       localStorage.removeItem(TASK_STORAGE_KEY)
     }
+  } finally {
+    if (session === taskSession) restoringTask.value = false
   }
 }
 
@@ -689,10 +757,23 @@ function cleanupSocket() {
 
 function cleanupTaskWatchers() {
   cleanupSocket()
+  stopPolling()
+}
+
+function stopPolling() {
+  pollingGeneration += 1
   if (pollingTimer) {
-    window.clearInterval(pollingTimer)
+    window.clearTimeout(pollingTimer)
     pollingTimer = undefined
   }
+}
+
+function goResumes() {
+  router.push('/resumes')
+}
+
+function goJobs() {
+  router.push('/jobs')
 }
 
 function goReports() {
@@ -790,6 +871,17 @@ onBeforeUnmount(() => {
 
 .inline-state p {
   margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.options-loading {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
   color: var(--color-text-muted);
 }
 

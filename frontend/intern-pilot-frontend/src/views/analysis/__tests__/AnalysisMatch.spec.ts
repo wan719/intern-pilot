@@ -37,7 +37,6 @@ const mockedResumes = vi.mocked(getResumeListApi)
 const mockedVersions = vi.mocked(getResumeVersionListApi)
 const mockedSocket = vi.mocked(createAnalysisSocket)
 
-const socketClient = { deactivate: vi.fn() }
 const resume = { resumeId: 3, resumeName: '前端实习简历', originalFileName: 'resume.pdf' }
 const versions = [
   { versionId: 4, versionName: '初稿', isCurrent: 0 },
@@ -55,6 +54,26 @@ type SocketCallbacks = {
   onError?: (error: any) => void
 }
 
+type SocketClientMock = {
+  deactivate: ReturnType<typeof vi.fn>
+  onWebSocketClose?: (event: any) => void
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: any) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+let socketClient: SocketClientMock
+let socketClients: SocketClientMock[] = []
+let socketReturnIndex = 0
+const mountedWrappers = new Set<VueWrapper>()
+
 function lastSocketCallbacks(): SocketCallbacks {
   const call = mockedSocket.mock.calls.at(-1)
   expect(call).toBeDefined()
@@ -71,6 +90,7 @@ async function mountPage(path = '/analysis/match') {
   const wrapper = mount(AnalysisMatch, {
     global: { plugins: [router], stubs: { teleport: true } }
   })
+  mountedWrappers.add(wrapper)
   await flushPromises()
   return wrapper
 }
@@ -87,7 +107,9 @@ function selectValidInputs(wrapper: VueWrapper) {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
-  ;(socketClient as any).onWebSocketClose = undefined
+  socketClient = { deactivate: vi.fn() }
+  socketClients = [socketClient]
+  socketReturnIndex = 0
   localStorage.clear()
   mockedResumes.mockResolvedValue({ records: [resume] } as any)
   mockedJobs.mockResolvedValue({ records: [job] } as any)
@@ -99,14 +121,23 @@ beforeEach(() => {
     progress: 5,
     message: '任务已提交'
   } as any)
-  mockedSocket.mockReturnValue(socketClient as any)
+  mockedSocket.mockImplementation(() => {
+    const client = socketClients[socketReturnIndex] || { deactivate: vi.fn() }
+    socketClients[socketReturnIndex] = client
+    socketReturnIndex += 1
+    return client as any
+  })
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'error').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'info').mockImplementation(() => undefined as any)
 })
 
-afterEach(() => {
+afterEach(async () => {
+  mountedWrappers.forEach((wrapper) => wrapper.unmount())
+  mountedWrappers.clear()
+  await flushPromises()
+  vi.clearAllTimers()
   vi.useRealTimers()
 })
 
@@ -215,6 +246,33 @@ describe('analysis match state and contract characterization', () => {
     expect(mockedTaskDetail).toHaveBeenCalledTimes(1)
     expect((wrapper.vm as any).task.progress).toBe(94)
     expect(mockedCreateTask).toHaveBeenCalledTimes(1)
+  })
+
+  it('serializes polling and rejects an in-flight processing response after WebSocket completion', async () => {
+    const pendingPoll = deferred<any>()
+    mockedTaskDetail.mockReturnValueOnce(pendingPoll.promise as any)
+    const wrapper = await mountPage()
+    selectValidInputs(wrapper)
+    await flushPromises()
+    await (wrapper.vm as any).startTask()
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(mockedTaskDetail).toHaveBeenCalledTimes(1)
+
+    lastSocketCallbacks().onMessage({
+      taskNo: 'ANALYSIS_001', status: 'COMPLETED', progress: 100, message: '报告已生成', reportId: 91
+    })
+    pendingPoll.resolve({
+      taskNo: 'ANALYSIS_001', status: 'CALLING_AI', progress: 68, message: '过期的轮询响应'
+    })
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(6000)
+
+    expect((wrapper.vm as any).task).toMatchObject({
+      status: 'COMPLETED', progress: 100, message: '报告已生成', reportId: 91
+    })
+    expect(mockedTaskDetail).toHaveBeenCalledTimes(1)
   })
 
   it('keeps failed tasks retryable and terminal cleanup prevents old polling updates', async () => {
@@ -342,7 +400,6 @@ describe('analysis match redesign', () => {
   })
 
   it('shows percentage, textual stage and a retryable reconnect state without duplicating polling', async () => {
-    const setIntervalSpy = vi.spyOn(window, 'setInterval')
     const wrapper = await mountPage()
     selectValidInputs(wrapper)
     await flushPromises()
@@ -365,7 +422,6 @@ describe('analysis match redesign', () => {
     await flushPromises()
 
     expect(mockedSocket).toHaveBeenCalledTimes(2)
-    expect(setIntervalSpy).toHaveBeenCalledTimes(1)
     expect(socketClient.deactivate).toHaveBeenCalledTimes(1)
     expect(mockedCreateTask).toHaveBeenCalledTimes(1)
   })
@@ -403,6 +459,48 @@ describe('analysis match redesign', () => {
     await reconnecting
     await flushPromises()
     expect(mockedSocket).toHaveBeenCalledTimes(2)
+  })
+
+  it('locks concurrent reconnects and ignores every callback from the replaced socket attempt', async () => {
+    const oldDeactivate = deferred<void>()
+    socketClient.deactivate.mockReturnValueOnce(oldDeactivate.promise as any)
+    const replacementClient: SocketClientMock = { deactivate: vi.fn() }
+    socketClients.push(replacementClient)
+    const wrapper = await mountPage()
+    selectValidInputs(wrapper)
+    await flushPromises()
+    await (wrapper.vm as any).startTask()
+    await flushPromises()
+    const oldCallbacks = lastSocketCallbacks()
+
+    oldCallbacks.onError?.(new Error('socket interrupted'))
+    const firstRetry = (wrapper.vm as any).retryConnection()
+    const secondRetry = (wrapper.vm as any).retryConnection()
+    await flushPromises()
+    expect((wrapper.vm as any).reconnectPending).toBe(true)
+    expect(mockedSocket).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-reconnect-action]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-reconnect-action]').text()).toContain('正在重新连接')
+
+    oldDeactivate.resolve()
+    await Promise.all([firstRetry, secondRetry])
+    await flushPromises()
+    expect(mockedSocket).toHaveBeenCalledTimes(2)
+
+    const replacementCallbacks = lastSocketCallbacks()
+    replacementCallbacks.onMessage({
+      taskNo: 'ANALYSIS_001', status: 'CALLING_AI', progress: 70, message: '新连接进度'
+    })
+    oldCallbacks.onMessage({
+      taskNo: 'ANALYSIS_001', status: 'BUILDING_CONTEXT', progress: 20, message: '旧连接进度'
+    })
+    oldCallbacks.onError?.(new Error('old socket error'))
+    socketClient.onWebSocketClose?.({ code: 1011 })
+    await flushPromises()
+
+    expect((wrapper.vm as any).task).toMatchObject({ progress: 70, message: '新连接进度' })
+    expect(wrapper.get('[data-connection-state]').text()).toContain('实时连接正常')
+    expect((wrapper.vm as any).reconnectPending).toBe(false)
   })
 
   it('ignores late messages from an old task so they cannot replace a newer retry', async () => {
@@ -445,5 +543,53 @@ describe('analysis match redesign', () => {
 
     await wrapper.get('[data-open-task-center]').trigger('click')
     expect(taskCenter.openDrawer).toHaveBeenCalledTimes(1)
+  })
+
+  it('locks a query-selected task before restore resolves so it cannot create a duplicate task', async () => {
+    const pendingRestore = deferred<any>()
+    mockedTaskDetail.mockReturnValueOnce(pendingRestore.promise as any)
+    const wrapper = await mountPage(
+      '/analysis/match?resumeId=3&resumeVersionId=5&jobId=7&taskNo=ANALYSIS_RESTORED'
+    )
+
+    expect((wrapper.vm as any).restoringTask).toBe(true)
+    expect(wrapper.get('[data-restore-state]').text()).toContain('正在恢复上次分析任务')
+    expect(wrapper.get('[data-analysis-submit]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-analysis-submit]').trigger('click')
+    await (wrapper.vm as any).startTask()
+    expect(mockedCreateTask).not.toHaveBeenCalled()
+
+    pendingRestore.resolve({
+      taskNo: 'ANALYSIS_RESTORED', status: 'BUILDING_CONTEXT', progress: 36,
+      message: '正在构建岗位上下文', resumeId: 3, jobId: 7
+    })
+    await flushPromises()
+    expect((wrapper.vm as any).restoringTask).toBe(false)
+    expect((wrapper.vm as any).task.taskNo).toBe('ANALYSIS_RESTORED')
+  })
+
+  it('shows visible option loading and actionable resume/job empty states only after loading completes', async () => {
+    const pendingResumes = deferred<any>()
+    const pendingJobs = deferred<any>()
+    mockedResumes.mockReturnValueOnce(pendingResumes.promise as any)
+    mockedJobs.mockReturnValueOnce(pendingJobs.promise as any)
+    const wrapper = await mountPage()
+
+    expect(wrapper.get('[data-options-loading]').attributes('role')).toBe('status')
+    expect(wrapper.get('[data-options-loading]').text()).toContain('正在加载简历与岗位')
+    expect(wrapper.find('[data-resumes-empty]').exists()).toBe(false)
+    expect(wrapper.find('[data-jobs-empty]').exists()).toBe(false)
+
+    pendingResumes.resolve({ records: [] })
+    pendingJobs.resolve({ records: [] })
+    await flushPromises()
+
+    expect(wrapper.find('[data-options-loading]').exists()).toBe(false)
+    expect(wrapper.get('[data-resumes-empty]').text()).toContain('还没有可用于分析的简历')
+    expect(wrapper.get('[data-jobs-empty]').text()).toContain('还没有可用于分析的岗位')
+    await wrapper.get('[data-upload-resume]').trigger('click')
+    await wrapper.get('[data-add-job]').trigger('click')
+    expect(push).toHaveBeenNthCalledWith(1, '/resumes')
+    expect(push).toHaveBeenNthCalledWith(2, '/jobs')
   })
 })
