@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="" description="跟踪岗位投递进度、面试安排和结果反馈，沉淀完整求职流程。">
+  <PageContainer title="投递追踪" description="跟踪岗位投递进度、面试安排和结果反馈，沉淀完整求职流程。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
     </template>
@@ -11,21 +11,24 @@
       <StatCard label="待跟进" :value="applicationStats.followUp" :icon="Bell" />
     </div>
 
-    <section class="panel toolbar">
-      <el-input v-model="query.keyword" placeholder="搜索公司或岗位" clearable />
-      <el-select v-model="query.status" placeholder="状态" clearable>
-        <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-      </el-select>
-      <el-select v-model="priorityFilter" placeholder="优先级" clearable>
-        <el-option label="高" value="HIGH" />
-        <el-option label="中" value="MEDIUM" />
-        <el-option label="低" value="LOW" />
-      </el-select>
-      <el-button type="primary" @click="loadApplications">筛选</el-button>
-      <el-button @click="resetQuery">重置</el-button>
-    </section>
+    <FilterBar @reset="resetQuery">
+      <template #filters>
+        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="loadApplications" />
+        <el-select v-model="query.status" aria-label="按投递状态筛选" placeholder="投递状态" clearable>
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="priorityFilter" aria-label="按优先级筛选" placeholder="优先级" clearable>
+          <el-option label="高" value="HIGH" />
+          <el-option label="中" value="MEDIUM" />
+          <el-option label="低" value="LOW" />
+        </el-select>
+      </template>
+      <template #actions>
+        <el-button type="primary" @click="loadApplications">应用筛选</el-button>
+      </template>
+    </FilterBar>
 
-    <section v-loading="loading" class="application-board">
+    <section v-loading="loading" class="application-board application-track" aria-label="投递进度列表">
       <AppEmpty
         v-if="!filteredApplications.length && !loading"
         title="暂无投递记录"
@@ -35,8 +38,16 @@
         <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
       </AppEmpty>
 
-      <article v-for="item in filteredApplications" v-else :key="item.applicationId" class="application-card">
-        <div class="stage-panel" :class="stageClass(item.status)">
+      <article
+        v-for="item in filteredApplications"
+        v-else
+        :key="item.applicationId"
+        class="application-card"
+        role="group"
+        :aria-label="`${item.companyName || '未知公司'} ${item.jobTitle || '未知岗位'}投递记录`"
+      >
+        <div class="stage-panel" :class="stageClass(item.status)" :aria-label="`投递状态：${statusLabels[item.status] || item.status}`">
+          <el-icon data-application-status-icon aria-hidden="true"><component :is="stageIcon(item.status)" /></el-icon>
           <strong>{{ stageLabel(item.status) }}</strong>
           <span>{{ priorityLabel(item.priority) }}</span>
         </div>
@@ -60,7 +71,7 @@
             <span>匹配分：{{ item.matchScore ?? '-' }}</span>
           </div>
 
-          <div class="next-step">
+          <div class="next-step" data-application-next-action>
             <strong>下一步</strong>
             <p>{{ nextStepText(item) }}</p>
           </div>
@@ -68,7 +79,7 @@
           <p class="application-note">{{ item.note || '暂无备注，可补充投递渠道、沟通记录或复盘要点。' }}</p>
         </div>
 
-        <div class="application-actions">
+        <div class="application-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
           <el-button type="primary" @click="openDetail(item.applicationId)">详情</el-button>
           <el-button @click="openStatus(item)">改状态</el-button>
           <el-button @click="openNote(item)">备注</el-button>
@@ -197,9 +208,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Briefcase, Calendar, CircleCheck, Plus } from '@element-plus/icons-vue'
+import { Bell, Briefcase, Calendar, CircleCheck, CircleClose, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
+import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import { createApplicationApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, updateApplicationNoteApi, updateApplicationStatusApi } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
@@ -378,6 +390,14 @@ function stageClass(status?: string) {
   return 'info'
 }
 
+function stageIcon(status?: string) {
+  if (status === 'OFFER') return CircleCheck
+  if (['WRITTEN_TEST', 'FIRST_INTERVIEW', 'SECOND_INTERVIEW', 'HR_INTERVIEW'].includes(status || '')) return Calendar
+  if (['REJECTED', 'GIVEN_UP'].includes(status || '')) return CircleClose
+  if (status === 'APPLIED') return Briefcase
+  return Bell
+}
+
 function nextStepText(item: any) {
   const status = item.status
   if (status === 'TO_APPLY') return '完善简历和岗位信息后尽快投递。'
@@ -415,6 +435,10 @@ onMounted(() => {
   gap: 14px;
 }
 
+:deep(.filter-bar__filters) {
+  grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(160px, 0.75fr));
+}
+
 .application-card {
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr) auto;
@@ -433,6 +457,11 @@ onMounted(() => {
   align-content: center;
   border-radius: 8px;
   text-align: center;
+}
+
+.stage-panel .el-icon {
+  margin-bottom: 8px;
+  font-size: 24px;
 }
 
 .stage-panel.success { background: #ecfdf3; color: #047857; }
@@ -559,6 +588,8 @@ onMounted(() => {
   }
 
   .application-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
@@ -566,6 +597,10 @@ onMounted(() => {
   .detail-hero,
   .timeline-title {
     flex-direction: column;
+  }
+
+  :deep(.filter-bar__filters) {
+    grid-template-columns: 1fr;
   }
 }
 </style>

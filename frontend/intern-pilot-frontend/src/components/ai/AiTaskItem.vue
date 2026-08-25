@@ -1,5 +1,5 @@
 <template>
-  <article class="ai-task-item" :class="statusClass">
+  <article class="ai-task-item" :class="statusClass" :aria-label="`${task.title}，${statusLabel}`">
     <div class="task-icon">
       <el-icon><component :is="statusIcon" /></el-icon>
     </div>
@@ -7,15 +7,25 @@
     <div class="task-content">
       <div class="task-heading">
         <h5>{{ task.title }}</h5>
-        <el-tag size="small" :type="statusTagType" effect="plain">{{ statusLabel }}</el-tag>
+        <div class="task-state">
+          <span v-if="isUnread" class="task-unread" data-task-unread>{{ unreadLabel }}</span>
+          <el-tag size="small" :type="statusTagType" effect="plain">{{ statusLabel }}</el-tag>
+        </div>
       </div>
       <p>{{ task.errorMessage || task.message || task.description || '任务正在排队处理' }}</p>
+      <div v-if="isRunning" class="task-progress-meta" role="status" aria-live="polite">
+        <span>阶段：{{ statusLabel }}</span>
+        <strong>进度 {{ normalizedProgress }}%</strong>
+      </div>
       <el-progress
         v-if="isRunning"
-        :percentage="task.progress"
+        :percentage="normalizedProgress"
         :show-text="false"
         :stroke-width="5"
       />
+      <p v-if="canRecover" class="task-recovery" data-task-recovery>
+        返回发起页面后可重新提交，系统不会自动重复请求。
+      </p>
       <span class="task-time">{{ timeText }}</span>
     </div>
 
@@ -52,6 +62,10 @@ defineEmits<{
 
 const runningStatuses = ['PENDING', 'RUNNING', 'PARSING_RESUME', 'BUILDING_CONTEXT', 'CALLING_AI', 'GENERATING_REPORT']
 const isRunning = computed(() => runningStatuses.includes(props.task.status))
+const normalizedProgress = computed(() => Math.min(100, Math.max(0, Number(props.task.progress) || 0)))
+const isUnread = computed(() => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(props.task.status) && props.task.dismissible)
+const unreadLabel = computed(() => (props.task.status === 'COMPLETED' ? '待查看' : '待处理'))
+const canRecover = computed(() => ['FAILED', 'CANCELLED'].includes(props.task.status) && Boolean(props.task.sourcePath))
 const statusClass = computed(() => `task-${props.task.status.toLowerCase().replace(/_/g, '-')}`)
 
 const statusIcon = computed(() => {
@@ -137,6 +151,30 @@ const timeText = computed(() => {
   justify-content: space-between;
 }
 
+.task-state {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-primary-hover);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.task-unread::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
 .task-heading h5 {
   margin: 0;
   overflow: hidden;
@@ -150,6 +188,29 @@ const timeText = computed(() => {
   color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.task-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.task-progress-meta strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.task-content .task-recovery {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
+  color: var(--color-text-muted);
 }
 
 .task-time {
