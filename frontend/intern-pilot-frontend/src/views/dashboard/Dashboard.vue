@@ -6,13 +6,32 @@
         :title="`${greeting}，${displayName}`"
         description="把简历、目标岗位、AI 分析、面试准备和投递跟进连成一条清晰的求职路径。"
       >
-        <p class="hero-next-step">{{ primaryAction.description }}</p>
+        <p class="hero-next-step">{{ heroNextStep }}</p>
         <template #actions>
           <el-button
+            v-if="loading"
+            data-primary-action
+            type="primary"
+            loading
+            disabled
+          >
+            正在确认下一步
+          </el-button>
+          <el-button
+            v-else-if="interviewLoading"
+            data-primary-action
+            type="primary"
+            loading
+            disabled
+          >
+            正在确认面试阶段
+          </el-button>
+          <el-button
+            v-else
             data-primary-action
             type="primary"
             :icon="primaryAction.icon"
-            @click="router.push(primaryAction.path)"
+            @click="handlePrimaryAction"
           >
             {{ primaryAction.label }}
           </el-button>
@@ -33,20 +52,21 @@
         <el-button @click="loadDashboard">重新加载</el-button>
       </div>
 
-      <section class="journey-progress panel" aria-labelledby="journey-progress-title">
+      <section class="journey-progress panel" aria-labelledby="journey-progress-title" :aria-busy="interviewLoading">
         <div class="section-heading journey-heading">
           <div>
             <span class="section-kicker">求职旅程</span>
             <h2 id="journey-progress-title">五阶段准备进度</h2>
             <p>每完成一个阶段，你的求职材料和后续行动就更完整一步。</p>
           </div>
-          <div class="journey-percent" aria-label="已完成阶段比例">
-            <strong>{{ preparationPercent }}%</strong>
-            <span>{{ completedStageCount }}/5 已启动</span>
+          <div v-if="!loading" class="journey-percent" aria-label="已完成阶段比例">
+            <strong>{{ interviewReportCount === null ? '--' : `${preparationPercent}%` }}</strong>
+            <span>{{ interviewReportCount === null ? `${completedStageCount}/4 已知阶段` : `${completedStageCount}/5 已启动` }}</span>
           </div>
+          <el-skeleton v-else class="journey-percent journey-percent--loading" animated :rows="1" />
         </div>
 
-        <ol class="journey-steps">
+        <ol v-if="!loading" class="journey-steps">
           <li
             v-for="(stage, index) in journeyStages"
             :key="stage.key"
@@ -63,11 +83,23 @@
               </span>
               <span class="journey-step__copy">
                 <strong>{{ stage.title }}</strong>
-                <small>{{ stage.done ? '已启动' : '待开始' }}</small>
+                <small>{{ stage.done === null ? '暂时未知' : stage.done ? '已启动' : '待开始' }}</small>
               </span>
             </button>
           </li>
         </ol>
+        <div v-else class="journey-loading" aria-label="正在加载五阶段准备进度">
+          <el-skeleton v-for="index in 5" :key="index" animated :rows="1" />
+        </div>
+        <div v-if="!loading && interviewError" class="journey-inline-error" role="status" aria-live="polite">
+          <span>{{ interviewError }}</span>
+          <el-button data-interview-retry link type="primary" :icon="Refresh" @click="loadInterviewReportCount">
+            重试面试阶段数据
+          </el-button>
+        </div>
+        <div v-else-if="!loading && interviewLoading" class="journey-inline-status" role="status" aria-live="polite">
+          正在确认面试阶段，其他工作台数据可以正常查看。
+        </div>
       </section>
 
       <section class="stat-grid" aria-label="工作台数据概览">
@@ -86,18 +118,30 @@
           </div>
         </div>
 
-        <div class="today-focus">
+        <div v-if="loading" class="today-focus today-action-loading" aria-label="正在加载今日建议行动">
+          <el-skeleton animated :rows="2" />
+          <el-button type="primary" loading disabled>正在确认下一步</el-button>
+        </div>
+        <div v-else-if="interviewLoading" class="today-focus" role="status" aria-live="polite">
+          <div>
+            <span>数据确认中</span>
+            <strong>正在确认面试阶段</strong>
+            <p>其他工作台数据已就绪，稍后将给出准确的下一步建议。</p>
+          </div>
+          <el-button type="primary" loading disabled>正在确认</el-button>
+        </div>
+        <div v-else class="today-focus">
           <div>
             <span>建议先做</span>
             <strong>{{ primaryAction.label }}</strong>
             <p>{{ primaryAction.description }}</p>
           </div>
-          <el-button type="primary" :icon="primaryAction.icon" @click="router.push(primaryAction.path)">
+          <el-button type="primary" :icon="primaryAction.icon" @click="handlePrimaryAction">
             {{ primaryAction.label }}
           </el-button>
         </div>
 
-        <div class="action-list">
+        <div v-if="!loading" class="action-list">
           <button
             v-for="action in journeyStages"
             :key="action.key"
@@ -237,6 +281,7 @@ import {
   List,
   MagicStick,
   QuestionFilled,
+  Refresh,
   Tickets,
   Upload
 } from '@element-plus/icons-vue'
@@ -255,10 +300,12 @@ import { formatDateTime, statusLabels, statusTypes } from '@/utils/format'
 
 const auth = useAuthStore()
 const summary = reactive({ resumes: 0, jobs: 0, reports: 0, applications: 0 })
-const interviewReportCount = ref(0)
+const interviewReportCount = ref<number | null>(null)
+const interviewLoading = ref(false)
+const interviewError = ref('')
 const reports = ref<any[]>([])
 const applications = ref<any[]>([])
-const loading = ref(false)
+const loading = ref(true)
 const loadError = ref('')
 const statusChartRef = ref<HTMLDivElement>()
 const scoreChartRef = ref<HTMLDivElement>()
@@ -278,7 +325,7 @@ const journeyProgress = computed(() => ({
   resume: summary.resumes > 0,
   job: summary.jobs > 0,
   analysis: summary.reports > 0,
-  interview: interviewReportCount.value > 0,
+  interview: interviewReportCount.value === null ? null : interviewReportCount.value > 0,
   application: summary.applications > 0
 }))
 
@@ -311,11 +358,26 @@ const completeAction = {
   icon: Tickets, path: '/analysis/reports'
 }
 const primaryAction = computed(() => {
+  if (interviewError.value) {
+    return {
+      key: 'interview-unknown',
+      label: '重试面试阶段数据',
+      description: '其他工作台数据已加载，面试阶段暂时未知。恢复数据后再确认最合适的下一步。',
+      icon: Refresh,
+      path: '',
+      retry: true
+    }
+  }
   const stage = journeyStages.value.find((item) => !item.done)
   if (!stage) return completeAction
   return { key: stage.key, label: stage.actionLabel, description: stage.description, icon: stage.icon, path: stage.path }
 })
-const completedStageCount = computed(() => journeyStages.value.filter((item) => item.done).length)
+const heroNextStep = computed(() => {
+  if (loading.value) return '正在汇总你的求职资料与近期进展。'
+  if (interviewLoading.value) return '基础工作台数据已就绪，正在确认面试准备阶段。'
+  return primaryAction.value.description
+})
+const completedStageCount = computed(() => journeyStages.value.filter((item) => item.done === true).length)
 const preparationPercent = computed(() => Math.round((completedStageCount.value / journeyStages.value.length) * 100))
 const recentReports = computed(() => reports.value.slice(0, 4))
 const recentApplications = computed(() => applications.value.slice(0, 5))
@@ -330,22 +392,19 @@ const statusSummary = computed(() => {
 async function loadDashboard() {
   loading.value = true
   loadError.value = ''
+  const interviewRequest = loadInterviewReportCount()
   try {
-    const [resumeRes, jobRes, reportRes, appRes, interviewRes]: any[] = await Promise.all([
+    const [resumeRes, jobRes, reportRes, appRes]: any[] = await Promise.all([
       getResumeListApi({ pageNum: 1, pageSize: 100 }),
       getJobListApi({ pageNum: 1, pageSize: 100 }),
       getAnalysisReportsApi({ pageNum: 1, pageSize: 100 }),
-      getApplicationListApi({ pageNum: 1, pageSize: 100 }),
-      getInterviewQuestionReportsApi({ page: 1, size: 1 })
+      getApplicationListApi({ pageNum: 1, pageSize: 100 })
     ])
 
     summary.resumes = resumeRes.total ?? resumeRes.records?.length ?? 0
     summary.jobs = jobRes.total ?? jobRes.records?.length ?? 0
     summary.reports = reportRes.total ?? reportRes.records?.length ?? 0
     summary.applications = appRes.total ?? appRes.records?.length ?? 0
-    interviewReportCount.value = interviewRes.total
-      ?? interviewRes.records?.length
-      ?? (Array.isArray(interviewRes) ? interviewRes.length : 0)
     reports.value = reportRes.records || []
     applications.value = appRes.records || []
     await nextTick()
@@ -355,6 +414,31 @@ async function loadDashboard() {
   } finally {
     loading.value = false
   }
+  await interviewRequest
+}
+
+async function loadInterviewReportCount() {
+  interviewLoading.value = true
+  interviewError.value = ''
+  interviewReportCount.value = null
+  try {
+    const result: any = await getInterviewQuestionReportsApi({ pageNum: 1, pageSize: 1 })
+    interviewReportCount.value = result.total
+      ?? result.records?.length
+      ?? (Array.isArray(result) ? result.length : 0)
+  } catch {
+    interviewError.value = '面试阶段暂时无法确认，请单独重试此项数据。'
+  } finally {
+    interviewLoading.value = false
+  }
+}
+
+function handlePrimaryAction() {
+  if ('retry' in primaryAction.value && primaryAction.value.retry) {
+    loadInterviewReportCount()
+    return
+  }
+  router.push(primaryAction.value.path)
 }
 
 function renderCharts() {
@@ -412,7 +496,10 @@ onMounted(loadDashboard)
 .journey-percent strong, .journey-percent span { display: block; }
 .journey-percent strong { color: var(--color-primary-hover); font-size: 24px; font-variant-numeric: tabular-nums; }
 .journey-percent span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 12px; }
+.journey-percent--loading { width: 116px; }
 .journey-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-5) 0 0; padding: 0; list-style: none; }
+.journey-loading { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-5); }
+.journey-loading .el-skeleton { min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .journey-step button { display: flex; width: 100%; min-width: 0; align-items: center; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text); text-align: left; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast); }
 .journey-step button:hover, .journey-step button:focus-visible, .action-card:hover, .action-card:focus-visible { border-color: var(--color-primary); outline: none; }
 .journey-step--current button { border-color: var(--color-primary); background: var(--color-primary-soft); }
@@ -422,6 +509,8 @@ onMounted(loadDashboard)
 .journey-step__copy strong, .journey-step__copy small { display: block; }
 .journey-step__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .journey-step__copy small { margin-top: var(--space-1); color: var(--color-text-muted); }
+.journey-inline-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-3); border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface)); color: var(--color-text-muted); }
+.journey-inline-status { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text-muted); }
 .today-actions { display: grid; gap: var(--space-4); }
 .today-focus { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-primary-border); border-radius: var(--radius-lg); background: var(--color-primary-soft); }
 .today-focus span, .today-focus strong { display: block; }
@@ -449,14 +538,14 @@ onMounted(loadDashboard)
 .status-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 
 @media (max-width: 900px) {
-  .journey-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .journey-steps, .journey-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .status-overview { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
-  .dashboard-error, .journey-heading, .today-focus, .application-card, .report-card { align-items: stretch; flex-direction: column; }
+  .dashboard-error, .journey-heading, .journey-inline-error, .today-focus, .application-card, .report-card { align-items: stretch; flex-direction: column; }
   .journey-percent { text-align: left; }
-  .journey-steps, .action-list { grid-template-columns: 1fr; }
+  .journey-steps, .journey-loading, .action-list { grid-template-columns: 1fr; }
   .today-focus .el-button, .dashboard-error .el-button { width: 100%; }
   .report-score { width: 100%; flex-basis: auto; }
 }

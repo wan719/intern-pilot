@@ -85,7 +85,7 @@ describe('career action workspace', () => {
     expect(mockedJobs).toHaveBeenCalledWith({ pageNum: 1, pageSize: 100 })
     expect(mockedReports).toHaveBeenCalledWith({ pageNum: 1, pageSize: 100 })
     expect(mockedApplications).toHaveBeenCalledWith({ pageNum: 1, pageSize: 100 })
-    expect(mockedInterviewReports).toHaveBeenCalledWith({ page: 1, size: 1 })
+    expect(mockedInterviewReports).toHaveBeenCalledWith({ pageNum: 1, pageSize: 1 })
     expect(wrapper.get('.dashboard-workspace').attributes('aria-busy')).toBe('true')
 
     release()
@@ -101,6 +101,64 @@ describe('career action workspace', () => {
 
     const wrapper = await mountDashboard()
 
+    expect(wrapper.findAll('.journey-step--complete')).toHaveLength(5)
+    expect(wrapper.get('[data-primary-action]').text()).toContain('查看最新分析结果')
+  })
+
+  it('keeps legacy dashboard data visible when only the interview count fails', async () => {
+    setResults({
+      resumes: 2,
+      jobs: 3,
+      reports: 1,
+      applications: 1,
+      reportRecords: [{
+        reportId: 11,
+        companyName: '星河科技',
+        jobTitle: '前端实习生',
+        createdAt: '2026-08-24T08:00:00',
+        matchScore: 86,
+        matchLevel: '高匹配'
+      }],
+      applicationRecords: [{
+        applicationId: 21,
+        companyName: '星河科技',
+        jobTitle: '前端实习生',
+        status: 'APPLIED',
+        interviewDate: null,
+        note: '等待反馈'
+      }]
+    })
+    mockedInterviewReports.mockRejectedValue(new Error('interview unavailable'))
+
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.find('.dashboard-error').exists()).toBe(false)
+    expect(wrapper.text()).toContain('星河科技 - 前端实习生')
+    expect(wrapper.text()).not.toContain('暂无分析报告')
+    expect(wrapper.findAll('.stat-card strong').map((item) => item.text())).toEqual(['2', '3', '1', '1'])
+    expect(wrapper.get('.journey-step:nth-child(4)').text()).toContain('暂时未知')
+    expect(wrapper.get('.journey-inline-error[role="status"]').text()).toContain('面试阶段暂时无法确认')
+    expect(wrapper.get('[data-primary-action]').text()).toContain('重试面试阶段数据')
+  })
+
+  it('retries only the failed interview count and restores journey guidance after recovery', async () => {
+    setResults({ resumes: 1, jobs: 1, reports: 1, applications: 1 })
+    mockedInterviewReports
+      .mockRejectedValueOnce(new Error('interview unavailable'))
+      .mockResolvedValueOnce({ total: 1, records: [], current: 1, size: 1 } as any)
+
+    const wrapper = await mountDashboard()
+
+    await wrapper.get('[data-interview-retry]').trigger('click')
+    await flushPromises()
+
+    expect(mockedInterviewReports).toHaveBeenCalledTimes(2)
+    expect(mockedInterviewReports).toHaveBeenLastCalledWith({ pageNum: 1, pageSize: 1 })
+    expect(mockedResumes).toHaveBeenCalledTimes(1)
+    expect(mockedJobs).toHaveBeenCalledTimes(1)
+    expect(mockedReports).toHaveBeenCalledTimes(1)
+    expect(mockedApplications).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.journey-inline-error').exists()).toBe(false)
     expect(wrapper.findAll('.journey-step--complete')).toHaveLength(5)
     expect(wrapper.get('[data-primary-action]').text()).toContain('查看最新分析结果')
   })
@@ -196,6 +254,13 @@ describe('career action workspace', () => {
 
     expect(wrapper.get('.dashboard-workspace[aria-busy="true"]').attributes('aria-label')).toBe('正在加载职业工作台')
     expect(wrapper.findAll('.stat-card[aria-busy="true"]')).toHaveLength(4)
+    expect(wrapper.findAll('.stat-card strong')).toHaveLength(0)
+    expect(wrapper.find('.journey-loading').exists()).toBe(true)
+    expect(wrapper.findAll('.journey-step')).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('0/5 已启动')
+    expect(wrapper.text()).not.toContain('上传第一份简历')
+    expect(wrapper.get('[data-primary-action]').text()).toContain('正在确认下一步')
+    expect(wrapper.get('[data-primary-action]').attributes('disabled')).toBeDefined()
   })
 
   it('keeps an accessible error state with a retry action when any dashboard request fails', async () => {
