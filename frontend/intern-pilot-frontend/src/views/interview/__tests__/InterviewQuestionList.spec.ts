@@ -18,7 +18,9 @@ import { getResumeVersionListApi } from '@/api/resumeVersion'
 const { push, taskCenter } = vi.hoisted(() => ({
   push: vi.fn(),
   taskCenter: {
+    tasks: [] as any[],
     createTask: vi.fn(() => 'LOCAL_INTERVIEW_TASK'),
+    updateTask: vi.fn(),
     completeTask: vi.fn(),
     failTask: vi.fn()
   }
@@ -63,6 +65,26 @@ const report = {
   createdAt: '2026-08-25T10:00:00'
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+function reportWithId(reportId: number, overrides: Record<string, unknown> = {}) {
+  return {
+    ...report,
+    reportId,
+    title: `题单 ${reportId}`,
+    createdAt: `2026-08-25T10:${String(reportId).padStart(2, '0')}:00`,
+    ...overrides
+  }
+}
+
 function button(wrapper: VueWrapper, label: string, index = 0) {
   const matches = wrapper.findAll('button').filter((item) => item.text().trim() === label)
   expect(matches.length).toBeGreaterThan(index)
@@ -85,6 +107,7 @@ async function mountPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  taskCenter.tasks = []
   mockedResumes.mockResolvedValue({ records: [{ resumeId: 3, resumeName: '前端简历' }] } as any)
   mockedJobs.mockResolvedValue({ records: [{ jobId: 7, companyName: '星河科技', jobTitle: '前端实习生' }] } as any)
   mockedAnalysisReports.mockResolvedValue({ records: [{ reportId: 11, resumeId: 3, jobId: 7, matchScore: 88 }] } as any)
@@ -181,7 +204,8 @@ describe('interview question list legacy contracts', () => {
       message: '正在生成面试题...',
       resumeId: 3,
       jobId: 7,
-      reportId: 11
+      reportId: 11,
+      sourcePath: '/interview-questions'
     })
     expect(taskCenter.completeTask).toHaveBeenCalledWith('LOCAL_INTERVIEW_TASK', {
       resultId: 42,
@@ -227,13 +251,193 @@ describe('interview question list legacy contracts', () => {
       type: 'INTERVIEW_REGENERATE',
       title: '面试题重新生成',
       message: '正在重新生成面试题...',
-      reportId: 41
+      reportId: 41,
+      sourcePath: '/interview-questions'
     })
     expect(push).toHaveBeenCalledWith('/interview-questions/43')
   })
 })
 
 describe('interview preparation queue redesign', () => {
+  it('keeps the newest query snapshot when an older list request resolves last', async () => {
+    const first = deferred<any>()
+    const second = deferred<any>()
+    mockedReports.mockReset()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).query.pageNum = 2
+    const latestLoad = (wrapper.vm as any).loadReports()
+    second.resolve({ records: [reportWithId(82)], total: 22 })
+    await latestLoad
+    await flushPromises()
+
+    first.resolve({ records: [reportWithId(41)], total: 22 })
+    await flushPromises()
+
+    expect(mockedReports).toHaveBeenNthCalledWith(1, { pageNum: 1, pageSize: 10 })
+    expect(mockedReports).toHaveBeenNthCalledWith(2, { pageNum: 2, pageSize: 10 })
+    expect((wrapper.vm as any).reports.map((item: any) => item.reportId)).toEqual([82])
+    expect(Object.keys((wrapper.vm as any).reportMetadata)).toEqual(['82'])
+    expect(wrapper.find('[data-report-id="82"]').exists()).toBe(true)
+    expect(wrapper.find('[data-report-id="41"]').exists()).toBe(false)
+  })
+
+  it('stops superseded metadata scheduling and ignores its late commits', async () => {
+    const staleDetails = Array.from({ length: 4 }, () => deferred<any>())
+    mockedReports.mockReset()
+      .mockResolvedValueOnce({ records: Array.from({ length: 6 }, (_, index) => reportWithId(index + 1)), total: 6 } as any)
+      .mockResolvedValueOnce({ records: [reportWithId(99)], total: 1 } as any)
+    mockedDetail.mockReset().mockImplementation((reportId: number) => {
+      if (reportId <= 4) return staleDetails[reportId - 1].promise
+      return Promise.resolve({ questions: [{ questionType: 'PROJECT', difficulty: 'HARD' }] }) as any
+    })
+    const wrapper = await mountPage()
+    expect(mockedDetail).toHaveBeenCalledTimes(4)
+
+    ;(wrapper.vm as any).query.pageNum = 2
+    await (wrapper.vm as any).loadReports()
+    await flushPromises()
+    expect(mockedDetail).toHaveBeenCalledWith(99)
+
+    staleDetails.forEach((request) => request.resolve({ questions: [{ questionType: 'JAVA_BASIC', difficulty: 'EASY' }] }))
+    await flushPromises()
+
+    expect(mockedDetail).not.toHaveBeenCalledWith(5)
+    expect(mockedDetail).not.toHaveBeenCalledWith(6)
+    expect(Object.keys((wrapper.vm as any).reportMetadata)).toEqual(['99'])
+    expect(wrapper.get('[data-report-id="99"]').text()).toContain('项目经历')
+  })
+
+  it('reuses metadata by report signature and invalidates it when the list version changes', async () => {
+    const wrapper = await mountPage()
+    expect(mockedDetail).toHaveBeenCalledTimes(1)
+
+    await (wrapper.vm as any).loadReports()
+    await flushPromises()
+    expect(mockedDetail).toHaveBeenCalledTimes(1)
+
+    mockedReports.mockResolvedValueOnce({
+      records: [{ ...report, createdAt: '2026-08-26T10:00:00' }],
+      total: 1
+    } as any)
+    await (wrapper.vm as any).loadReports()
+    await flushPromises()
+    expect(mockedDetail).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders list records before slow taxonomy hydration and bounds detail concurrency at four', async () => {
+    const detailRequests = Array.from({ length: 6 }, () => deferred<any>())
+    mockedReports.mockResolvedValueOnce({
+      records: detailRequests.map((_, index) => reportWithId(index + 1)),
+      total: 6
+    } as any)
+    mockedDetail.mockReset()
+    detailRequests.forEach(({ promise }) => mockedDetail.mockReturnValueOnce(promise))
+
+    const wrapper = await mountPage()
+
+    expect(wrapper.findAll('.preparation-card')).toHaveLength(6)
+    expect(wrapper.find('.queue-loading').exists()).toBe(false)
+    expect(mockedDetail).toHaveBeenCalledTimes(4)
+    expect(wrapper.findAll('[data-metadata-state="loading"]')).toHaveLength(6)
+
+    detailRequests.slice(0, 4).forEach((request) => request.resolve({ questions: [] }))
+    await flushPromises()
+    expect(mockedDetail).toHaveBeenCalledTimes(6)
+  })
+
+  it('does not refetch list or detail when applying only local taxonomy filters', async () => {
+    const wrapper = await mountPage()
+    const listCalls = mockedReports.mock.calls.length
+    const detailCalls = mockedDetail.mock.calls.length
+
+    ;(wrapper.vm as any).filters.category = 'SPRING_BOOT'
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+
+    expect(mockedReports).toHaveBeenCalledTimes(listCalls)
+    expect(mockedDetail).toHaveBeenCalledTimes(detailCalls)
+  })
+
+  it('keeps unavailable metadata visible under active filters and retries it independently', async () => {
+    const recovered = deferred<any>()
+    mockedReports.mockResolvedValueOnce({ records: [reportWithId(41), reportWithId(42)], total: 2 } as any)
+    mockedDetail.mockImplementation((reportId: number) => {
+      if (reportId === 41) return Promise.resolve({ questions: [{ questionType: 'SPRING_BOOT', difficulty: 'MEDIUM' }] }) as any
+      return Promise.reject(new Error('detail unavailable'))
+    })
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).filters.category = 'SPRING_BOOT'
+    await flushPromises()
+
+    expect(wrapper.findAll('.preparation-card')).toHaveLength(2)
+    expect(wrapper.get('[data-metadata-warning]').text()).toContain('筛选结果可能不完整')
+    expect(wrapper.get('[data-report-id="42"]').text()).toContain('待确认')
+
+    mockedDetail.mockImplementationOnce(() => recovered.promise)
+    const retry = wrapper.get('[data-report-id="42"] [data-metadata-retry]')
+    await retry.trigger('click')
+    recovered.resolve({ questions: [{ questionType: 'SPRING_BOOT', difficulty: 'HARD' }] })
+    await flushPromises()
+
+    expect(mockedReports).toHaveBeenCalledTimes(1)
+    expect(mockedDetail).toHaveBeenCalledTimes(3)
+    expect((wrapper.vm as any).reportMetadata).toMatchObject({
+      41: { state: 'available' },
+      42: { state: 'available' }
+    })
+    expect(wrapper.find('[data-metadata-warning]').exists()).toBe(false)
+    expect(wrapper.get('[data-report-id="42"]').text()).toContain('较难')
+  })
+
+  it('opens a circuit after repeated metadata failures instead of scheduling every detail', async () => {
+    mockedReports.mockResolvedValueOnce({
+      records: Array.from({ length: 10 }, (_, index) => reportWithId(index + 1)),
+      total: 10
+    } as any)
+    mockedDetail.mockRejectedValue(new Error('metadata service unavailable'))
+
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    expect(mockedDetail.mock.calls.length).toBeLessThanOrEqual(4)
+    expect(wrapper.get('[data-metadata-bulk-warning]').text()).toContain('部分题单分类暂时无法确认')
+    expect(wrapper.findAll('[data-metadata-state="unavailable"]')).toHaveLength(10)
+  })
+
+  it('reconciles restored local generation, uses a retry path, and deduplicates live submission', async () => {
+    taskCenter.tasks = [{
+      localTaskId: 'RESTORED_INTERVIEW',
+      type: 'INTERVIEW_QUESTION',
+      status: 'RUNNING'
+    }]
+    const generation = deferred<any>()
+    mockedGenerate.mockReturnValueOnce(generation.promise)
+    const wrapper = await mountPage()
+
+    expect(taskCenter.failTask).toHaveBeenCalledWith(
+      'RESTORED_INTERVIEW',
+      '面试题生成已中断，请返回面试题页面重试'
+    )
+    expect(taskCenter.updateTask).toHaveBeenCalledWith(
+      'RESTORED_INTERVIEW',
+      { sourcePath: '/interview-questions' },
+      { notify: false }
+    )
+
+    Object.assign((wrapper.vm as any).form, { resumeId: 3, jobId: 7 })
+    const firstSubmission = (wrapper.vm as any).generate()
+    const duplicateSubmission = (wrapper.vm as any).generate()
+    await flushPromises()
+    expect(mockedGenerate).toHaveBeenCalledTimes(1)
+    expect(taskCenter.createTask).toHaveBeenCalledTimes(1)
+
+    generation.resolve({ reportId: 42 })
+    await Promise.all([firstSubmission, duplicateSubmission])
+  })
+
   it('uses one action-oriented heading and FilterBar with category, difficulty and status values', async () => {
     const wrapper = await mountPage()
 

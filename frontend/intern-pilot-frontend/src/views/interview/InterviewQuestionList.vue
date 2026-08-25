@@ -90,6 +90,25 @@
       </template>
     </FilterBar>
 
+    <el-alert
+      v-if="filterCoverageIncomplete"
+      data-metadata-warning
+      class="metadata-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      title="筛选结果可能不完整：部分题单的分类或难度仍在确认，已暂时保留在结果中。"
+    />
+    <el-alert
+      v-if="metadataUnavailableCount > 0"
+      data-metadata-bulk-warning
+      class="metadata-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="`部分题单分类暂时无法确认（${metadataUnavailableCount} 项），可在对应题单上单独重试。`"
+    />
+
     <section class="queue-shell" aria-label="面试准备队列" :aria-busy="loading">
       <div v-if="loading" class="queue-loading" role="status" aria-live="polite">
         <span>正在加载面试准备队列…</span>
@@ -129,6 +148,7 @@
           :key="item.reportId"
           class="preparation-card"
           :data-report-id="item.reportId"
+          :data-metadata-state="reportMetadataFor(item).state"
         >
           <div class="preparation-card__body">
             <div class="preparation-card__heading">
@@ -163,6 +183,13 @@
               >
                 {{ difficultyLabel(difficulty) }}
               </el-tag>
+              <el-button
+                v-if="reportMetadataFor(item).state === 'unavailable'"
+                data-metadata-retry
+                size="small"
+                plain
+                @click="retryReportMetadata(item)"
+              >重试分类信息</el-button>
             </div>
           </div>
 
@@ -289,7 +316,13 @@ import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
-type ReportTaxonomy = { categories: string[]; difficulties: string[]; status: string; available: boolean }
+type MetadataState = 'loading' | 'available' | 'unavailable'
+type ReportTaxonomy = { categories: string[]; difficulties: string[]; status: string; state: MetadataState }
+type ReportQuerySnapshot = { resumeId?: number; resumeVersionId?: number; jobId?: number; pageNum: number; pageSize: number }
+
+const METADATA_CONCURRENCY = 4
+const METADATA_FAILURE_CIRCUIT_LIMIT = 4
+const RUNNING_TASK_STATUSES = new Set(['PENDING', 'RUNNING', 'PARSING_RESUME', 'BUILDING_CONTEXT', 'CALLING_AI', 'GENERATING_REPORT'])
 
 const aiTaskCenter = useAiTaskCenterStore()
 const reports = ref<any[]>([])
@@ -298,6 +331,10 @@ const jobs = ref<any[]>([])
 const versions = ref<any[]>([])
 const analysisReports = ref<any[]>([])
 const reportMetadata = ref<Record<number, ReportTaxonomy>>({})
+const metadataCache = new Map<string, Pick<ReportTaxonomy, 'categories' | 'difficulties'>>()
+const activeMetadataKeys = new Map<number, string>()
+let reportLoadEpoch = 0
+let lastRequestedQueryKey = ''
 const loading = ref(false)
 const loadingOptions = ref(false)
 const generating = ref(false)
@@ -373,11 +410,14 @@ const filteredAnalysisReports = computed(() => {
 })
 const filteredReports = computed(() => reports.value.filter((item) => {
   const metadata = reportMetadataFor(item)
-  if (filters.category && !metadata.categories.includes(filters.category)) return false
-  if (filters.difficulty && !metadata.difficulties.includes(filters.difficulty)) return false
+  if (metadata.state === 'available' && filters.category && !metadata.categories.includes(filters.category)) return false
+  if (metadata.state === 'available' && filters.difficulty && !metadata.difficulties.includes(filters.difficulty)) return false
   if (filters.status && reportStatus(item) !== filters.status) return false
   return true
 }))
+const metadataUnavailableCount = computed(() => reports.value.filter((item) => reportMetadataFor(item).state === 'unavailable').length)
+const filterCoverageIncomplete = computed(() => Boolean(filters.category || filters.difficulty)
+  && reports.value.some((item) => reportMetadataFor(item).state !== 'available'))
 
 watch(() => [form.resumeId, form.jobId], () => {
   if (!filteredAnalysisReports.value.some((item) => item.reportId === form.analysisReportId)) form.analysisReportId = undefined
@@ -410,54 +450,121 @@ async function loadOptions() {
 }
 
 async function loadReports() {
+  const epoch = ++reportLoadEpoch
+  const querySnapshot: ReportQuerySnapshot = { ...query }
+  lastRequestedQueryKey = reportQueryKey(querySnapshot)
   loading.value = true
   loadError.value = ''
   try {
-    const res: any = await getInterviewQuestionReportsApi({ ...query })
-    reports.value = res.records || []
-    total.value = res.total || 0
-    await hydrateReportMetadata(reports.value)
+    const res: any = await getInterviewQuestionReportsApi(querySnapshot)
+    if (epoch !== reportLoadEpoch) return
+
+    const nextReports = Array.isArray(res?.records) ? res.records : []
+    const nextMetadata: Record<number, ReportTaxonomy> = {}
+    const nextKeys = new Map<number, string>()
+    nextReports.forEach((item: any) => {
+      const reportId = Number(item.reportId)
+      const key = reportMetadataKey(item)
+      const previousKey = activeMetadataKeys.get(reportId)
+      if (previousKey && previousKey !== key) metadataCache.delete(previousKey)
+      nextKeys.set(reportId, key)
+      const cached = metadataCache.get(key)
+      nextMetadata[reportId] = cached
+        ? { ...cached, status: reportStatus(item), state: 'available' }
+        : pendingMetadata(item)
+    })
+
+    activeMetadataKeys.clear()
+    nextKeys.forEach((key, reportId) => activeMetadataKeys.set(reportId, key))
+    reports.value = nextReports
+    total.value = Number(res?.total || 0)
+    reportMetadata.value = nextMetadata
+    loadError.value = ''
+    loading.value = false
+    void hydrateReportMetadata(nextReports.filter((item: any) => reportMetadataFor(item).state !== 'available'), epoch)
   } catch (e: any) {
+    if (epoch !== reportLoadEpoch) return
     reports.value = []
     reportMetadata.value = {}
+    activeMetadataKeys.clear()
     total.value = 0
     loadError.value = getErrorMessage(e, '面试题列表加载失败，请确认数据表已初始化后重试。')
-  } finally {
     loading.value = false
+  } finally {
+    if (epoch === reportLoadEpoch && loading.value) loading.value = false
   }
 }
 
-async function hydrateReportMetadata(items: any[]) {
-  const entries = await Promise.all(items.map(async (item): Promise<[number, ReportTaxonomy]> => {
-    const reportId = Number(item.reportId)
-    try {
-      const detail: any = await getInterviewQuestionDetailApi(reportId)
-      const questions = Array.isArray(detail?.questions) ? detail.questions : []
-      return [reportId, {
-        categories: unique(questions.map((question: any) => question.questionType).filter(Boolean)),
-        difficulties: unique(questions.map((question: any) => question.difficulty).filter(Boolean)),
-        status: reportStatus(item),
-        available: true
-      }]
-    } catch {
-      return [reportId, {
-        categories: arrayValue(item.categories || item.questionTypes),
-        difficulties: arrayValue(item.difficulties),
-        status: reportStatus(item),
-        available: false
-      }]
+async function hydrateReportMetadata(items: any[], epoch: number) {
+  let consecutiveFailures = 0
+  for (let index = 0; index < items.length; index += METADATA_CONCURRENCY) {
+    if (epoch !== reportLoadEpoch) return
+    const batch = items.slice(index, index + METADATA_CONCURRENCY)
+    const results = await Promise.all(batch.map((item) => hydrateSingleReportMetadata(item, epoch)))
+    if (epoch !== reportLoadEpoch) return
+    for (const success of results) consecutiveFailures = success ? 0 : consecutiveFailures + 1
+    if (consecutiveFailures >= METADATA_FAILURE_CIRCUIT_LIMIT) {
+      items.slice(index + METADATA_CONCURRENCY).forEach((item) => commitUnavailableMetadata(item, epoch))
+      return
     }
-  }))
-  reportMetadata.value = Object.fromEntries(entries)
+  }
 }
 
-function search() { query.pageNum = 1; loadReports() }
+async function hydrateSingleReportMetadata(item: any, epoch: number): Promise<boolean> {
+  const reportId = Number(item.reportId)
+  const key = reportMetadataKey(item)
+  try {
+    const detail: any = await getInterviewQuestionDetailApi(reportId)
+    if (!isCurrentMetadataRequest(reportId, key, epoch)) return false
+    const questions = Array.isArray(detail?.questions) ? detail.questions : []
+    const available = {
+      categories: unique(questions.map((question: any) => question.questionType).filter(Boolean)),
+      difficulties: unique(questions.map((question: any) => question.difficulty).filter(Boolean))
+    }
+    metadataCache.set(key, available)
+    reportMetadata.value = {
+      ...reportMetadata.value,
+      [reportId]: { ...available, status: reportStatus(item), state: 'available' }
+    }
+    return true
+  } catch {
+    commitUnavailableMetadata(item, epoch)
+    return false
+  }
+}
+
+function commitUnavailableMetadata(item: any, epoch: number) {
+  const reportId = Number(item.reportId)
+  if (!isCurrentMetadataRequest(reportId, reportMetadataKey(item), epoch)) return
+  reportMetadata.value = {
+    ...reportMetadata.value,
+    [reportId]: {
+      categories: arrayValue(item.categories || item.questionTypes),
+      difficulties: arrayValue(item.difficulties),
+      status: reportStatus(item),
+      state: 'unavailable'
+    }
+  }
+}
+
+async function retryReportMetadata(item: any) {
+  const reportId = Number(item.reportId)
+  const epoch = reportLoadEpoch
+  if (!isCurrentMetadataRequest(reportId, reportMetadataKey(item), epoch)) return
+  reportMetadata.value = { ...reportMetadata.value, [reportId]: pendingMetadata(item) }
+  await hydrateSingleReportMetadata(item, epoch)
+}
+
+function search() {
+  query.pageNum = 1
+  if (reportQueryKey(query) !== lastRequestedQueryKey) loadReports()
+}
 function resetQuery() {
   query.resumeId = undefined
   query.jobId = undefined
   query.pageNum = 1
   clearClientFilters()
-  loadReports()
+  if (reportQueryKey(query) !== lastRequestedQueryKey) loadReports()
 }
 function clearClientFilters() {
   filters.category = undefined
@@ -476,6 +583,7 @@ function openGenerate() {
 }
 
 async function generate() {
+  if (generating.value) return
   if (!form.resumeId || !form.jobId) {
     ElMessage.warning('请选择简历和岗位')
     return
@@ -484,7 +592,8 @@ async function generate() {
   generationError.value = ''
   const localTaskId = aiTaskCenter.createTask({
     type: 'INTERVIEW_QUESTION', title: '面试题生成', message: '正在生成面试题...',
-    resumeId: form.resumeId, jobId: form.jobId, reportId: form.analysisReportId
+    resumeId: form.resumeId, jobId: form.jobId, reportId: form.analysisReportId,
+    sourcePath: '/interview-questions'
   })
   try {
     const res: any = await generateInterviewQuestionsApi(form)
@@ -513,6 +622,7 @@ async function removeReport(row: any) {
   try {
     await deleteInterviewQuestionReportApi(row.reportId)
     ElMessage.success('删除成功')
+    invalidateReportMetadata(row.reportId)
     await loadReports()
   } catch (e: any) {
     ElMessage.error(getErrorMessage(e, '删除失败，请稍后重试'))
@@ -520,15 +630,20 @@ async function removeReport(row: any) {
 }
 
 async function regenerateReport(row: any) {
+  if (regeneratingId.value !== null) return
   try {
     await ElMessageBox.confirm(`确认重新生成“${row.title || '面试题报告'}”吗？旧的题目将被替换。`, '重新生成确认', { type: 'warning' })
   } catch { return }
-  const localTaskId = aiTaskCenter.createTask({ type: 'INTERVIEW_REGENERATE', title: '面试题重新生成', message: '正在重新生成面试题...', reportId: row.reportId })
+  const localTaskId = aiTaskCenter.createTask({
+    type: 'INTERVIEW_REGENERATE', title: '面试题重新生成', message: '正在重新生成面试题...',
+    reportId: row.reportId, sourcePath: '/interview-questions'
+  })
   regeneratingId.value = row.reportId
   try {
     const res: any = await regenerateInterviewQuestionsApi(row.reportId)
     aiTaskCenter.completeTask(localTaskId, { resultId: res.reportId, resultPath: `/interview-questions/${res.reportId}`, message: '面试题重新生成完成' })
     ElMessage.success('面试题重新生成成功')
+    invalidateReportMetadata(row.reportId)
     await loadReports()
     router.push(`/interview-questions/${res.reportId}`)
   } catch (e: any) {
@@ -540,7 +655,7 @@ async function regenerateReport(row: any) {
 function reportMetadataFor(item: any): ReportTaxonomy {
   return reportMetadata.value[Number(item.reportId)] || {
     categories: arrayValue(item.categories || item.questionTypes), difficulties: arrayValue(item.difficulties),
-    status: reportStatus(item), available: false
+    status: reportStatus(item), state: 'loading'
   }
 }
 function reportStatus(item: any) { return typeof item.status === 'string' && item.status ? item.status : 'COMPLETED' }
@@ -549,7 +664,8 @@ function taxonomySummary(item: any, key: 'categories' | 'difficulties') {
   const metadata = reportMetadataFor(item)
   const labels = metadata[key].map((value) => key === 'categories' ? questionTypeLabel(value) : difficultyLabel(value))
   if (labels.length) return labels.join('、')
-  return metadata.available ? '未标注' : '打开后查看'
+  if (metadata.state === 'loading') return '确认中…'
+  return metadata.state === 'available' ? '未标注' : '待确认'
 }
 function questionTypeLabel(type: string) { return detailCategoryOptions.find((item) => item.value === type)?.label || type }
 function difficultyLabel(difficulty: string) { return difficultyOptions.find((item) => item.value === difficulty)?.label || difficulty || '未标注' }
@@ -566,11 +682,50 @@ function arrayValue(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && Boolean(item)) : []
 }
 
-onMounted(async () => { await Promise.allSettled([loadOptions(), loadReports()]) })
+function pendingMetadata(item: any): ReportTaxonomy {
+  return {
+    categories: arrayValue(item.categories || item.questionTypes),
+    difficulties: arrayValue(item.difficulties),
+    status: reportStatus(item),
+    state: 'loading'
+  }
+}
+function reportMetadataKey(item: any) {
+  return [item.reportId, item.updatedAt || item.createdAt || '', item.resumeVersionId || '', item.questionCount || ''].join(':')
+}
+function isCurrentMetadataRequest(reportId: number, key: string, epoch: number) {
+  return epoch === reportLoadEpoch && activeMetadataKeys.get(reportId) === key
+}
+function invalidateReportMetadata(reportId: number) {
+  const key = activeMetadataKeys.get(Number(reportId))
+  if (key) metadataCache.delete(key)
+}
+function reportQueryKey(value: Partial<ReportQuerySnapshot>) {
+  return JSON.stringify({
+    resumeId: value.resumeId,
+    resumeVersionId: value.resumeVersionId,
+    jobId: value.jobId,
+    pageNum: value.pageNum,
+    pageSize: value.pageSize
+  })
+}
+function reconcileInterruptedGenerationTasks() {
+  aiTaskCenter.tasks.forEach((task) => {
+    if (!['INTERVIEW_QUESTION', 'INTERVIEW_REGENERATE'].includes(task.type)) return
+    if (task.backendTaskNo || !RUNNING_TASK_STATUSES.has(task.status)) return
+    aiTaskCenter.updateTask(task.localTaskId, { sourcePath: '/interview-questions' }, { notify: false })
+    aiTaskCenter.failTask(task.localTaskId, '面试题生成已中断，请返回面试题页面重试')
+  })
+}
+
+onMounted(async () => {
+  reconcileInterruptedGenerationTasks()
+  await Promise.allSettled([loadOptions(), loadReports()])
+})
 </script>
 
 <style scoped>
-.guide-alert, .dialog-alert, .generation-state, .interview-summary-grid, .filter-bar { margin-bottom: var(--space-5); }
+.guide-alert, .dialog-alert, .generation-state, .interview-summary-grid, .filter-bar, .metadata-alert { margin-bottom: var(--space-5); }
 .guide-actions, .generation-state, .queue-error, .preparation-card__heading, .preparation-card__actions { display: flex; }
 .guide-actions { gap: var(--space-2); margin-top: var(--space-3); }
 .generation-state, .queue-error {
