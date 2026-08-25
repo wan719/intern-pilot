@@ -249,7 +249,7 @@ async function loadProfile() {
 async function saveProfile() {
   profileSaving.value = true
   try {
-    profile.value = await updateUserProfileApi({ ...profileForm })
+    mergeProfileResponsePreservingDefault(await updateUserProfileApi({ ...profileForm }))
     syncAuthUser()
     ElMessage.success('资料已保存')
   } finally {
@@ -276,12 +276,33 @@ async function uploadAvatar(file: any) {
   data.append('file', raw)
   avatarUploading.value = true
   try {
-    profile.value = await uploadUserAvatarApi(data)
+    mergeProfileResponsePreservingDefault(await uploadUserAvatarApi(data))
     syncAuthUser()
     ElMessage.success('头像已更新')
   } finally {
     avatarUploading.value = false
   }
+}
+
+function mergeProfileResponsePreservingDefault(responseProfile: any) {
+  const confirmedId = confirmedDefaultResumeId.value
+  if (confirmedId === undefined) {
+    profile.value = responseProfile
+    return
+  }
+  const confirmedResume = resumes.value.find((resume) => resume.resumeId === confirmedId)
+  const currentDefaultName = profile.value?.defaultResumeId === confirmedId ? profile.value?.defaultResumeName : ''
+  const confirmedName =
+    currentDefaultName || confirmedResume?.resumeName || confirmedResume?.originalFileName || responseProfile?.defaultResumeName || ''
+  profile.value = {
+    ...responseProfile,
+    defaultResumeId: confirmedId,
+    defaultResumeName: confirmedName
+  }
+  resumes.value = resumes.value.map((resume) => ({
+    ...resume,
+    isDefault: resume.resumeId === confirmedId
+  }))
 }
 
 async function loadResumes() {

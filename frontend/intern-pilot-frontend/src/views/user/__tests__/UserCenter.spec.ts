@@ -281,4 +281,86 @@ describe('user center redesign', () => {
     expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 3).isDefault).toBe(false)
     expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
   })
+
+  it('merges a late profile-save response without overwriting a newer default resume', async () => {
+    const profileSave = deferred<any>()
+    vi.mocked(updateUserProfileApi).mockReturnValueOnce(profileSave.promise)
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false }
+      ]
+    } as any)
+    const { wrapper, auth } = await mountPage()
+    Object.assign((wrapper.vm as any).profileForm, {
+      nickname: '保存中的昵称',
+      preferredJobTitle: '产品实习生',
+      preferredCity: '杭州',
+      expectedSalary: '220/天',
+      employmentType: '实习'
+    })
+
+    const pendingSave = (wrapper.vm as any).saveProfile()
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+    profileSave.resolve({
+      ...profile,
+      nickname: '服务端保存昵称',
+      preferredJobTitle: '产品实习生',
+      preferredCity: '杭州',
+      expectedSalary: '220/天',
+      defaultResumeId: 3,
+      defaultResumeName: '前端简历'
+    })
+    await pendingSave
+
+    expect(setDefaultResumeApi).toHaveBeenCalledWith(4)
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).confirmedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).profile).toMatchObject({
+      nickname: '服务端保存昵称',
+      preferredCity: '杭州',
+      defaultResumeId: 4,
+      defaultResumeName: '后端简历'
+    })
+    expect(auth.user?.nickname).toBe('服务端保存昵称')
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 3).isDefault).toBe(false)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
+  })
+
+  it('merges a late avatar response without overwriting a newer default resume', async () => {
+    const avatarUpload = deferred<any>()
+    vi.mocked(uploadUserAvatarApi).mockReturnValueOnce(avatarUpload.promise)
+    vi.mocked(getResumeListApi).mockResolvedValueOnce({
+      records: [
+        { resumeId: 3, resumeName: '前端简历', isDefault: true },
+        { resumeId: 4, resumeName: '后端简历', isDefault: false }
+      ]
+    } as any)
+    const { wrapper, auth } = await mountPage()
+    const file = new File(['late-avatar'], 'late-avatar.webp', { type: 'image/webp' })
+
+    const pendingUpload = (wrapper.vm as any).uploadAvatar({ raw: file })
+    ;(wrapper.vm as any).selectedDefaultResumeId = 4
+    await (wrapper.vm as any).changeDefaultResume(4)
+    avatarUpload.resolve({
+      ...profile,
+      avatarUrl: '/uploads/late-avatar.webp',
+      defaultResumeId: 3,
+      defaultResumeName: '前端简历'
+    })
+    await pendingUpload
+
+    expect(setDefaultResumeApi).toHaveBeenCalledWith(4)
+    expect((wrapper.vm as any).selectedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).confirmedDefaultResumeId).toBe(4)
+    expect((wrapper.vm as any).profile).toMatchObject({
+      avatarUrl: '/uploads/late-avatar.webp',
+      defaultResumeId: 4,
+      defaultResumeName: '后端简历'
+    })
+    expect(auth.user?.avatarUrl).toBe('/uploads/late-avatar.webp')
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 3).isDefault).toBe(false)
+    expect((wrapper.vm as any).resumes.find((item: any) => item.resumeId === 4).isDefault).toBe(true)
+  })
 })
