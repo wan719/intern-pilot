@@ -1,59 +1,136 @@
 <template>
-  <PageContainer title="" description="上传和管理你的简历，选择默认简历用于 AI 匹配分析。">
-    <template #actions>
-      <el-button type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
+  <PageContainer title="" width="wide">
+    <template #hero>
+      <PageHero
+        eyebrow="求职旅程 · 第一步"
+        title="简历中心"
+        description="整理可靠的求职材料，选择默认简历后即可用于 AI 匹配分析。"
+      >
+        <template #actions>
+          <el-button type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
+        </template>
+      </PageHero>
     </template>
 
-    <div v-loading="loading" class="resume-summary-grid">
-      <StatCard label="全部简历" :value="resumeStats.total" :icon="Document" />
-      <StatCard label="默认简历" :value="resumeStats.defaultName" :icon="StarFilled" />
-      <StatCard label="解析成功" :value="resumeStats.success" :icon="CircleCheckFilled" />
-      <StatCard label="待处理/失败" :value="resumeStats.pendingOrFailed" :icon="WarningFilled" />
+    <div v-if="!loadError" class="resume-summary-grid">
+      <StatCard label="全部简历" :value="resumeStats.total" :icon="Document" :loading="loading" />
+      <StatCard label="默认简历" :value="resumeStats.defaultName" :icon="StarFilled" :loading="loading" />
+      <StatCard label="解析成功" :value="resumeStats.success" :icon="CircleCheckFilled" :loading="loading" />
+      <StatCard label="待处理/失败" :value="resumeStats.pendingOrFailed" :icon="WarningFilled" :loading="loading" />
     </div>
 
-    <section v-loading="loading" class="resume-assets">
+    <section class="resume-content" :aria-busy="loading">
+      <div v-if="loading" class="resume-loading" aria-live="polite" aria-label="正在加载简历列表">
+        <el-skeleton :rows="5" animated />
+      </div>
+
+      <div v-else-if="loadError" class="resume-error" role="alert">
+        <div>
+          <strong>简历列表暂时无法加载</strong>
+          <span>请检查网络连接后重试，已有简历不会受到影响。</span>
+        </div>
+        <el-button data-resume-retry type="primary" plain @click="loadResumes">重新加载</el-button>
+      </div>
+
       <AppEmpty
-        v-if="!resumes.length && !loading"
+        v-else-if="!resumes.length"
         title="还没有上传简历"
         description="上传简历后即可开始 AI 匹配分析"
         hint="支持 PDF / DOCX 文件，上传后可查看解析结果并设置默认简历。"
       >
-        <el-button type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
+        <el-button data-resume-empty-action type="primary" :icon="Upload" @click="uploadVisible = true">上传简历</el-button>
       </AppEmpty>
 
-      <article
-        v-for="item in resumes"
-        v-else
-        :key="item.resumeId"
-        class="resume-card"
-        :class="{ default: item.isDefault }"
-      >
-        <div class="resume-card-main">
-          <div class="resume-file-icon">{{ item.fileType || 'CV' }}</div>
-          <div class="resume-card-copy">
-            <div class="resume-title-row">
-              <h3>{{ item.resumeName || item.originalFileName || '未命名简历' }}</h3>
-              <el-tag v-if="item.isDefault" type="primary" effect="plain">默认简历</el-tag>
-              <el-tag :type="parseStatusType(item.parseStatus)" effect="plain">
-                {{ parseStatusLabel(item.parseStatus) }}
-              </el-tag>
+      <template v-else>
+        <section class="resume-desktop" aria-label="简历列表">
+          <el-table :data="resumes" row-key="resumeId">
+            <el-table-column label="简历" min-width="280">
+              <template #default="{ row }">
+                <div class="resume-name-cell">
+                  <div class="resume-file-icon" aria-hidden="true">{{ row.fileType || 'CV' }}</div>
+                  <div>
+                    <strong class="resume-name" :title="resumeDisplayName(row)">{{ resumeDisplayName(row) }}</strong>
+                    <span class="resume-original-name" :title="row.originalFileName || '未记录原文件名'">
+                      {{ row.originalFileName || '未记录原文件名' }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="190">
+              <template #default="{ row }">
+                <div class="resume-statuses">
+                  <el-tag v-if="row.isDefault" type="primary" effect="plain">默认简历</el-tag>
+                  <el-tag :type="parseStatusType(row.parseStatus)" effect="plain">{{ parseStatusLabel(row.parseStatus) }}</el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="文件" width="150">
+              <template #default="{ row }">
+                <span>{{ row.fileType || '未知类型' }} · {{ formatFileSize(row.fileSize) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="上传时间" width="170">
+              <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="310" fixed="right">
+              <template #default="{ row }">
+                <div class="resume-actions" role="group" :aria-label="`${resumeDisplayName(row)}操作`">
+                  <el-button link type="primary" @click="openDetail(row.resumeId)">详情</el-button>
+                  <el-button link type="primary" @click="goVersions(row.resumeId)">版本管理</el-button>
+                  <el-button v-if="!row.isDefault" link type="primary" @click="setDefault(row.resumeId)">设为默认</el-button>
+                  <el-button v-else link disabled>已默认</el-button>
+                  <el-button link type="danger" @click="removeResume(row.resumeId)">删除</el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </section>
+
+        <section class="resume-mobile" aria-label="移动端简历列表">
+          <article
+            v-for="item in resumes"
+            :key="item.resumeId"
+            class="resume-card"
+            :class="{ 'resume-card--default': item.isDefault }"
+          >
+            <header class="resume-card__header">
+              <div class="resume-file-icon" aria-hidden="true">{{ item.fileType || 'CV' }}</div>
+              <div class="resume-card__title">
+                <h2 class="resume-name" :title="resumeDisplayName(item)">{{ resumeDisplayName(item) }}</h2>
+                <span class="resume-original-name" :title="item.originalFileName || '未记录原文件名'">
+                  {{ item.originalFileName || '未记录原文件名' }}
+                </span>
+              </div>
+            </header>
+            <dl class="resume-card__facts">
+              <div>
+                <dt>默认状态</dt>
+                <dd>{{ item.isDefault ? '默认简历' : '普通简历' }}</dd>
+              </div>
+              <div>
+                <dt>解析状态</dt>
+                <dd><el-tag :type="parseStatusType(item.parseStatus)" effect="plain">{{ parseStatusLabel(item.parseStatus) }}</el-tag></dd>
+              </div>
+              <div>
+                <dt>文件</dt>
+                <dd>{{ item.fileType || '未知类型' }} · {{ formatFileSize(item.fileSize) }}</dd>
+              </div>
+              <div>
+                <dt>上传时间</dt>
+                <dd>{{ formatDateTime(item.createdAt) }}</dd>
+              </div>
+            </dl>
+            <div class="resume-actions" role="group" :aria-label="`${resumeDisplayName(item)}操作`">
+              <el-button link type="primary" @click="openDetail(item.resumeId)">详情</el-button>
+              <el-button link type="primary" @click="goVersions(item.resumeId)">版本管理</el-button>
+              <el-button v-if="!item.isDefault" link type="primary" @click="setDefault(item.resumeId)">设为默认</el-button>
+              <el-button v-else link disabled>已默认</el-button>
+              <el-button link type="danger" @click="removeResume(item.resumeId)">删除</el-button>
             </div>
-            <p>{{ item.originalFileName || '未记录原文件名' }}</p>
-            <div class="resume-meta">
-              <span>{{ item.fileType || '未知类型' }}</span>
-              <span>{{ formatFileSize(item.fileSize) }}</span>
-              <span>上传时间：{{ formatDateTime(item.createdAt) }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="resume-actions">
-          <el-button link type="primary" @click="openDetail(item.resumeId)">详情</el-button>
-          <el-button link type="primary" @click="goVersions(item.resumeId)">版本管理</el-button>
-          <el-button v-if="!item.isDefault" link type="primary" @click="setDefault(item.resumeId)">设为默认</el-button>
-          <el-button v-else link disabled>已默认</el-button>
-          <el-button link type="danger" @click="removeResume(item.resumeId)">删除</el-button>
-        </div>
-      </article>
+          </article>
+        </section>
+      </template>
     </section>
 
     <el-dialog v-model="uploadVisible" title="上传简历" :width="uploadDialogWidth">
@@ -129,6 +206,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { CircleCheckFilled, Document, StarFilled, Upload, UploadFilled, WarningFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
@@ -137,6 +215,7 @@ import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const loading = ref(false)
+const loadError = ref(false)
 const uploading = ref(false)
 const uploadVisible = ref(false)
 const detailVisible = ref(false)
@@ -160,9 +239,13 @@ const resumeStats = computed(() => {
 
 async function loadResumes() {
   loading.value = true
+  loadError.value = false
   try {
     const res: any = await getResumeListApi({ pageNum: 1, pageSize: 100 })
     resumes.value = res.records || []
+  } catch {
+    resumes.value = []
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -206,6 +289,10 @@ function goVersions(id: number) {
   router.push(`/resumes/${id}/versions`)
 }
 
+function resumeDisplayName(item: any) {
+  return item?.resumeName || item?.originalFileName || '未命名简历'
+}
+
 async function setDefault(id: number) {
   await setDefaultResumeApi(id)
   ElMessage.success('已设置默认简历')
@@ -213,7 +300,11 @@ async function setDefault(id: number) {
 }
 
 async function removeResume(id: number) {
-  await ElMessageBox.confirm('确认删除这份简历吗？', '删除简历', { type: 'warning' })
+  try {
+    await ElMessageBox.confirm('确认删除这份简历吗？', '删除简历', { type: 'warning' })
+  } catch {
+    return
+  }
   await deleteResumeApi(id)
   ElMessage.success('已删除')
   loadResumes()
@@ -254,86 +345,150 @@ onMounted(loadResumes)
 .resume-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
-.resume-assets {
+.resume-content,
+.resume-mobile {
   display: grid;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
+.resume-content {
+  min-height: 260px;
+}
+
+.resume-loading,
+.resume-error,
+.resume-desktop,
 .resume-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.resume-loading {
+  padding: var(--space-5);
+}
+
+.resume-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
 }
 
-.resume-card.default {
-  border-color: var(--color-primary-border);
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.1);
+.resume-error div {
+  display: grid;
+  gap: var(--space-1);
 }
 
-.resume-card-main {
+.resume-error strong {
+  color: var(--color-text);
+}
+
+.resume-error span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.resume-desktop {
+  overflow: hidden;
+}
+
+.resume-mobile {
+  display: none;
+}
+
+.resume-name-cell,
+.resume-card__header {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
+}
+
+.resume-name-cell > div:last-child,
+.resume-card__title {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
 }
 
 .resume-file-icon {
   display: grid;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-primary-hover);
   font-size: 13px;
   font-weight: 800;
 }
 
-.resume-card-copy {
+.resume-name,
+.resume-original-name {
   min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.resume-title-row {
+.resume-name {
+  color: var(--color-text);
+}
+
+.resume-original-name {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.resume-statuses,
+.resume-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
+  gap: var(--space-1);
 }
 
-.resume-title-row h3 {
+.resume-card {
+  padding: var(--space-4);
+}
+
+.resume-card--default {
+  border-color: var(--color-primary-border);
+}
+
+.resume-card__title h2 {
   margin: 0;
   font-size: 16px;
 }
 
-.resume-card-copy p {
-  margin: 8px 0;
-  color: var(--color-text-muted);
+.resume-card__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
 }
 
-.resume-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  color: var(--color-text-soft);
+.resume-card__facts div {
+  min-width: 0;
+}
+
+.resume-card__facts dt {
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
-.resume-actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.resume-card__facts dd {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .upload-tip {
@@ -342,7 +497,7 @@ onMounted(loadResumes)
 
 .upload-hint {
   display: block;
-  margin-top: 8px;
+  margin-top: var(--space-2);
   color: var(--color-text-muted);
   font-size: 12px;
 }
@@ -356,16 +511,30 @@ onMounted(loadResumes)
 
 @media (max-width: 900px) {
   .resume-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .resume-summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .resume-card {
+  .resume-desktop {
+    display: none;
+  }
+
+  .resume-mobile {
+    display: grid;
+  }
+
+  .resume-error {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .resume-actions {
-    justify-content: flex-start;
+  .resume-card__facts {
+    grid-template-columns: 1fr;
   }
 }
 </style>

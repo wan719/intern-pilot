@@ -1,48 +1,90 @@
 <template>
-  <PageContainer title="简历版本管理" description="维护原始、手动和 AI 优化版本，并对比差异。">
-    <template #actions>
-      <el-button @click="router.push('/resumes')">返回简历</el-button>
-      <el-button type="primary" :icon="Plus" @click="openCreate">创建版本</el-button>
-      <el-button :icon="MagicStick" @click="openOptimize" :disabled="versions.length === 0">AI 优化</el-button>
+  <PageContainer title="">
+    <template #hero>
+      <PageHero
+        eyebrow="简历中心"
+        title="简历版本"
+        description="按时间查看原始、手动和 AI 优化版本，让当前投递版本始终清晰可见。"
+      >
+        <template #actions>
+          <el-button @click="router.push('/resumes')">返回简历</el-button>
+          <el-button type="primary" :icon="Plus" @click="openCreate">创建版本</el-button>
+          <el-button :icon="MagicStick" @click="openOptimize" :disabled="versions.length === 0">AI 优化</el-button>
+        </template>
+      </PageHero>
     </template>
 
-    <section class="panel">
-      <el-table v-loading="loading" :data="versions">
-        <el-table-column label="版本名称" min-width="180">
-          <template #default="{ row }">{{ displayVersionName(row) }}</template>
-        </el-table-column>
-        <el-table-column label="类型" width="130">
-          <template #default="{ row }">{{ versionTypeLabel(row.versionType) }}</template>
-        </el-table-column>
-        <el-table-column label="目标岗位" min-width="180">
-          <template #default="{ row }">
-            {{ row.targetJobTitle ? `${row.targetCompanyName || ''} ${row.targetJobTitle}` : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="当前" width="80">
-          <template #default="{ row }">
-            <el-tag v-if="row.isCurrent === 1" type="success">当前</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="contentSummary" label="摘要" min-width="260" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="300" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="primary" :disabled="row.isCurrent === 1" @click="setCurrent(row)">设当前</el-button>
-            <el-button link type="warning" @click="prepareCompare(row)">对比</el-button>
-            <el-button link type="danger" :disabled="row.isCurrent === 1 || row.versionType === 'ORIGINAL'" @click="removeVersion(row)">删除</el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无版本">
-            <el-button type="primary" @click="openCreate">创建第一个版本</el-button>
-          </el-empty>
-        </template>
-      </el-table>
+    <section class="version-content" :aria-busy="loading">
+      <div v-if="loading" class="version-loading" aria-live="polite" aria-label="正在加载简历版本">
+        <el-skeleton :rows="6" animated />
+      </div>
+
+      <div v-else-if="loadError" class="version-error" role="alert">
+        <div>
+          <strong>版本列表暂时无法加载</strong>
+          <span>请稍后重试，当前简历及已有版本不会受到影响。</span>
+        </div>
+        <el-button data-version-retry type="primary" plain @click="loadData">重新加载</el-button>
+      </div>
+
+      <AppEmpty
+        v-else-if="!sortedVersions.length"
+        title="还没有可管理的简历版本"
+        description="创建第一个版本，开始维护针对不同岗位的简历内容。"
+        hint="后续可以编辑、对比或使用 AI 生成岗位定制版本。"
+      >
+        <el-button data-version-empty-action type="primary" @click="openCreate">创建第一个版本</el-button>
+      </AppEmpty>
+
+      <ol v-else class="version-timeline" aria-label="简历版本时间线">
+        <li
+          v-for="row in sortedVersions"
+          :key="row.versionId"
+          class="version-timeline__item"
+          :class="{ 'version-timeline__item--current': row.isCurrent === 1 }"
+        >
+          <div class="version-timeline__rail" aria-hidden="true">
+            <span></span>
+          </div>
+          <article class="version-card">
+            <header class="version-card__header">
+              <div class="version-card__title">
+                <div class="version-card__tags">
+                  <el-tag v-if="row.isCurrent === 1" type="success">当前版本</el-tag>
+                  <el-tag effect="plain">{{ versionTypeLabel(row.versionType) }}</el-tag>
+                </div>
+                <h2 :title="displayVersionName(row)">{{ displayVersionName(row) }}</h2>
+                <div class="version-card__identity">
+                  <span>版本 #{{ row.versionId }}</span>
+                  <time :datetime="row.createdAt">{{ formatDateTime(row.createdAt) }}</time>
+                </div>
+              </div>
+              <div class="version-actions" role="group" :aria-label="`${displayVersionName(row)}操作`">
+                <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+                <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+                <el-button link type="primary" :disabled="row.isCurrent === 1" @click="setCurrent(row)">设当前</el-button>
+                <el-button link type="warning" @click="prepareCompare(row)">对比</el-button>
+                <el-button
+                  link
+                  type="danger"
+                  :disabled="row.isCurrent === 1 || row.versionType === 'ORIGINAL'"
+                  @click="removeVersion(row)"
+                >删除</el-button>
+              </div>
+            </header>
+            <dl class="version-card__facts">
+              <div>
+                <dt>目标岗位</dt>
+                <dd>{{ row.targetJobTitle ? `${row.targetCompanyName || ''} ${row.targetJobTitle}` : '未指定' }}</dd>
+              </div>
+              <div>
+                <dt>内容摘要</dt>
+                <dd>{{ row.contentSummary || '暂无摘要' }}</dd>
+              </div>
+            </dl>
+          </article>
+        </li>
+      </ol>
     </section>
 
     <el-dialog v-model="editVisible" :title="editingVersionId ? '编辑版本' : '创建版本'" :width="editDialogWidth">
@@ -145,6 +187,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import PageHero from '@/components/common/PageHero.vue'
+import AppEmpty from '@/components/common/AppEmpty.vue'
 import { getJobListApi } from '@/api/job'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import {
@@ -167,6 +211,7 @@ const resumeId = Number(route.params.resumeId)
 const aiTaskCenter = useAiTaskCenterStore()
 
 const loading = ref(false)
+const loadError = ref(false)
 const saving = ref(false)
 const optimizing = ref(false)
 const versions = ref<any[]>([])
@@ -197,8 +242,17 @@ const filteredAnalysisReports = computed(() => {
   })
 })
 
+const sortedVersions = computed(() => {
+  return [...versions.value].sort((left, right) => {
+    const currentDifference = Number(right.isCurrent === 1) - Number(left.isCurrent === 1)
+    if (currentDifference !== 0) return currentDifference
+    return String(right.createdAt || '').localeCompare(String(left.createdAt || ''))
+  })
+})
+
 async function loadData() {
   loading.value = true
+  loadError.value = false
   try {
     const [versionRes, jobRes, analysisRes]: any[] = await Promise.all([
       getResumeVersionListApi(resumeId),
@@ -208,6 +262,11 @@ async function loadData() {
     versions.value = versionRes || []
     jobs.value = jobRes.records || []
     analysisReports.value = analysisRes.records || []
+  } catch {
+    versions.value = []
+    jobs.value = []
+    analysisReports.value = []
+    loadError.value = true
   } finally {
     loading.value = false
   }
@@ -274,7 +333,11 @@ async function setCurrent(row: any) {
 }
 
 async function removeVersion(row: any) {
-  await ElMessageBox.confirm(`确认删除「${displayVersionName(row)}」？`, '删除版本', { type: 'warning' })
+  try {
+    await ElMessageBox.confirm(`确认删除「${displayVersionName(row)}」？`, '删除版本', { type: 'warning' })
+  } catch {
+    return
+  }
   await deleteResumeVersionApi(resumeId, row.versionId)
   ElMessage.success('删除成功')
   loadData()
@@ -378,23 +441,189 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.version-content {
+  min-height: 320px;
+}
+
+.version-loading,
+.version-error,
+.version-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.version-loading {
+  padding: var(--space-5);
+}
+
+.version-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
+}
+
+.version-error div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.version-error strong {
+  color: var(--color-text);
+}
+
+.version-error span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.version-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version-timeline__item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.version-timeline__rail {
+  display: flex;
+  position: relative;
+  justify-content: center;
+}
+
+.version-timeline__rail::after {
+  position: absolute;
+  top: 24px;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border);
+  content: '';
+}
+
+.version-timeline__item:last-child .version-timeline__rail::after {
+  display: none;
+}
+
+.version-timeline__rail span {
+  width: 14px;
+  height: 14px;
+  margin-top: var(--space-5);
+  border: 3px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  box-shadow: 0 0 0 2px var(--color-border);
+  z-index: 1;
+}
+
+.version-timeline__item--current .version-timeline__rail span {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-border);
+}
+
+.version-card {
+  min-width: 0;
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.version-timeline__item--current .version-card {
+  border-color: var(--color-primary-border);
+}
+
+.version-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.version-card__title {
+  min-width: 0;
+}
+
+.version-card__tags,
+.version-card__identity,
+.version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.version-card__title h2 {
+  margin: var(--space-2) 0;
+  color: var(--color-text);
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.version-card__identity {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.version-card__identity span:first-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.version-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.version-card__facts {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.35fr);
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.version-card__facts div {
+  min-width: 0;
+}
+
+.version-card__facts dt {
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.version-card__facts dd {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .detail-stack {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .compare-picker {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: end;
 }
 
 .diff-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 18px;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 .diff-line {
@@ -407,13 +636,39 @@ onMounted(async () => {
 }
 
 .dialog-alert {
-  margin-bottom: 14px;
+  margin-bottom: var(--space-3);
 }
 
 @media (max-width: 900px) {
+  .version-card__header,
+  .version-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .version-actions {
+    justify-content: flex-start;
+  }
+
+  .version-card__facts,
   .compare-picker,
   .diff-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .version-timeline__item {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .version-card {
+    padding: var(--space-3);
+  }
+
+  .version-actions {
+    gap: var(--space-1);
   }
 }
 </style>
