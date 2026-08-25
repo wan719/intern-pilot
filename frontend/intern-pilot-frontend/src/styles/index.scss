@@ -1,25 +1,7 @@
+@use './tokens';
+@use './element';
+
 :root {
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-soft: #eff6ff;
-  --color-primary-border: #bfdbfe;
-  --color-success: #16a34a;
-  --color-warning: #f59e0b;
-  --color-danger: #dc2626;
-  --color-bg: #f3f7fc;
-  --color-bg-subtle: #f8fbff;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f8fafc;
-  --color-border: #dbe4f0;
-  --color-border-soft: #e8eef7;
-  --color-text: #172033;
-  --color-text-muted: #667085;
-  --color-text-soft: #7b8798;
-  --shadow-card: 0 10px 26px rgba(15, 23, 42, 0.05);
-  --shadow-floating: 0 18px 42px rgba(15, 23, 42, 0.1);
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
   color: var(--color-text);
   background: var(--color-bg);
   font-family:
@@ -109,6 +91,15 @@ a {
 
 .app-main {
   min-width: 0;
+}
+
+.metric-value,
+.stat-card strong,
+.score-row strong,
+.score-panel strong,
+.detail-score strong,
+.report-score {
+  font-variant-numeric: tabular-nums;
 }
 
 .app-header {
@@ -621,43 +612,6 @@ a {
   color: var(--color-text-muted);
 }
 
-.el-button {
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-}
-
-.el-table {
-  --el-table-header-bg-color: var(--color-surface-muted);
-  --el-table-header-text-color: #475467;
-  --el-table-border-color: var(--color-border-soft);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.el-table th.el-table__cell {
-  font-weight: 700;
-}
-
-.el-table .el-table__row:hover > td.el-table__cell {
-  background: #f8fbff;
-}
-
-.el-dialog,
-.el-drawer {
-  --el-border-radius-small: 8px;
-}
-
-.el-tag {
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.el-input__wrapper,
-.el-select__wrapper,
-.el-textarea__inner {
-  border-radius: var(--radius-sm);
-}
-
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -716,6 +670,16 @@ a {
 
   .auth-form {
     padding: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
