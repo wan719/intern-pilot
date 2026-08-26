@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, Files, User, Warning } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -103,6 +103,10 @@ const disabledCount = computed(() => roles.value.filter((item) => !item.enabled)
 const canReadPermissions = computed(() => hasPermission('permission:read'))
 const canUpdateRoles = computed(() => hasPermission('role:update'))
 const canAssignPermissions = computed(() => canUpdateRoles.value && canReadPermissions.value && permissionOptionsState.value === 'success')
+
+watch([canUpdateRoles, canReadPermissions], ([canUpdate, canRead]) => {
+  if (!canUpdate || !canRead) closePermissionDialog()
+})
 const groupedPermissions = computed(() => {
   const map = new Map<string, any[]>()
   for (const permission of permissions.value) {

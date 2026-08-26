@@ -221,6 +221,7 @@ async function removeLog(row: any) {
       if (isConfirmationDismissed(reason)) return
       throw reason
     }
+    if (!hasPermission('operation-log:delete')) return
     await deleteOperationLogApi(row.logId)
     if (!active) return
     ElMessage.success('删除成功')

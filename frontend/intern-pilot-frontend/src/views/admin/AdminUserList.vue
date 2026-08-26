@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CircleCheck, Files, User, Warning } from '@element-plus/icons-vue'
 import FilterBar from '@/components/common/FilterBar.vue'
@@ -212,6 +212,10 @@ const disabledCount = computed(() => users.value.filter((item) => item.enabled !
 const canReadRoles = computed(() => hasPermission('role:read'))
 const canUpdateUsers = computed(() => hasPermission('user:update'))
 const canAssignRoles = computed(() => canUpdateUsers.value && canReadRoles.value && roleOptionsState.value === 'success')
+
+watch([canUpdateUsers, canReadRoles], ([canUpdate, canRead]) => {
+  if (!canUpdate || !canRead) closeRoleDialog()
+})
 
 async function loadList() {
   const requestId = ++listRequestId
@@ -312,6 +316,7 @@ async function changeEnabled(row: any, enable: boolean) {
       if (isConfirmationDismissed(reason)) return
       throw reason
     }
+    if (!hasPermission('user:update')) return
     if (enable) await enableUserApi(row.userId)
     else await disableUserApi(row.userId)
     if (!active) return

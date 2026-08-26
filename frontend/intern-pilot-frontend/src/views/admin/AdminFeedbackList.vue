@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { CircleCheck, Clock, Message, Warning } from '@element-plus/icons-vue'
@@ -172,6 +172,11 @@ const statusCount = computed(() => ({
   PROCESSING: feedbacks.value.filter((item) => item.status === 'PROCESSING').length,
   RESOLVED: feedbacks.value.filter((item) => item.status === 'RESOLVED').length
 }))
+const canWriteFeedback = computed(() => auth.hasPermission('feedback:write'))
+
+watch(canWriteFeedback, (allowed) => {
+  if (!allowed) closeWriteDialogs()
+})
 
 function loadData() {
   queuedListParams = { type: query.type || undefined, status: query.status || undefined }
@@ -286,6 +291,7 @@ async function remove(row: Feedback) {
       if (isConfirmationDismissed(reason)) return
       throw reason
     }
+    if (!auth.hasPermission('feedback:delete')) return
     await store.deleteFeedback(row.id)
     if (active) ElMessage.success('删除成功')
   } finally {

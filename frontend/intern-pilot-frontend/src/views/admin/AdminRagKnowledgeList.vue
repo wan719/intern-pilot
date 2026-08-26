@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { CircleCheck, Document, Files, Plus, Search, Warning } from '@element-plus/icons-vue'
@@ -215,6 +215,10 @@ let searchRequestId = 0
 let saveInFlight = false
 
 const canManage = computed(() => authStore.hasPermission('rag:manage'))
+
+watch(canManage, (allowed) => {
+  if (!allowed) closeMutationForm()
+})
 const enabledCount = computed(() => documents.value.filter((item) => item.enabled === 1).length)
 const disabledCount = computed(() => documents.value.filter((item) => item.enabled !== 1).length)
 const chunkTotal = computed(() => documents.value.reduce((sum, item) => sum + Number(item.chunkCount || 0), 0))
@@ -367,6 +371,7 @@ async function rebuild(row: any) {
       if (isConfirmationDismissed(reason)) return
       throw reason
     }
+    if (!guardManagePermission()) return
     await rebuildRagKnowledgeApi(row.documentId)
     if (!active) return
     ElMessage.success('切片和向量已重建')
@@ -387,6 +392,7 @@ async function remove(row: any) {
       if (isConfirmationDismissed(reason)) return
       throw reason
     }
+    if (!guardManagePermission()) return
     await deleteRagKnowledgeApi(row.documentId)
     if (!active) return
     ElMessage.success('删除成功')

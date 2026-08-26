@@ -1,4 +1,5 @@
 import { ElMessageBox } from 'element-plus'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminFeedbackList from '@/views/admin/AdminFeedbackList.vue'
 import AdminRagKnowledgeList from '@/views/admin/AdminRagKnowledgeList.vue'
@@ -17,8 +18,9 @@ import {
 import { deleteOperationLogApi, getOperationLogListApi } from '@/api/adminOperationLog'
 import { mountAdminPage } from './adminTestUtils'
 
-const { activePermissions, hasPermission, feedbackStore } = vi.hoisted(() => {
-  const activePermissions = new Set<string>()
+const { activePermissions, hasPermission, feedbackStore } = await vi.hoisted(async () => {
+  const { reactive } = await import('vue')
+  const activePermissions = reactive(new Set<string>())
   return {
     activePermissions,
     hasPermission: vi.fn((permission: string) => activePermissions.has(permission)),
@@ -63,6 +65,12 @@ const ragDocument = {
 const log = { logId: 31, operation: '禁用用户' }
 const feedback = {
   id: 51, userId: 17, type: 'BUG', title: '页面按钮异常', content: '按钮无响应', status: 'PENDING'
+}
+
+function deferredConfirmation() {
+  let resolve!: (value: string) => void
+  const promise = new Promise<string>((accept) => { resolve = accept })
+  return { promise, resolve }
 }
 
 beforeEach(() => {
@@ -170,6 +178,146 @@ describe('admin mutation handler permission guards', () => {
     expect(ElMessageBox.confirm).not.toHaveBeenCalled()
     expect(feedbackStore.updateStatus).not.toHaveBeenCalled()
     expect(feedbackStore.reply).not.toHaveBeenCalled()
+    expect(feedbackStore.deleteFeedback).not.toHaveBeenCalled()
+  })
+
+  it('closes an open user role dialog when either required permission is revoked', async () => {
+    activePermissions.add('user:update')
+    activePermissions.add('role:read')
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+    const vm = wrapper.vm as any
+
+    vm.openRoleDialog(user)
+    expect(vm.roleDialogVisible).toBe(true)
+
+    activePermissions.delete('role:read')
+    await nextTick()
+
+    expect(vm.roleDialogVisible).toBe(false)
+    expect(vm.currentUser).toBeNull()
+    expect(vm.selectedRoleIds).toEqual([])
+  })
+
+  it('closes an open role permission dialog when either required permission is revoked', async () => {
+    activePermissions.add('role:update')
+    activePermissions.add('permission:read')
+    vi.mocked(getAdminPermissionListApi).mockResolvedValue([
+      { permissionId: 11, permissionCode: 'user:read', permissionName: '读取用户', resourceType: 'USER' }
+    ] as any)
+    const wrapper = await mountAdminPage(AdminRoleList, '/admin/roles')
+    const vm = wrapper.vm as any
+
+    vm.openDialog(role)
+    expect(vm.visible).toBe(true)
+
+    activePermissions.delete('role:update')
+    await nextTick()
+
+    expect(vm.visible).toBe(false)
+    expect(vm.currentRole).toBeNull()
+    expect(vm.selectedPermissionIds).toEqual([])
+  })
+
+  it('closes an open RAG mutation form when rag:manage is revoked', async () => {
+    activePermissions.add('rag:manage')
+    const wrapper = await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge')
+    const vm = wrapper.vm as any
+
+    vm.openCreate()
+    expect(vm.formVisible).toBe(true)
+
+    activePermissions.delete('rag:manage')
+    await nextTick()
+
+    expect(vm.formVisible).toBe(false)
+    expect(vm.editingId).toBeUndefined()
+  })
+
+  it('closes open feedback write dialogs when feedback:write is revoked', async () => {
+    activePermissions.add('feedback:write')
+    const wrapper = await mountAdminPage(AdminFeedbackList, '/admin/feedback')
+    const vm = wrapper.vm as any
+
+    vm.openStatus(feedback)
+    vm.openReply(feedback)
+    expect(vm.statusVisible).toBe(true)
+    expect(vm.replyVisible).toBe(true)
+
+    activePermissions.delete('feedback:write')
+    await nextTick()
+
+    expect(vm.statusVisible).toBe(false)
+    expect(vm.replyVisible).toBe(false)
+  })
+
+  it('does not change user status when user:update is revoked while confirmation is pending', async () => {
+    activePermissions.add('user:update')
+    const confirmation = deferredConfirmation()
+    vi.mocked(ElMessageBox.confirm).mockReturnValue(confirmation.promise as any)
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+
+    const action = (wrapper.vm as any).changeEnabled(user, false)
+    await nextTick()
+    activePermissions.delete('user:update')
+    confirmation.resolve('confirm')
+    await action
+
+    expect(disableUserApi).not.toHaveBeenCalled()
+    expect(enableUserApi).not.toHaveBeenCalled()
+  })
+
+  it('does not rebuild or delete RAG documents when rag:manage is revoked during confirmation', async () => {
+    activePermissions.add('rag:manage')
+    const wrapper = await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge')
+    const vm = wrapper.vm as any
+    const rebuildConfirmation = deferredConfirmation()
+    vi.mocked(ElMessageBox.confirm).mockReturnValueOnce(rebuildConfirmation.promise as any)
+
+    const rebuildAction = vm.rebuild(ragDocument)
+    await nextTick()
+    activePermissions.delete('rag:manage')
+    rebuildConfirmation.resolve('confirm')
+    await rebuildAction
+    expect(rebuildRagKnowledgeApi).not.toHaveBeenCalled()
+
+    activePermissions.add('rag:manage')
+    const deleteConfirmation = deferredConfirmation()
+    vi.mocked(ElMessageBox.confirm).mockReturnValueOnce(deleteConfirmation.promise as any)
+    const deleteAction = vm.remove(ragDocument)
+    await nextTick()
+    activePermissions.delete('rag:manage')
+    deleteConfirmation.resolve('confirm')
+    await deleteAction
+    expect(deleteRagKnowledgeApi).not.toHaveBeenCalled()
+  })
+
+  it('does not delete operation logs when operation-log:delete is revoked during confirmation', async () => {
+    activePermissions.add('operation-log:delete')
+    const confirmation = deferredConfirmation()
+    vi.mocked(ElMessageBox.confirm).mockReturnValue(confirmation.promise as any)
+    const wrapper = await mountAdminPage(OperationLogList, '/admin/operation-logs')
+
+    const action = (wrapper.vm as any).removeLog(log)
+    await nextTick()
+    activePermissions.delete('operation-log:delete')
+    confirmation.resolve('confirm')
+    await action
+
+    expect(deleteOperationLogApi).not.toHaveBeenCalled()
+  })
+
+  it('does not delete feedback when feedback:delete is revoked during confirmation', async () => {
+    activePermissions.add('feedback:delete')
+    const confirmation = deferredConfirmation()
+    vi.mocked(ElMessageBox.confirm).mockReturnValue(confirmation.promise as any)
+    const wrapper = await mountAdminPage(AdminFeedbackList, '/admin/feedback')
+
+    const action = (wrapper.vm as any).remove(feedback)
+    await nextTick()
+    activePermissions.delete('feedback:delete')
+    confirmation.resolve('confirm')
+    await action
+
     expect(feedbackStore.deleteFeedback).not.toHaveBeenCalled()
   })
 })
