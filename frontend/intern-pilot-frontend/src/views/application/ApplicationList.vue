@@ -79,7 +79,7 @@
           <p class="application-note">{{ item.note || '暂无备注，可补充投递渠道、沟通记录或复盘要点。' }}</p>
         </div>
 
-        <div class="application-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
+        <div class="responsive-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
           <el-button type="primary" @click="openDetail(item.applicationId)">详情</el-button>
           <el-button @click="openStatus(item)">改状态</el-button>
           <el-button @click="openNote(item)">备注</el-button>
@@ -140,7 +140,7 @@
       </el-select>
       <template #footer>
         <el-button @click="statusVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveStatus">保存</el-button>
+        <el-button type="primary" :loading="statusSaving" @click="saveStatus">保存</el-button>
       </template>
     </el-dialog>
 
@@ -154,7 +154,7 @@
       </el-form>
       <template #footer>
         <el-button @click="noteVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveNote">保存</el-button>
+        <el-button type="primary" :loading="noteSaving" @click="saveNote">保存</el-button>
       </template>
     </el-dialog>
 
@@ -227,6 +227,8 @@ const reports = ref<any[]>([])
 const detail = ref<any>(null)
 const loading = ref(false)
 const saving = ref(false)
+const statusSaving = ref(false)
+const noteSaving = ref(false)
 const createVisible = ref(false)
 const statusVisible = ref(false)
 const noteVisible = ref(false)
@@ -333,10 +335,16 @@ function openStatus(row: any) {
 }
 
 async function saveStatus() {
-  await updateApplicationStatusApi(currentId.value!, statusForm)
-  ElMessage.success('状态已更新')
-  statusVisible.value = false
-  loadApplications()
+  if (statusSaving.value) return
+  statusSaving.value = true
+  try {
+    await updateApplicationStatusApi(currentId.value!, statusForm)
+    ElMessage.success('状态已更新')
+    statusVisible.value = false
+    loadApplications()
+  } finally {
+    statusSaving.value = false
+  }
 }
 
 function openNote(row: any) {
@@ -348,10 +356,16 @@ function openNote(row: any) {
 }
 
 async function saveNote() {
-  await updateApplicationNoteApi(currentId.value!, noteForm)
-  ElMessage.success('备注已更新')
-  noteVisible.value = false
-  loadApplications()
+  if (noteSaving.value) return
+  noteSaving.value = true
+  try {
+    await updateApplicationNoteApi(currentId.value!, noteForm)
+    ElMessage.success('备注已更新')
+    noteVisible.value = false
+    loadApplications()
+  } finally {
+    noteSaving.value = false
+  }
 }
 
 async function openDetail(id: number) {
@@ -478,11 +492,11 @@ onBeforeUnmount(() => {
   font-size: 24px;
 }
 
-.stage-panel.success { background: #ecfdf3; color: #047857; }
-.stage-panel.warning { background: #fffbeb; color: #b45309; }
-.stage-panel.danger { background: #fef2f2; color: #dc2626; }
-.stage-panel.primary { background: #eff6ff; color: #1d4ed8; }
-.stage-panel.info { background: #f8fafc; color: #475467; }
+.stage-panel.success { background: var(--el-color-success-light-9); color: var(--color-success); }
+.stage-panel.warning { background: var(--el-color-warning-light-9); color: var(--color-warning); }
+.stage-panel.danger { background: var(--el-color-danger-light-9); color: var(--color-danger); }
+.stage-panel.primary { background: var(--color-primary-soft); color: var(--color-primary-hover); }
+.stage-panel.info { background: var(--color-surface-muted); color: var(--color-text-muted); }
 
 .stage-panel strong {
   font-size: 20px;
@@ -529,13 +543,13 @@ onBeforeUnmount(() => {
 
 .next-step {
   padding: 12px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--el-color-info-light-7);
   border-radius: 8px;
-  background: #eff6ff;
+  background: var(--el-color-info-light-9);
 }
 
 .next-step strong {
-  color: #1d4ed8;
+  color: var(--el-color-info-dark-2);
 }
 
 .next-step p,
@@ -546,14 +560,14 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
-.application-actions {
+.responsive-actions {
   display: flex;
   width: 132px;
   flex-direction: column;
   gap: 8px;
 }
 
-.application-actions .el-button {
+.responsive-actions .el-button {
   width: 100%;
   margin-left: 0;
 }
@@ -601,7 +615,7 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
-  .application-actions {
+  .responsive-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;

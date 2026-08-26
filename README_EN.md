@@ -12,7 +12,7 @@
 
 InternPilot is a front-end/back-end separated AI internship application and resume optimization platform. It supports resume upload and parsing, job description management, AI-powered resume-job matching analysis, real-time WebSocket progress updates, an AI task center, AI interview question generation, job recommendations, application records, user feedback, a RAG job knowledge base, RBAC permission management, and an admin console.
 
-The project uses a front-end/back-end separated architecture. The back end is built with Spring Boot, Spring Security, MyBatis-Plus, MySQL, Redis, WebSocket, and the DeepSeek API. The front end is built with Vue 3, TypeScript, Element Plus, Vue Router, Pinia, Axios, and ECharts.
+The project uses a front-end/back-end separated architecture. The back end is built with Spring Boot, Spring Security, MyBatis-Plus, MySQL, Redis, WebSocket, and the DeepSeek API. The front end is built with Vue 3, Vite, TypeScript, Element Plus, Vue Router, Pinia, Axios, ECharts, and Sass.
 
 Current stable demo version: `v1.3.1`. The production administrator account and password are not disclosed in the README, screenshots, commit history, or sample configuration files.
 
@@ -48,7 +48,7 @@ InternPilot aims to help students prepare for internships more efficiently throu
 - **AI Report PDF Export**: Analysis reports support a standalone print page and browser-based PDF saving, making them convenient for defense demos and job-search documentation.
 - **RBAC Admin Console**: Manages users, roles, permissions, operation logs, the RAG knowledge base, user feedback, and admin dashboards.
 - **Closed Job Recommendation Loop**: Forms a complete job-search workflow from the job library, recommendation batches, and recommendation reasons to application records.
-- **Product-Level Front-End Experience**: Separates the user workspace from the admin console, with unified page titles, card layouts, empty states, loading states, error messages, deletion confirmation, and responsive design.
+- **Product-Level Front-End Experience**: Organizes the user workspace around a five-stage job-search journey, with mobile bottom navigation, a dark grouped admin console, shared page primitives, explicit loading/empty/recovery states, responsive behavior from 375px to wide screens, and a standalone print layout.
 - **Spring Boot Engineering Enhancements**: Integrates Actuator, Validation, global exception handling, AOP latency logging, operation log desensitization, and Docker healthchecks.
 - **Front-End Performance Optimization**: Uses route lazy loading, Vite manualChunks splitting, logo asset compression, Nginx gzip, and static asset caching.
 - **Complete Testing System**: Covers core workflows with JUnit 5, Mockito, MockMvc, Spring Security Test, H2, JaCoCo, and front-end type checking.
@@ -498,16 +498,19 @@ Core tables:
 
 | File | Description |
 | --- | --- |
-| `src/components/layout/AppLayout.vue` | Main layout container for the user workspace |
-| `src/components/layout/AppSidebar.vue` | Sidebar menu and permission control for the user workspace |
-| `src/components/layout/AppHeader.vue` | Top bar, including user entry, admin console entry, and AI mode indicator |
-| `src/components/layout/AdminLayout.vue` | Independent admin console layout |
+| `src/components/layout/AppLayout.vue` | User-facing job-search journey shell |
+| `src/components/layout/AppHeader.vue` | Desktop header with journey navigation, AI tasks, feedback, account, and admin entry points |
+| `src/components/layout/JourneyNav.vue` | Desktop five-stage job-search journey navigation |
+| `src/components/layout/MobileBottomNav.vue` | Mobile core journey navigation and More drawer |
+| `src/components/layout/AdminLayout.vue` | Independent dark grouped admin console layout |
+| `src/components/layout/AdminSidebar.vue` | Permission-filtered grouped admin navigation |
 | `src/components/common/PageContainer.vue` | Page title and content container |
 | `src/components/common/AppPageHeader.vue` | Page title, description, and action area |
 | `src/components/common/AppEmpty.vue` | Common empty state |
 | `src/components/common/StatusTag.vue` | Status tag |
 | `src/components/common/AppConfirmButton.vue` | Action button with confirmation |
-| `src/components/ai-task/AiTaskFloat.vue` | Floating entry for the AI task center |
+| `src/components/ai/AiTaskDrawer.vue` | Global AI task status, recovery actions, and result entry points |
+| `src/components/feedback/FeedbackDrawer.vue` | Global feedback drawer |
 | `src/views/analysis/AnalysisMatch.vue` | Resume matching analysis page |
 | `src/views/recommendation/JobRecommendationList.vue` | Job recommendation page |
 | `src/views/admin/AdminRagKnowledgeList.vue` | RAG knowledge base management page |

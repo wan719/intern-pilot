@@ -241,8 +241,10 @@ onMounted(loadReport)
   min-height: 297mm;
   margin: 0 auto;
   padding: 18mm;
+  overflow: visible;
   background: #fff;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  overflow-wrap: anywhere;
 }
 
 .report-header {
@@ -409,14 +411,22 @@ h2 {
 }
 
 @media print {
+  :global(html),
   :global(body) {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
     background: #fff !important;
+    color: #000 !important;
   }
 
   .print-shell {
+    width: 100%;
     min-height: auto;
     padding: 0;
-    background: #fff;
+    overflow: visible;
+    background: #fff !important;
+    color: #000 !important;
   }
 
   .print-toolbar {
@@ -424,15 +434,63 @@ h2 {
   }
 
   .print-page {
-    width: auto;
+    width: 100%;
+    max-width: none;
     min-height: auto;
     padding: 0;
+    overflow: visible;
+    background: #fff !important;
+    color: #000 !important;
     box-shadow: none;
+  }
+
+  .print-page :is(h1, h2, p, li, strong, span, small) {
+    color: #000 !important;
+  }
+
+  .report-header,
+  .report-footer,
+  .meta-grid div,
+  .report-section {
+    border-color: #000 !important;
+  }
+
+  .score-box {
+    border: 1px solid #000;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .bar {
+    border: 1px solid #000;
+    background: #fff !important;
+  }
+
+  .bar i {
+    background: #555 !important;
+  }
+
+  .two-column {
+    display: block;
+    margin-top: 0;
   }
 
   .report-section,
   .meta-grid div {
-    break-inside: avoid;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  h1,
+  h2 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
   }
 }
 

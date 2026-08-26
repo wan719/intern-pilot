@@ -104,7 +104,7 @@
                 <li v-for="text in previewList(item.weaknesses, '暂无明显风险，请进入详情核对完整报告。')" :key="text">{{ text }}</li>
               </ul>
             </AiInsightPanel>
-            <AiInsightPanel title="下一步行动" tone="action" data-report-actions>
+            <AiInsightPanel title="下一步行动" tone="action" data-report-guidance>
               <ol>
                 <li v-for="text in previewActions(item)" :key="text">{{ text }}</li>
               </ol>
@@ -112,7 +112,7 @@
           </div>
         </div>
 
-        <div class="report-actions" aria-label="报告操作">
+        <div class="responsive-actions" aria-label="报告操作">
           <el-button type="primary" @click="openDetail(item.reportId)">查看详情</el-button>
           <el-button @click="goInterviewQuestions(item)">生成面试题</el-button>
           <el-button :icon="Printer" @click="openPrintPage(item.reportId)">导出 PDF</el-button>
@@ -656,14 +656,14 @@ onMounted(async () => {
   line-height: 1.7;
 }
 
-.report-actions {
+.responsive-actions {
   display: flex;
   width: 136px;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.report-actions .el-button {
+.responsive-actions .el-button {
   width: 100%;
   margin-left: 0;
 }
@@ -743,7 +743,7 @@ onMounted(async () => {
     grid-template-columns: 104px minmax(0, 1fr);
   }
 
-  .report-actions {
+  .responsive-actions {
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -770,11 +770,11 @@ onMounted(async () => {
   }
 
   .insight-preview :deep(.ai-insight-panel:last-child),
-  .report-actions {
+  .responsive-actions {
     grid-column: auto;
   }
 
-  .report-actions {
+  .responsive-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -797,7 +797,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 420px) {
-  .report-actions {
+  .responsive-actions {
     grid-template-columns: 1fr;
   }
 }

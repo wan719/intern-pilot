@@ -47,6 +47,19 @@ describe('shared product UI primitives', () => {
     expect(wrapper.get('h1').text()).toBe('页面目标')
   })
 
+  it('keeps the compatibility heading and actions when no hero slot is supplied', () => {
+    const wrapper = mount(PageContainer, {
+      props: { title: '兼容页面标题', description: '兼容页面说明' },
+      slots: { actions: '<button>主要操作</button>', default: '<div>页面内容</div>' },
+      global: { plugins: [router] }
+    })
+
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.get('h1').text()).toBe('兼容页面标题')
+    expect(wrapper.get('.app-page-actions').text()).toContain('主要操作')
+    expect(wrapper.text()).toContain('兼容页面说明')
+  })
+
   it('renders AppEmpty action content in its default slot', () => {
     const wrapper = mount(AppEmpty, {
       props: { title: '还没有目标岗位' },

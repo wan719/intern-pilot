@@ -426,6 +426,25 @@ describe('analysis match redesign', () => {
     expect(mockedCreateTask).toHaveBeenCalledTimes(1)
   })
 
+  it('announces current, completed and pending progress steps without relying on color', async () => {
+    const wrapper = await mountPage()
+    selectValidInputs(wrapper)
+    await flushPromises()
+    await (wrapper.vm as any).startTask()
+    await flushPromises()
+
+    lastSocketCallbacks().onMessage({
+      taskNo: 'ANALYSIS_001', status: 'CALLING_AI', progress: 68, message: '正在生成匹配结论'
+    })
+    await flushPromises()
+
+    const steps = wrapper.findAll('.progress-steps li')
+    expect(steps).toHaveLength(6)
+    expect(wrapper.get('.progress-steps li[aria-current="step"]').text()).toContain('调用 AI')
+    expect(steps[0].text()).toContain('已完成')
+    expect(steps[4].text()).toContain('待处理')
+  })
+
   it('moves to polling fallback when the existing client closes before reconnecting', async () => {
     const wrapper = await mountPage()
     selectValidInputs(wrapper)

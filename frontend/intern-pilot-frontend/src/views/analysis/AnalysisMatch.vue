@@ -234,11 +234,13 @@
             v-for="(step, index) in progressSteps"
             :key="step.title"
             :class="{ active: index === activeStep, complete: index < activeStep || task.status === 'COMPLETED' }"
+            :aria-current="index === activeStep ? 'step' : undefined"
           >
             <span>{{ index + 1 }}</span>
             <div>
               <strong>{{ step.title }}</strong>
               <small>{{ step.description }}</small>
+              <span class="sr-only">{{ progressStepState(index) }}</span>
             </div>
           </li>
         </ol>
@@ -435,6 +437,12 @@ const activeStep = computed(() => {
 })
 
 const currentStageText = computed(() => progressSteps[activeStep.value]?.description || '正在推进分析任务')
+
+function progressStepState(index: number) {
+  if (task.status === 'COMPLETED' || index < activeStep.value) return '已完成'
+  if (index === activeStep.value) return '当前步骤'
+  return '待处理'
+}
 
 const progressStatus = computed(() => {
   if (task.status === 'FAILED') return 'exception'

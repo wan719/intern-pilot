@@ -85,7 +85,7 @@
             </div>
           </div>
 
-          <div class="job-actions">
+          <div class="responsive-actions">
             <el-button type="primary" :icon="MagicStick" @click="startAnalysis(item.jobId)">开始分析</el-button>
             <el-button @click="openDetail(item.jobId)">详情</el-button>
             <el-button @click="openEdit(item.jobId)">编辑</el-button>
@@ -465,14 +465,14 @@ onMounted(loadJobs)
   font-size: 13px;
 }
 
-.job-actions {
+.responsive-actions {
   display: flex;
   width: 132px;
   flex-direction: column;
   gap: 8px;
 }
 
-.job-actions .el-button {
+.responsive-actions .el-button {
   width: 100%;
   margin-left: 0;
 }
@@ -483,7 +483,7 @@ onMounted(loadJobs)
     grid-template-columns: 1fr;
   }
 
-  .job-actions {
+  .responsive-actions {
     width: 100%;
   }
 

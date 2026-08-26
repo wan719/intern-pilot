@@ -75,7 +75,7 @@
             </el-table-column>
             <el-table-column label="操作" width="310" fixed="right">
               <template #default="{ row }">
-                <div class="resume-actions" role="group" :aria-label="`${resumeDisplayName(row)}操作`">
+                <div class="responsive-actions" role="group" :aria-label="`${resumeDisplayName(row)}操作`">
                   <el-button link type="primary" @click="openDetail(row.resumeId)">详情</el-button>
                   <el-button link type="primary" @click="goVersions(row.resumeId)">版本管理</el-button>
                   <el-button v-if="!row.isDefault" link type="primary" @click="setDefault(row.resumeId)">设为默认</el-button>
@@ -121,7 +121,7 @@
                 <dd>{{ formatDateTime(item.createdAt) }}</dd>
               </div>
             </dl>
-            <div class="resume-actions" role="group" :aria-label="`${resumeDisplayName(item)}操作`">
+            <div class="responsive-actions" role="group" :aria-label="`${resumeDisplayName(item)}操作`">
               <el-button link type="primary" @click="openDetail(item.resumeId)">详情</el-button>
               <el-button link type="primary" @click="goVersions(item.resumeId)">版本管理</el-button>
               <el-button v-if="!item.isDefault" link type="primary" @click="setDefault(item.resumeId)">设为默认</el-button>
@@ -449,7 +449,7 @@ onMounted(loadResumes)
 }
 
 .resume-statuses,
-.resume-actions {
+.responsive-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

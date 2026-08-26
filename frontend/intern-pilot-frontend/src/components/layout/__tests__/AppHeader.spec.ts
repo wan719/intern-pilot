@@ -33,11 +33,28 @@ describe('AppHeader global actions', () => {
 
   it('opens the existing AI task drawer store from the header action', async () => {
     const { wrapper, aiTaskCenter } = await mountHeader()
+    const aiButton = wrapper.findAll('button').find((item) => item.text().includes('AI 任务'))!
 
     expect(aiTaskCenter.drawerVisible).toBe(false)
-    await wrapper.get('button[aria-label="打开 AI 任务中心"]').trigger('click')
+    await aiButton.trigger('click')
 
     expect(aiTaskCenter.drawerVisible).toBe(true)
+  })
+
+  it('announces cancelled actionable tasks from the header action', async () => {
+    const { wrapper, aiTaskCenter } = await mountHeader()
+    const localTaskId = aiTaskCenter.createTask({
+      type: 'ANALYSIS_MATCH',
+      title: 'AI 简历匹配分析',
+      taskNo: 'ANALYSIS_CANCELLED',
+      sourcePath: '/analysis/match'
+    })
+    aiTaskCenter.updateTask(localTaskId, { status: 'CANCELLED' }, { notify: false })
+    await wrapper.vm.$nextTick()
+
+    const aiButton = wrapper.findAll('button').find((item) => item.text().includes('AI 任务'))!
+    expect(aiButton.attributes('aria-label')).toBe('有 1 个任务已取消，待处理')
+    expect(aiButton.get('.header-action-badge').text()).toBe('1')
   })
 
   it('opens the existing feedback drawer store from the header action', async () => {

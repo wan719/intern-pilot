@@ -413,8 +413,8 @@ onMounted(loadDetail)
   gap: 4px;
   padding: 12px 14px;
   border-radius: 8px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-info-dark-2);
   text-align: right;
 }
 

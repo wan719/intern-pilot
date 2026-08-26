@@ -275,7 +275,12 @@ describe('job recommendation list redesign', () => {
     mockedDetail.mockRejectedValueOnce(new Error('preview unavailable'))
     const previewFailedPage = await mountPage()
     expect(previewFailedPage.get('[data-batch-preview-error="31"]').text()).toContain('预览暂不可用')
-    expect(previewFailedPage.get('[data-batch-retry="31"]').text()).toContain('重试')
+    const batchRetry = previewFailedPage.get('[data-batch-retry="31"]')
+    expect(batchRetry.text()).toContain('重试')
+    const callsBeforeRetry = mockedList.mock.calls.length
+    await batchRetry.trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenCalledTimes(callsBeforeRetry + 1)
   })
 
   it('keeps pending reads in a labelled loading state and generation failures retryable', async () => {

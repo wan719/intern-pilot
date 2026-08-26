@@ -103,6 +103,51 @@ describe('authentication behavior characterization', () => {
     expect(wrapper.text()).toContain('60s')
   })
 
+  it('decrements, expires and cleans up the registration-code cooldown', async () => {
+    vi.useFakeTimers()
+    mockedSendRegisterCaptchaApi.mockResolvedValue(undefined as never)
+    const { wrapper } = await mountAuth(Register, '/register')
+
+    await wrapper.findAll('input')[0].setValue('new@example.com')
+    await wrapper.findAll('button').find((item) => item.text().includes('发送验证码'))!.trigger('click')
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(wrapper.text()).toContain('59s')
+    await vi.advanceTimersByTimeAsync(59000)
+    expect(wrapper.text()).toContain('发送验证码')
+    expect((wrapper.vm as any).captchaCountdown).toBe(0)
+
+    await wrapper.findAll('button').find((item) => item.text().includes('发送验证码'))!.trigger('click')
+    await flushPromises()
+    const timersBeforeUnmount = vi.getTimerCount()
+    wrapper.unmount()
+    expect(vi.getTimerCount()).toBeLessThan(timersBeforeUnmount)
+  })
+
+  it('surfaces captcha and registration rejections without navigating or starting a cooldown', async () => {
+    vi.useFakeTimers()
+    const errorMessage = vi.spyOn(ElMessage, 'error').mockImplementation(() => undefined as never)
+    mockedSendRegisterCaptchaApi.mockRejectedValueOnce(new Error('验证码服务暂不可用'))
+    mockedRegisterApi.mockRejectedValueOnce(new Error('验证码不正确'))
+    const { wrapper, router } = await mountAuth(Register, '/register')
+    const inputs = wrapper.findAll('input')
+
+    await inputs[0].setValue('new@example.com')
+    await wrapper.findAll('button').find((item) => item.text().includes('发送验证码'))!.trigger('click')
+    await flushPromises()
+    expect(errorMessage).toHaveBeenCalledWith('验证码服务暂不可用')
+    expect((wrapper.vm as any).captchaCountdown).toBe(0)
+
+    await inputs[1].setValue('123456')
+    await inputs[2].setValue('safe-password')
+    await inputs[3].setValue('safe-password')
+    await wrapper.get('button.el-button--primary').trigger('click')
+    await flushPromises()
+    expect(errorMessage).toHaveBeenCalledWith('验证码不正确')
+    expect(router.currentRoute.value.path).toBe('/register')
+  })
+
   it('associates visible registration labels with their inputs', async () => {
     const { wrapper } = await mountAuth(Register, '/register')
 

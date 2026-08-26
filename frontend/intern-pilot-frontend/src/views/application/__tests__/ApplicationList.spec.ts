@@ -107,6 +107,32 @@ describe('application tracking contract characterization', () => {
     expect((wrapper.vm as any).filteredApplications).toHaveLength(1)
   })
 
+  it('keeps status and note writes single-flight until each save settles', async () => {
+    const statusWrite = deferred<void>()
+    const noteWrite = deferred<void>()
+    mockedUpdateStatus.mockReturnValueOnce(statusWrite.promise as any)
+    mockedUpdateNote.mockReturnValueOnce(noteWrite.promise as any)
+    const wrapper = await mountPage()
+
+    ;(wrapper.vm as any).openStatus(application)
+    const firstStatusSave = (wrapper.vm as any).saveStatus()
+    const duplicateStatusSave = (wrapper.vm as any).saveStatus()
+    expect(mockedUpdateStatus).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as any).statusSaving).toBe(true)
+    statusWrite.resolve()
+    await Promise.all([firstStatusSave, duplicateStatusSave])
+    expect((wrapper.vm as any).statusSaving).toBe(false)
+
+    ;(wrapper.vm as any).openNote(application)
+    const firstNoteSave = (wrapper.vm as any).saveNote()
+    const duplicateNoteSave = (wrapper.vm as any).saveNote()
+    expect(mockedUpdateNote).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as any).noteSaving).toBe(true)
+    noteWrite.resolve()
+    await Promise.all([firstNoteSave, duplicateNoteSave])
+    expect((wrapper.vm as any).noteSaving).toBe(false)
+  })
+
   it('keeps create, status and note payloads exact and refreshes after successful writes', async () => {
     const wrapper = await mountPage()
     Object.assign((wrapper.vm as any).createForm, {

@@ -22,10 +22,10 @@
           {{ aiProvider === 'deepseek' ? 'DeepSeek' : 'Mock AI' }}
         </el-tag>
 
-        <button class="header-action" type="button" aria-label="打开 AI 任务中心" @click="aiTaskCenter.openDrawer">
+        <button class="header-action" type="button" :aria-label="aiTaskBadgeText" @click="aiTaskCenter.openDrawer">
           <el-icon><Cpu /></el-icon>
           <span class="header-action-label">AI 任务</span>
-          <span v-if="aiTaskCenter.badgeCount" class="header-action-badge">{{ aiTaskCenter.badgeCount }}</span>
+          <span v-if="aiTaskBadgeCount" class="header-action-badge">{{ aiTaskBadgeCount }}</span>
         </button>
         <button class="header-action" type="button" aria-label="打开意见反馈" @click="feedback.openDrawer">
           <el-icon><Message /></el-icon>
@@ -94,6 +94,14 @@ const router = useRouter()
 const auth = useAuthStore()
 const aiTaskCenter = useAiTaskCenterStore()
 const feedback = useFeedbackStore()
+const aiTaskBadgeCount = computed(() => aiTaskCenter.badgeCount + aiTaskCenter.cancelledTasks.length)
+const aiTaskBadgeText = computed(() => {
+  if (aiTaskCenter.runningTasks.length) return `AI 任务 ${aiTaskCenter.runningTasks.length} 个进行中`
+  if (aiTaskCenter.failedTasks.length) return `有 ${aiTaskCenter.failedTasks.length} 个任务失败`
+  if (aiTaskCenter.cancelledTasks.length) return `有 ${aiTaskCenter.cancelledTasks.length} 个任务已取消，待处理`
+  if (aiTaskCenter.completedTasks.length) return `有 ${aiTaskCenter.completedTasks.length} 个结果可查看`
+  return 'AI 任务中心'
+})
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '已登录用户')
 const avatarUrl = computed(() => resolveAvatarUrl(auth.user?.avatarUrl))
 const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase())

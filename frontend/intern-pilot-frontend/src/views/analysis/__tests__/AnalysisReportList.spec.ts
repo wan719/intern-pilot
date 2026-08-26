@@ -159,7 +159,7 @@ describe('analysis report list redesign', () => {
     expect(card.text()).toContain('2026')
     expect(card.get('[data-report-strengths]').text()).toContain('Vue 项目经验扎实')
     expect(card.get('[data-report-risks]').text()).toContain('缺少性能优化量化结果')
-    expect(card.get('[data-report-actions]').text()).toContain('补充首屏性能指标')
+    expect(card.get('[data-report-guidance]').text()).toContain('补充首屏性能指标')
     expect(card.findAllComponents({ name: 'AiInsightPanel' })).toHaveLength(3)
   })
 

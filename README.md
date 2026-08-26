@@ -13,7 +13,7 @@
 
 InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。系统支持简历上传解析、岗位 JD 管理、AI 简历匹配分析、WebSocket 实时进度展示、AI 任务中心、AI 面试题生成、岗位推荐、投递记录、用户反馈、RAG 岗位知识库、RBAC 权限管理和管理员后台。
 
-项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、TypeScript、Element Plus、Vue Router、Pinia、Axios 和 ECharts。
+项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、Vite、TypeScript、Element Plus、Vue Router、Pinia、Axios、ECharts 和 Sass。
 
 当前稳定演示版本：`v1.3.1`。线上管理员账号与密码不在 README、截图、提交记录或示例配置中公开。
 
@@ -49,7 +49,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 - **AI 报告 PDF 导出**：分析报告支持独立打印页和浏览器保存 PDF，便于答辩演示和求职资料归档
 - **RBAC 管理后台**：用户、角色、权限、操作日志、RAG 知识库、用户反馈和后台看板管理
 - **岗位推荐闭环**：从岗位库、推荐批次、推荐理由到投递记录形成完整求职链路
-- **产品级前端体验**：用户工作台与管理员后台分离，统一页面标题、卡片布局、空状态、loading、错误提示、删除确认和多端适配
+- **产品级前端体验**：以五阶段求职旅程组织用户工作台，配套移动底部导航、深色分组管理后台、统一页面组件、明确 loading / 空状态 / 错误恢复，以及 375px 到宽屏和独立打印页适配
 - **Spring Boot 工程增强**：接入 Actuator、Validation、全局异常处理、AOP 耗时日志、操作日志脱敏和 Docker healthcheck
 - **前端性能优化**：路由懒加载、Vite manualChunks 拆包、Logo 资源压缩、Nginx gzip 与静态资源缓存
 - **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2、JaCoCo 和前端类型检查覆盖核心链路
@@ -499,16 +499,19 @@ erDiagram
 
 | 文件 | 说明 |
 | --- | --- |
-| `src/components/layout/AppLayout.vue` | 用户工作台主布局容器 |
-| `src/components/layout/AppSidebar.vue` | 用户工作台侧边栏菜单与权限控制 |
-| `src/components/layout/AppHeader.vue` | 顶部栏，含用户入口、管理后台入口和 AI 模式指示 |
-| `src/components/layout/AdminLayout.vue` | 独立管理员后台布局 |
+| `src/components/layout/AppLayout.vue` | 用户端求职旅程应用外壳 |
+| `src/components/layout/AppHeader.vue` | 桌面顶部栏，含旅程导航、AI 任务、反馈、账号和后台入口 |
+| `src/components/layout/JourneyNav.vue` | 桌面端五阶段求职旅程导航 |
+| `src/components/layout/MobileBottomNav.vue` | 移动端核心旅程导航与“更多”抽屉 |
+| `src/components/layout/AdminLayout.vue` | 独立深色分组管理员后台布局 |
+| `src/components/layout/AdminSidebar.vue` | 按权限过滤的后台分组导航 |
 | `src/components/common/PageContainer.vue` | 页面标题与内容容器 |
 | `src/components/common/AppPageHeader.vue` | 页面标题、说明和操作区 |
 | `src/components/common/AppEmpty.vue` | 通用空状态 |
 | `src/components/common/StatusTag.vue` | 状态标签 |
 | `src/components/common/AppConfirmButton.vue` | 带确认的操作按钮 |
-| `src/components/ai-task/AiTaskFloat.vue` | AI 任务中心浮动入口 |
+| `src/components/ai/AiTaskDrawer.vue` | 全局 AI 任务状态、恢复操作与结果入口 |
+| `src/components/feedback/FeedbackDrawer.vue` | 全局意见反馈抽屉 |
 | `src/views/analysis/AnalysisMatch.vue` | 简历匹配分析页面 |
 | `src/views/recommendation/JobRecommendationList.vue` | 岗位推荐页面 |
 | `src/views/admin/AdminRagKnowledgeList.vue` | RAG 知识库管理页面 |

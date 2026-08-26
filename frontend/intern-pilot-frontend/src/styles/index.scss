@@ -15,6 +15,17 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -24,6 +35,13 @@ body {
 a {
   color: var(--color-primary);
   text-decoration: none;
+}
+
+.el-drawer__close-btn:focus-visible,
+.el-dialog__headerbtn:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .user-app-shell {
@@ -61,7 +79,7 @@ a {
 
   span {
     margin-top: 3px;
-    color: #68758a;
+    color: var(--color-text-muted);
     font-size: 12px;
   }
 }
@@ -73,7 +91,7 @@ a {
   place-items: center;
   border-radius: 8px;
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-surface);
   font-weight: 700;
 }
 
@@ -328,7 +346,7 @@ a {
   display: grid;
   gap: 6px;
   margin-top: 2px;
-  color: #667085;
+  color: var(--color-text-muted);
 }
 
 .app-empty-copy strong {
@@ -401,12 +419,16 @@ a {
 }
 
 .stat-card {
+  --stat-card-tone: var(--color-primary);
+  --stat-card-tone-soft: var(--color-primary-soft);
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 104px;
   padding: 20px;
   border: 1px solid var(--color-border);
+  border-top: 3px solid var(--stat-card-tone);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
@@ -447,7 +469,7 @@ a {
   }
 
   .stat-card__trend {
-    color: var(--color-primary-hover);
+    color: var(--stat-card-tone);
   }
 
   .el-icon {
@@ -456,23 +478,23 @@ a {
     height: 44px;
     place-items: center;
     border-radius: var(--radius-md);
-    background: var(--color-primary-soft);
-    color: var(--color-primary);
+    background: var(--stat-card-tone-soft);
+    color: var(--stat-card-tone);
   }
 
-  &.stat-card--info .el-icon {
-    background: var(--el-color-info-light-9);
-    color: var(--color-info);
+  &.stat-card--info {
+    --stat-card-tone: var(--color-info);
+    --stat-card-tone-soft: var(--el-color-info-light-9);
   }
 
-  &.stat-card--success .el-icon {
-    background: var(--el-color-success-light-9);
-    color: var(--color-success);
+  &.stat-card--success {
+    --stat-card-tone: var(--color-success);
+    --stat-card-tone-soft: var(--el-color-success-light-9);
   }
 
-  &.stat-card--warning .el-icon {
-    background: var(--el-color-warning-light-9);
-    color: var(--color-warning);
+  &.stat-card--warning {
+    --stat-card-tone: var(--color-warning);
+    --stat-card-tone-soft: var(--el-color-warning-light-9);
   }
 
   .stat-card__skeleton {
@@ -1078,7 +1100,7 @@ a {
   }
 
   .responsive-actions,
-  :is(.application-actions, .job-actions, .resume-actions, .report-actions, .interview-actions, .batch-actions, .card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) {
+  :is(.card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100% !important;
@@ -1086,7 +1108,7 @@ a {
   }
 
   .responsive-actions .el-button,
-  :is(.application-actions, .job-actions, .resume-actions, .report-actions, .interview-actions, .batch-actions, .card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) .el-button {
+  :is(.card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) .el-button {
     width: 100%;
     min-height: 36px;
     margin-left: 0;
@@ -1125,7 +1147,7 @@ a {
   }
 
   .responsive-actions,
-  :is(.application-actions, .job-actions, .resume-actions, .report-actions, .interview-actions, .batch-actions, .card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) {
+  :is(.card-actions, .detail-actions, .hero-actions, .quick-actions, .failed-actions, .success-actions, .guide-actions, .question-actions) {
     grid-template-columns: 1fr;
   }
 }

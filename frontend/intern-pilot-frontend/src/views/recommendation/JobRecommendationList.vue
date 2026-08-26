@@ -146,7 +146,7 @@
                 </div>
               </div>
 
-              <div class="batch-actions">
+              <div class="responsive-actions">
                 <el-button type="primary" @click="viewDetail(batch.batchId)">查看详情</el-button>
                 <el-button type="danger" plain @click="removeBatch(batch)">删除</el-button>
               </div>
@@ -478,9 +478,9 @@ onMounted(() => {
   grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--el-color-info-light-7);
   border-radius: 8px;
-  background: #eff6ff;
+  background: var(--el-color-info-light-9);
 }
 
 .preview-job strong,
@@ -551,14 +551,14 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
-.batch-actions {
+.responsive-actions {
   display: flex;
   width: 132px;
   flex-direction: column;
   gap: 8px;
 }
 
-.batch-actions .el-button {
+.responsive-actions .el-button {
   width: 100%;
   margin-left: 0;
 }
@@ -574,7 +574,7 @@ onMounted(() => {
     position: static;
   }
 
-  .batch-actions {
+  .responsive-actions {
     width: 100%;
   }
 
