@@ -266,9 +266,11 @@ function validateFormFields() {
 }
 
 function closeMutationForm() {
+  editRequestId += 1
   formVisible.value = false
-  editingId.value = undefined
   editingLoading.value = false
+  resetForm()
+  void nextTick(() => formRef.value?.clearValidate())
 }
 
 function guardManagePermission() {

@@ -67,11 +67,13 @@ const feedback = {
   id: 51, userId: 17, type: 'BUG', title: '页面按钮异常', content: '按钮无响应', status: 'PENDING'
 }
 
-function deferredConfirmation() {
-  let resolve!: (value: string) => void
-  const promise = new Promise<string>((accept) => { resolve = accept })
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((accept) => { resolve = accept })
   return { promise, resolve }
 }
+
+function deferredConfirmation() { return deferred<string>() }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -181,7 +183,7 @@ describe('admin mutation handler permission guards', () => {
     expect(feedbackStore.deleteFeedback).not.toHaveBeenCalled()
   })
 
-  it('closes an open user role dialog when either required permission is revoked', async () => {
+  it.each(['user:update', 'role:read'])('closes an open user role dialog when %s is revoked', async (revokedPermission) => {
     activePermissions.add('user:update')
     activePermissions.add('role:read')
     const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
@@ -190,7 +192,7 @@ describe('admin mutation handler permission guards', () => {
     vm.openRoleDialog(user)
     expect(vm.roleDialogVisible).toBe(true)
 
-    activePermissions.delete('role:read')
+    activePermissions.delete(revokedPermission)
     await nextTick()
 
     expect(vm.roleDialogVisible).toBe(false)
@@ -198,7 +200,7 @@ describe('admin mutation handler permission guards', () => {
     expect(vm.selectedRoleIds).toEqual([])
   })
 
-  it('closes an open role permission dialog when either required permission is revoked', async () => {
+  it.each(['role:update', 'permission:read'])('closes an open role permission dialog when %s is revoked', async (revokedPermission) => {
     activePermissions.add('role:update')
     activePermissions.add('permission:read')
     vi.mocked(getAdminPermissionListApi).mockResolvedValue([
@@ -210,7 +212,7 @@ describe('admin mutation handler permission guards', () => {
     vm.openDialog(role)
     expect(vm.visible).toBe(true)
 
-    activePermissions.delete('role:update')
+    activePermissions.delete(revokedPermission)
     await nextTick()
 
     expect(vm.visible).toBe(false)
@@ -218,28 +220,59 @@ describe('admin mutation handler permission guards', () => {
     expect(vm.selectedPermissionIds).toEqual([])
   })
 
-  it('closes an open RAG mutation form when rag:manage is revoked', async () => {
+  it('clears an open RAG edit target, draft and errors when rag:manage is revoked', async () => {
     activePermissions.add('rag:manage')
+    vi.mocked(getRagKnowledgeDetailApi).mockResolvedValue(ragDocument as any)
     const wrapper = await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge')
     const vm = wrapper.vm as any
 
-    vm.openCreate()
+    await vm.openEdit(ragDocument.documentId)
     expect(vm.formVisible).toBe(true)
+    expect(vm.editingId).toBe(ragDocument.documentId)
+    Object.assign(vm.form, { title: '未保存标题', direction: '三维重建', content: '未保存内容', enabled: 0 })
+    Object.assign(vm.formErrors, { title: '错误', direction: '错误', knowledgeType: '错误', content: '错误' })
 
     activePermissions.delete('rag:manage')
     await nextTick()
 
     expect(vm.formVisible).toBe(false)
     expect(vm.editingId).toBeUndefined()
+    expect(vm.editingLoading).toBe(false)
+    expect(vm.form).toMatchObject({
+      title: '', direction: '', knowledgeType: 'SKILL_REQUIREMENT', summary: '', content: '', enabled: 1
+    })
+    expect(vm.formErrors).toEqual({ title: '', direction: '', knowledgeType: '', content: '' })
   })
 
-  it('closes open feedback write dialogs when feedback:write is revoked', async () => {
+  it('does not reopen a pending RAG edit after rag:manage is revoked', async () => {
+    activePermissions.add('rag:manage')
+    const detail = deferred<any>()
+    vi.mocked(getRagKnowledgeDetailApi).mockReturnValue(detail.promise)
+    const wrapper = await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge')
+    const vm = wrapper.vm as any
+
+    const action = vm.openEdit(ragDocument.documentId)
+    await nextTick()
+    activePermissions.delete('rag:manage')
+    detail.resolve(ragDocument)
+    await action
+
+    expect(vm.formVisible).toBe(false)
+    expect(vm.editingId).toBeUndefined()
+    expect(vm.form.title).toBe('')
+  })
+
+  it('clears feedback write target and drafts on permission loss without clearing read-only detail', async () => {
     activePermissions.add('feedback:write')
     const wrapper = await mountAdminPage(AdminFeedbackList, '/admin/feedback')
     const vm = wrapper.vm as any
 
+    vm.openDetail(feedback)
     vm.openStatus(feedback)
     vm.openReply(feedback)
+    vm.statusForm.status = 'RESOLVED'
+    vm.replyForm.reply = '未提交回复'
+    vm.replyError = '未清理错误'
     expect(vm.statusVisible).toBe(true)
     expect(vm.replyVisible).toBe(true)
 
@@ -248,6 +281,12 @@ describe('admin mutation handler permission guards', () => {
 
     expect(vm.statusVisible).toBe(false)
     expect(vm.replyVisible).toBe(false)
+    expect(vm.writeTarget).toBeNull()
+    expect(vm.statusForm.status).toBe('PENDING')
+    expect(vm.replyForm.reply).toBe('')
+    expect(vm.replyError).toBe('')
+    expect(vm.detailVisible).toBe(true)
+    expect(vm.selected).toEqual(feedback)
   })
 
   it('does not change user status when user:update is revoked while confirmation is pending', async () => {

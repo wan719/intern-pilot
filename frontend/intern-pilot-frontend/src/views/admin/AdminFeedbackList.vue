@@ -139,6 +139,7 @@ const statusVisible = ref(false)
 const replyVisible = ref(false)
 const saving = ref(false)
 const selected = ref<Feedback | null>(null)
+const writeTarget = ref<Feedback | null>(null)
 const deletingIds = ref(new Set<number>())
 const { responsiveDrawerSize, responsiveDialogWidth } = useResponsiveSize()
 const detailDrawerSize = responsiveDrawerSize('48%')
@@ -203,6 +204,14 @@ function openDetail(row: Feedback) { selected.value = row; detailVisible.value =
 function closeWriteDialogs() {
   statusVisible.value = false
   replyVisible.value = false
+  writeTarget.value = null
+  statusForm.status = 'PENDING'
+  replyForm.reply = ''
+  replyError.value = ''
+  void nextTick(() => {
+    statusFormRef.value?.clearValidate()
+    replyFormRef.value?.clearValidate()
+  })
 }
 function guardWritePermission() {
   if (auth.hasPermission('feedback:write')) return true
@@ -211,14 +220,14 @@ function guardWritePermission() {
 }
 function openStatus(row: Feedback) {
   if (!guardWritePermission()) return
-  selected.value = row
+  writeTarget.value = row
   statusForm.status = row.status
   statusVisible.value = true
   void nextTick(() => statusFormRef.value?.clearValidate())
 }
 function openReply(row: Feedback) {
   if (!guardWritePermission()) return
-  selected.value = row
+  writeTarget.value = row
   replyForm.reply = row.adminReply || ''
   replyError.value = ''
   replyVisible.value = true
@@ -227,7 +236,7 @@ function openReply(row: Feedback) {
 
 async function submitStatus() {
   if (!guardWritePermission()) return
-  if (!selected.value || writeInFlight) return
+  if (!writeTarget.value || writeInFlight) return
   writeInFlight = true
   try {
     await nextTick()
@@ -236,10 +245,10 @@ async function submitStatus() {
     if (!valid) return
     if (!guardWritePermission()) return
     saving.value = true
-    await store.updateStatus(selected.value.id, statusForm.status)
+    await store.updateStatus(writeTarget.value.id, statusForm.status)
     if (!active) return
     ElMessage.success('状态已更新')
-    statusVisible.value = false
+    closeWriteDialogs()
   } finally {
     writeInFlight = false
     if (active) saving.value = false
@@ -248,7 +257,7 @@ async function submitStatus() {
 
 async function submitReply() {
   if (!guardWritePermission()) return
-  if (!selected.value || writeInFlight) return
+  if (!writeTarget.value || writeInFlight) return
   writeInFlight = true
   try {
     await nextTick()
@@ -259,10 +268,10 @@ async function submitReply() {
     if (!valid) return
     if (!guardWritePermission()) return
     saving.value = true
-    await store.reply(selected.value.id, replyForm.reply.trim())
+    await store.reply(writeTarget.value.id, replyForm.reply.trim())
     if (!active) return
     ElMessage.success('回复已提交')
-    replyVisible.value = false
+    closeWriteDialogs()
   } finally {
     writeInFlight = false
     if (active) saving.value = false
