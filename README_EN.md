@@ -81,47 +81,49 @@ InternPilot aims to help students prepare for internships more efficiently throu
 
 ## Feature Demo
 
+> Screenshot note: the previous demo images recorded the UI before this redesign. They have been removed from the README so the retired sidebar and blue theme are not presented as the current product. When the in-app browser is available, the current UI will be re-verified and recaptured with deterministic safe demo data. The routes and experience notes below have completed the local responsive audit.
+
 ### Login Page
 
-![Login Page](docs/assets/screenshots/01-login.png)
+`/login` provides a standalone branded sign-in experience with explicit form labels and keyboard focus states.
 
 ### User Dashboard
 
-![User Dashboard](docs/assets/screenshots/02-dashboard.png)
+`/dashboard` organizes resume, job, analysis, interview, and application progress around a five-stage job-search journey.
 
 ### Resume Management
 
-![Resume Management](docs/assets/screenshots/03-resume-list.png)
+`/resumes` uses a data table on desktop and switches to actionable cards on mobile.
 
 ### Job Description Management
 
-![Job Management](docs/assets/screenshots/04-job-list.png)
+`/jobs` brings together target roles, JD summaries, skill requirements, and the next analysis action.
 
 ### AI Matching Analysis Progress
 
-![AI Analysis Progress](docs/assets/screenshots/05-analysis-progress.png)
+`/analysis/match` shows the resume–job–confirm setup sequence, live task progress, connection recovery, and explicit completion states.
 
 ### AI Analysis Report
 
-![AI Analysis Report](docs/assets/screenshots/06-analysis-report.png)
+`/analysis/reports` presents match scores, strengths, risks, and next actions in report cards.
 
 AI analysis reports support a standalone print page at `/analysis/reports/{id}/print`, which can be printed or saved as a PDF through the browser. The print page reuses the report detail API and does not display the sidebar, top navigation, AI task center, or feedback button.
 
 ### AI Interview Question List
 
-![AI Interview Question List](docs/assets/screenshots/07-interview-question-list.png)
+`/interview-questions` provides question-set filters, generation status, failure recovery, and batch actions.
 
 ### AI Interview Question Details
 
-![AI Interview Question Details](docs/assets/screenshots/08-interview-question-detail.png)
+`/interview-questions/{id}` organizes interview preparation by question, difficulty, answer points, follow-ups, and keywords.
 
 ### Admin Console - User Management
 
-![Admin Console](docs/assets/screenshots/09-admin-user.png)
+`/admin/users` uses the dark grouped admin navigation and a dense user table with container-owned horizontal scrolling.
 
 ### Admin Console - RAG Knowledge Base
 
-![RAG Knowledge Base Management](docs/assets/screenshots/10-admin-rag.png)
+`/admin/rag-knowledge` manages knowledge documents, directions, types, chunks, and rebuild actions in the same admin shell.
 
 ### Core Feature List
 

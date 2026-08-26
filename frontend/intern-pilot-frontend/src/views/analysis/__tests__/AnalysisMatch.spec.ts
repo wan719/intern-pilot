@@ -378,6 +378,37 @@ describe('analysis match redesign', () => {
     expect(primary.attributes('disabled')).toBeDefined()
   })
 
+  it('announces pending, current and completed setup steps without relying on color', async () => {
+    const wrapper = await mountPage()
+    const resumeStep = wrapper.get('[data-setup-step="resume"]')
+    const jobStep = wrapper.get('[data-setup-step="job"]')
+    const confirmStep = wrapper.get('[data-setup-step="confirm"]')
+
+    expect(resumeStep.attributes('aria-current')).toBe('step')
+    expect(resumeStep.text()).toContain('当前步骤')
+    expect(jobStep.text()).toContain('待完成')
+    expect(confirmStep.text()).toContain('待完成')
+
+    ;(wrapper.vm as any).form.resumeId = 3
+    await wrapper.vm.$nextTick()
+    expect(resumeStep.text()).toContain('已完成')
+    expect(resumeStep.attributes('aria-current')).toBeUndefined()
+    expect(jobStep.attributes('aria-current')).toBe('step')
+    expect(jobStep.text()).toContain('当前步骤')
+
+    ;(wrapper.vm as any).form.jobId = 7
+    await wrapper.vm.$nextTick()
+    expect(jobStep.text()).toContain('已完成')
+    expect(confirmStep.attributes('aria-current')).toBe('step')
+    expect(confirmStep.text()).toContain('当前步骤')
+
+    const submission = (wrapper.vm as any).startTask()
+    await flushPromises()
+    expect(confirmStep.attributes('aria-current')).toBeUndefined()
+    expect(confirmStep.text()).toContain('已完成')
+    await submission
+  })
+
   it('keeps primary action copy and disabled/loading state honest through selection and submission', async () => {
     let resolveCreate!: (value: any) => void
     mockedCreateTask.mockReturnValueOnce(new Promise((resolve) => { resolveCreate = resolve }) as any)

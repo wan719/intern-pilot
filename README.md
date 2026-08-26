@@ -82,47 +82,49 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 
 ## 功能演示
 
+> 截图说明：原演示图记录的是本轮重设计前的界面，现已从 README 移除，避免将旧侧栏与蓝色主题误示为当前产品。待内置浏览器可用时，将使用确定性安全演示数据重新核验并录制当前界面。以下路由与体验说明均已完成本地响应式审计。
+
 ### 登录页面
 
-![登录页面](docs/assets/screenshots/01-login.png)
+`/login` 提供独立的品牌登录体验、明确的表单标签与键盘焦点状态。
 
 ### 用户工作台
 
-![用户工作台](docs/assets/screenshots/02-dashboard.png)
+`/dashboard` 以五阶段求职旅程组织简历、岗位、分析、面试与投递进度。
 
 ### 简历管理
 
-![简历管理](docs/assets/screenshots/03-resume-list.png)
+`/resumes` 在桌面端使用数据表格，在移动端切换为可操作卡片。
 
 ### 岗位 JD 管理
 
-![岗位管理](docs/assets/screenshots/04-job-list.png)
+`/jobs` 汇总目标岗位、JD 摘要、技能要求与下一步分析操作。
 
 ### AI 匹配分析进度
 
-![AI 分析进度](docs/assets/screenshots/05-analysis-progress.png)
+`/analysis/match` 展示简历—岗位—确认设置序列、实时任务进度、断线恢复与明确的完成状态。
 
 ### AI 分析报告
 
-![AI 分析报告](docs/assets/screenshots/06-analysis-report.png)
+`/analysis/reports` 以报告卡片呈现匹配分、优势、风险与下一步行动。
 
 AI 分析报告支持独立打印页 `/analysis/reports/{id}/print`，可通过浏览器打印或保存为 PDF。打印页复用报告详情接口，不展示侧边栏、顶部导航、AI 任务中心和反馈按钮。
 
 ### AI 面试题列表
 
-![AI 面试题列表](docs/assets/screenshots/07-interview-question-list.png)
+`/interview-questions` 提供题单筛选、生成状态、失败恢复与批次操作。
 
 ### AI 面试题详情
 
-![AI 面试题详情](docs/assets/screenshots/08-interview-question-detail.png)
+`/interview-questions/{id}` 按题目、难度、答案要点、追问与关键词组织面试准备内容。
 
 ### 管理员后台 - 用户管理
 
-![管理员后台](docs/assets/screenshots/09-admin-user.png)
+`/admin/users` 使用深色分组后台导航与可横向滚动的高密度用户表格。
 
 ### 管理员后台 - RAG 知识库
 
-![RAG 知识库管理](docs/assets/screenshots/10-admin-rag.png)
+`/admin/rag-knowledge` 在相同后台外壳中管理知识文档、方向、类型、切片与重建操作。
 
 ### 核心功能列表
 

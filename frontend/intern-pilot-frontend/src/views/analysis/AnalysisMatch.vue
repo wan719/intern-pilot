@@ -7,17 +7,35 @@
         description="按顺序选好简历与目标岗位，再确认输入。任务提交后可离开页面，进度会继续同步到 AI 任务中心。"
       >
         <ol class="setup-sequence" aria-label="AI 匹配设置步骤">
-          <li class="setup-step" data-setup-step="resume" :class="{ complete: Boolean(form.resumeId) }">
+          <li
+            class="setup-step"
+            data-setup-step="resume"
+            :class="setupStepStateClass('resume')"
+            :aria-current="setupStepState('resume') === 'current' ? 'step' : undefined"
+          >
             <span>1</span>
             <strong>选择简历</strong>
+            <small class="sr-only">{{ setupStepStateText('resume') }}</small>
           </li>
-          <li class="setup-step" data-setup-step="job" :class="{ complete: Boolean(form.jobId) }">
+          <li
+            class="setup-step"
+            data-setup-step="job"
+            :class="setupStepStateClass('job')"
+            :aria-current="setupStepState('job') === 'current' ? 'step' : undefined"
+          >
             <span>2</span>
             <strong>选择目标岗位</strong>
+            <small class="sr-only">{{ setupStepStateText('job') }}</small>
           </li>
-          <li class="setup-step" data-setup-step="confirm" :class="{ complete: canSubmit }">
+          <li
+            class="setup-step"
+            data-setup-step="confirm"
+            :class="setupStepStateClass('confirm')"
+            :aria-current="setupStepState('confirm') === 'current' ? 'step' : undefined"
+          >
             <span>3</span>
             <strong>确认并开始</strong>
+            <small class="sr-only">{{ setupStepStateText('confirm') }}</small>
           </li>
         </ol>
       </PageHero>
@@ -378,6 +396,28 @@ const selectedResume = computed(() => resumes.value.find((item) => item.resumeId
 const selectedVersion = computed(() => versions.value.find((item) => item.versionId === form.resumeVersionId))
 const selectedJob = computed(() => jobs.value.find((item) => item.jobId === form.jobId))
 const canSubmit = computed(() => Boolean(form.resumeId && form.jobId))
+
+type SetupStep = 'resume' | 'job' | 'confirm'
+type SetupStepState = 'complete' | 'current' | 'pending'
+
+function setupStepState(step: SetupStep): SetupStepState {
+  if (step === 'resume') return form.resumeId ? 'complete' : 'current'
+  if (step === 'job') return form.jobId ? 'complete' : form.resumeId ? 'current' : 'pending'
+  if (submissionPending.value || running.value) return 'complete'
+  return canSubmit.value ? 'current' : 'pending'
+}
+
+function setupStepStateClass(step: SetupStep) {
+  const state = setupStepState(step)
+  return { complete: state === 'complete', current: state === 'current' }
+}
+
+function setupStepStateText(step: SetupStep) {
+  const state = setupStepState(step)
+  if (state === 'complete') return '已完成'
+  if (state === 'current') return '当前步骤'
+  return '待完成'
+}
 
 const primaryActionText = computed(() => {
   if (restoringTask.value) return '正在恢复上次分析任务'

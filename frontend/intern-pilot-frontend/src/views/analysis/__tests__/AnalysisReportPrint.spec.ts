@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getAnalysisReportDetailApi } from '@/api/analysis'
 import AnalysisReportPrint from '@/views/analysis/AnalysisReportPrint.vue'
+import analysisReportPrintSource from '@/views/analysis/AnalysisReportPrint.vue?raw'
 
 vi.mock('@/api/analysis', () => ({ getAnalysisReportDetailApi: vi.fn() }))
 
@@ -71,5 +72,10 @@ describe('analysis report print shell', () => {
 
     expect(mockedReportDetail).not.toHaveBeenCalled()
     expect(wrapper.get('.print-error').text()).toContain('报告 ID 不正确')
+  })
+
+  it('keeps narrow viewport layout rules screen-only so they cannot override print resets', () => {
+    expect(analysisReportPrintSource).toMatch(/@media\s+screen\s+and\s+\(max-width:\s*760px\)/)
+    expect(analysisReportPrintSource).not.toMatch(/@media\s+\(max-width:\s*760px\)/)
   })
 })

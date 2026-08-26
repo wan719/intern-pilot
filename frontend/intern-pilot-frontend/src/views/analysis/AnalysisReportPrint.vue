@@ -494,7 +494,7 @@ h2 {
   }
 }
 
-@media (max-width: 760px) {
+@media screen and (max-width: 760px) {
   .print-shell {
     padding: 12px;
   }
