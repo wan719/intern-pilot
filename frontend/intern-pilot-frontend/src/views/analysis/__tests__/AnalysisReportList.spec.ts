@@ -45,6 +45,14 @@ const reportDetail = {
   aiModel: 'deepseek-chat'
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 function button(wrapper: VueWrapper, label: string, index = 0) {
   const matches = wrapper.findAll('button').filter((item) => item.text().trim() === label)
   expect(matches.length).toBeGreaterThan(index)
@@ -184,5 +192,75 @@ describe('analysis report list redesign', () => {
     const emptyPage = await mountPage()
     expect(emptyPage.get('.app-empty').text()).toContain('还没有分析报告')
     expect(emptyPage.get('[data-report-empty-action]').text()).toContain('开始第一次匹配')
+  })
+
+  it('keeps the newest report detail when responses resolve in reverse order', async () => {
+    const wrapper = await mountPage()
+    const staleRequest = deferred<any>()
+    const latestRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
+
+    const staleOpen = (wrapper.vm as any).openDetail(101)
+    const latestOpen = (wrapper.vm as any).openDetail(202)
+    latestRequest.resolve({ ...reportDetail, reportId: 202, companyName: '最新报告公司' })
+    await latestOpen
+    staleRequest.resolve({ ...reportDetail, reportId: 101, companyName: '过期报告公司' })
+    await staleOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detail.reportId).toBe(202)
+    expect((wrapper.vm as any).detail.companyName).toBe('最新报告公司')
+    expect((wrapper.vm as any).detail.companyName).not.toBe('过期报告公司')
+  })
+
+  it('does not let a stale report detail finalizer clear the newest loading state', async () => {
+    const wrapper = await mountPage()
+    const staleRequest = deferred<any>()
+    const latestRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
+
+    const staleOpen = (wrapper.vm as any).openDetail(101)
+    const latestOpen = (wrapper.vm as any).openDetail(202)
+    staleRequest.resolve({ ...reportDetail, reportId: 101 })
+    await staleOpen
+
+    expect((wrapper.vm as any).detailLoading).toBe(true)
+    latestRequest.resolve({ ...reportDetail, reportId: 202 })
+    await latestOpen
+    expect((wrapper.vm as any).detailLoading).toBe(false)
+  })
+
+  it('keeps a closed report drawer empty when its pending detail resolves', async () => {
+    const wrapper = await mountPage()
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = (wrapper.vm as any).openDetail(303)
+    const drawer = wrapper.findComponent({ name: 'ElDrawer' })
+    drawer.vm.$emit('update:modelValue', false)
+    drawer.vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    pendingRequest.resolve({ ...reportDetail, reportId: 303, companyName: '关闭后报告' })
+    await pendingOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detailVisible).toBe(false)
+    expect((wrapper.vm as any).detail).toBeNull()
+    expect((wrapper.vm as any).detailLoading).toBe(false)
+    expect(wrapper.text()).not.toContain('关闭后报告')
+  })
+
+  it('does not commit a report detail after the page unmounts', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = vm.openDetail(404)
+    wrapper.unmount()
+    pendingRequest.resolve({ ...reportDetail, reportId: 404, companyName: '卸载后报告' })
+    await pendingOpen
+
+    expect(vm.detail).toEqual({ reportId: 404 })
   })
 })

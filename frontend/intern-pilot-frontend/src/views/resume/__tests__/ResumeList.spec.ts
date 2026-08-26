@@ -51,6 +51,14 @@ const resumes = [
   }
 ]
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 function button(wrapper: VueWrapper, label: string, index = 0) {
   const matches = wrapper.findAll('button').filter((item) => item.text().trim() === label)
   expect(matches.length).toBeGreaterThan(index)
@@ -197,5 +205,59 @@ describe('resume center redesign', () => {
     expect(failedPage.get('[role="alert"]').text()).toContain('简历列表暂时无法加载')
     expect(failedPage.get('[data-resume-retry]').text()).toContain('重新加载')
     expect(failedPage.find('.app-empty').exists()).toBe(false)
+  })
+
+  it('keeps the newest resume detail when responses resolve in reverse order', async () => {
+    const wrapper = await mountPage()
+    const staleRequest = deferred<any>()
+    const latestRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
+
+    const staleOpen = (wrapper.vm as any).openDetail(101)
+    const latestOpen = (wrapper.vm as any).openDetail(202)
+    latestRequest.resolve({ ...resumes[1], resumeId: 202, resumeName: '最新简历' })
+    await latestOpen
+    staleRequest.resolve({ ...resumes[1], resumeId: 101, resumeName: '过期简历' })
+    await staleOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detail.resumeId).toBe(202)
+    expect((wrapper.vm as any).detail.resumeName).toBe('最新简历')
+    expect((wrapper.vm as any).detail.resumeName).not.toBe('过期简历')
+  })
+
+  it('keeps a closed resume drawer empty when its pending detail resolves', async () => {
+    const wrapper = await mountPage()
+    await (wrapper.vm as any).openDetail(22)
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = (wrapper.vm as any).openDetail(303)
+    const drawer = wrapper.findComponent({ name: 'ElDrawer' })
+    drawer.vm.$emit('update:modelValue', false)
+    drawer.vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    pendingRequest.resolve({ ...resumes[1], resumeId: 303, resumeName: '关闭后简历' })
+    await pendingOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detailVisible).toBe(false)
+    expect((wrapper.vm as any).detail).toBeNull()
+    expect(wrapper.text()).not.toContain('关闭后简历')
+  })
+
+  it('does not commit a resume detail after the page unmounts', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = vm.openDetail(404)
+    wrapper.unmount()
+    pendingRequest.resolve({ ...resumes[1], resumeId: 404, resumeName: '卸载后简历' })
+    await pendingOpen
+
+    expect(vm.detail).toBeNull()
+    expect(vm.detailVisible).toBe(false)
   })
 })

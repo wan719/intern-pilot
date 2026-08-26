@@ -160,7 +160,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="简历详情" :size="detailDrawerSize">
+    <el-drawer v-model="detailVisible" title="简历详情" :size="detailDrawerSize" @close="closeDetail">
       <div v-if="detail" class="detail-stack">
         <section class="panel flat">
           <div class="panel-header">
@@ -202,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { CircleCheckFilled, Document, StarFilled, Upload, UploadFilled, WarningFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -226,6 +226,8 @@ const resumes = ref<any[]>([])
 const detail = ref<any>(null)
 const selectedFile = ref<File>()
 const uploadForm = reactive({ resumeName: '' })
+let detailRequestId = 0
+let detailPageActive = true
 
 const resumeStats = computed(() => {
   const defaultResume = resumes.value.find((item) => item.isDefault)
@@ -281,8 +283,17 @@ async function submitUpload() {
 }
 
 async function openDetail(id: number) {
-  detail.value = await getResumeDetailApi(id)
+  const requestId = ++detailRequestId
+  const result = await getResumeDetailApi(id)
+  if (!detailPageActive || requestId !== detailRequestId) return
+  detail.value = result
   detailVisible.value = true
+}
+
+function closeDetail() {
+  detailRequestId += 1
+  detailVisible.value = false
+  detail.value = null
 }
 
 function goVersions(id: number) {
@@ -339,6 +350,10 @@ function formatFileSize(value?: number | string) {
 }
 
 onMounted(loadResumes)
+onBeforeUnmount(() => {
+  detailPageActive = false
+  detailRequestId += 1
+})
 </script>
 
 <style scoped>

@@ -90,12 +90,15 @@ describe('admin page permission matrix characterization', () => {
     expect(actionLabels(wrapper)).toContain('禁用')
     expect(actionLabels(wrapper)).not.toContain('分配角色')
     expect(actionLabels(await mountAdminPage(AdminRoleList, '/admin/roles'))).not.toContain('分配权限')
-    expect(actionLabels(await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge'))).not.toEqual(
-      expect.arrayContaining(['新增知识', '编辑', '重建', '删除'])
-    )
-    expect(actionLabels(await mountAdminPage(AdminFeedbackList, '/admin/feedback'))).not.toEqual(
-      expect.arrayContaining(['状态', '回复', '删除'])
-    )
+    const ragActionsWithoutManage = actionLabels(await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge'))
+    expect(ragActionsWithoutManage, 'rag:manage forbids 新增知识').not.toContain('新增知识')
+    expect(ragActionsWithoutManage, 'rag:manage forbids 编辑').not.toContain('编辑')
+    expect(ragActionsWithoutManage, 'rag:manage forbids 重建').not.toContain('重建')
+    expect(ragActionsWithoutManage, 'rag:manage forbids 删除').not.toContain('删除')
+    const feedbackActionsWithoutWriteOrDelete = actionLabels(await mountAdminPage(AdminFeedbackList, '/admin/feedback'))
+    expect(feedbackActionsWithoutWriteOrDelete, 'feedback:write forbids 状态').not.toContain('状态')
+    expect(feedbackActionsWithoutWriteOrDelete, 'feedback:write forbids 回复').not.toContain('回复')
+    expect(feedbackActionsWithoutWriteOrDelete, 'feedback:delete forbids 删除').not.toContain('删除')
   })
 
   it('enables user role assignment only after role:read makes role options available', async () => {
@@ -176,13 +179,18 @@ describe('admin page permission matrix characterization', () => {
 
     const userActions = actionLabels(await mountAdminPage(AdminUserList, '/admin/users'))
     expect(userActions).toContain('详情')
-    expect(userActions).not.toEqual(expect.arrayContaining(['分配角色', '禁用', '启用']))
+    expect(userActions, 'user:update + role:read forbids 分配角色').not.toContain('分配角色')
+    expect(userActions, 'user:update forbids 禁用').not.toContain('禁用')
+    expect(userActions, 'user:update forbids 启用').not.toContain('启用')
     expect(actionLabels(await mountAdminPage(AdminRoleList, '/admin/roles'))).not.toContain('分配权限')
-    expect(actionLabels(await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge'))).not.toEqual(
-      expect.arrayContaining(['新增知识', '编辑', '重建', '删除'])
-    )
-    expect(actionLabels(await mountAdminPage(AdminFeedbackList, '/admin/feedback'))).not.toEqual(
-      expect.arrayContaining(['状态', '回复', '删除'])
-    )
+    const ragActions = actionLabels(await mountAdminPage(AdminRagKnowledgeList, '/admin/rag-knowledge'))
+    expect(ragActions, 'rag:manage forbids 新增知识').not.toContain('新增知识')
+    expect(ragActions, 'rag:manage forbids 编辑').not.toContain('编辑')
+    expect(ragActions, 'rag:manage forbids 重建').not.toContain('重建')
+    expect(ragActions, 'rag:manage forbids 删除').not.toContain('删除')
+    const feedbackActions = actionLabels(await mountAdminPage(AdminFeedbackList, '/admin/feedback'))
+    expect(feedbackActions, 'feedback:write forbids 状态').not.toContain('状态')
+    expect(feedbackActions, 'feedback:write forbids 回复').not.toContain('回复')
+    expect(feedbackActions, 'feedback:delete forbids 删除').not.toContain('删除')
   })
 })

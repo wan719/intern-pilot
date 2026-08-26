@@ -260,6 +260,9 @@ describe('admin mutation handler permission guards', () => {
     expect(vm.formVisible).toBe(false)
     expect(vm.editingId).toBeUndefined()
     expect(vm.form.title).toBe('')
+    await vm.save()
+    expect(createRagKnowledgeApi).not.toHaveBeenCalled()
+    expect(updateRagKnowledgeApi).not.toHaveBeenCalled()
   })
 
   it('clears feedback write target and drafts on permission loss without clearing read-only detail', async () => {

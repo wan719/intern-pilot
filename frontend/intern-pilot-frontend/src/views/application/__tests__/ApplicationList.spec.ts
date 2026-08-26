@@ -273,4 +273,58 @@ describe('application tracking redesign', () => {
     await latestLoad
     expect((wrapper.vm as any).loading).toBe(false)
   })
+
+  it('keeps the newest application detail when responses resolve in reverse order', async () => {
+    const wrapper = await mountPage()
+    const staleRequest = deferred<any>()
+    const latestRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
+
+    const staleOpen = (wrapper.vm as any).openDetail(101)
+    const latestOpen = (wrapper.vm as any).openDetail(202)
+    latestRequest.resolve({ ...application, applicationId: 202, companyName: '最新投递公司' })
+    await latestOpen
+    staleRequest.resolve({ ...application, applicationId: 101, companyName: '过期投递公司' })
+    await staleOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detail.applicationId).toBe(202)
+    expect((wrapper.vm as any).detail.companyName).toBe('最新投递公司')
+    expect((wrapper.vm as any).detail.companyName).not.toBe('过期投递公司')
+  })
+
+  it('keeps a closed application drawer empty when its pending detail resolves', async () => {
+    const wrapper = await mountPage()
+    await (wrapper.vm as any).openDetail(17)
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = (wrapper.vm as any).openDetail(303)
+    const drawer = wrapper.findComponent({ name: 'ElDrawer' })
+    drawer.vm.$emit('update:modelValue', false)
+    drawer.vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    pendingRequest.resolve({ ...application, applicationId: 303, companyName: '关闭后投递' })
+    await pendingOpen
+    await flushPromises()
+
+    expect((wrapper.vm as any).detailVisible).toBe(false)
+    expect((wrapper.vm as any).detail).toBeNull()
+    expect(wrapper.text()).not.toContain('关闭后投递')
+  })
+
+  it('does not commit an application detail after the page unmounts', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    const pendingRequest = deferred<any>()
+    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
+
+    const pendingOpen = vm.openDetail(404)
+    wrapper.unmount()
+    pendingRequest.resolve({ ...application, applicationId: 404, companyName: '卸载后投递' })
+    await pendingOpen
+
+    expect(vm.detail).toBeNull()
+    expect(vm.detailVisible).toBe(false)
+  })
 })

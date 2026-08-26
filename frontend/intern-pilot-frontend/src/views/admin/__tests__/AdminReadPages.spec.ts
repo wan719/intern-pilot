@@ -103,6 +103,25 @@ describe('admin dashboard behavior characterization', () => {
     expect(wrapper.findAll('.stat-card strong').map((item) => item.text())).toEqual(['10', '9', '8', '7', '6', '5', '2', '1'])
   })
 
+  it('shows a limited admin only the shortcuts allowed by exact existing permissions', async () => {
+    hasPermission.mockImplementation((permission: string) => permission === 'user:read')
+
+    const wrapper = await mountAdminPage(AdminDashboard, '/admin/dashboard')
+    const quickLinkGrid = wrapper.get('.quick-admin-grid')
+
+    expect(wrapper.findAll('.quick-admin-card').map((item) => item.text())).toHaveLength(1)
+    expect(quickLinkGrid.text()).toContain('用户管理')
+    expect(quickLinkGrid.text()).not.toContain('角色管理')
+    expect(quickLinkGrid.text()).not.toContain('权限管理')
+    expect(quickLinkGrid.text()).not.toContain('操作日志')
+    expect(quickLinkGrid.text()).not.toContain('RAG 知识库')
+    expect(hasPermission).toHaveBeenCalledWith('user:read')
+    expect(hasPermission).toHaveBeenCalledWith('role:read')
+    expect(hasPermission).toHaveBeenCalledWith('permission:read')
+    expect(hasPermission).toHaveBeenCalledWith('operation-log:read')
+    expect(hasPermission).toHaveBeenCalledWith('rag:read')
+  })
+
   it('keeps health and activity conclusions unknown until the summary succeeds', async () => {
     const pending = deferred<any>()
     vi.mocked(getAdminDashboardSummaryApi).mockReturnValueOnce(pending.promise)

@@ -93,7 +93,7 @@
           </div>
         </div>
         <div class="quick-admin-grid">
-          <button v-for="item in quickLinks" :key="item.path" class="quick-admin-card" type="button" @click="router.push(item.path)">
+          <button v-for="item in visibleQuickLinks" :key="item.path" class="quick-admin-card" type="button" @click="router.push(item.path)">
             <el-icon><component :is="item.icon" /></el-icon>
             <strong>{{ item.label }}</strong>
             <span>{{ item.description }}</span>
@@ -114,8 +114,10 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { getAdminDashboardSummaryApi } from '@/api/adminDashboard'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loadState = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const loadError = ref('')
 const summary = ref<any | null>(null)
@@ -150,12 +152,13 @@ const activityItems = computed(() => loadState.value === 'success' ? [
 ] : [])
 const activityMax = computed(() => Math.max(1, ...activityItems.value.map((item) => item.value)))
 const quickLinks = [
-  { label: '用户管理', description: '查看账号、状态与角色分配', path: '/admin/users', icon: User },
-  { label: '角色管理', description: '维护角色与权限关系', path: '/admin/roles', icon: Key },
-  { label: '权限管理', description: '查看系统权限资源清单', path: '/admin/permissions', icon: Files },
-  { label: '操作日志', description: '排查操作结果与异常原因', path: '/admin/operation-logs', icon: List },
-  { label: 'RAG 知识库', description: '维护 AI 分析的知识上下文', path: '/admin/rag-knowledge', icon: Document }
+  { label: '用户管理', description: '查看账号、状态与角色分配', path: '/admin/users', permission: 'user:read', icon: User },
+  { label: '角色管理', description: '维护角色与权限关系', path: '/admin/roles', permission: 'role:read', icon: Key },
+  { label: '权限管理', description: '查看系统权限资源清单', path: '/admin/permissions', permission: 'permission:read', icon: Files },
+  { label: '操作日志', description: '排查操作结果与异常原因', path: '/admin/operation-logs', permission: 'operation-log:read', icon: List },
+  { label: 'RAG 知识库', description: '维护 AI 分析的知识上下文', path: '/admin/rag-knowledge', permission: 'rag:read', icon: Document }
 ]
+const visibleQuickLinks = computed(() => quickLinks.filter((item) => authStore.hasPermission(item.permission)))
 
 function activityWidth(value: number) {
   return Math.max(value > 0 ? 8 : 0, Math.round((value / activityMax.value) * 100))

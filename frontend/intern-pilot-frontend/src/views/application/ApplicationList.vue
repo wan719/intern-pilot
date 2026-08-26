@@ -158,7 +158,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="投递详情" :size="detailDrawerSize">
+    <el-drawer v-model="detailVisible" title="投递详情" :size="detailDrawerSize" @close="closeDetail">
       <div v-if="detail" class="detail-stack">
         <section class="detail-hero">
           <div>
@@ -246,6 +246,7 @@ const noteDialogWidth = responsiveDialogWidth('560px')
 const detailDrawerSize = responsiveDrawerSize('52%')
 let applicationLoadEpoch = 0
 let applicationPageActive = true
+let detailRequestId = 0
 
 const filteredApplications = computed(() => {
   if (!priorityFilter.value) return applications.value
@@ -369,8 +370,17 @@ async function saveNote() {
 }
 
 async function openDetail(id: number) {
-  detail.value = await getApplicationDetailApi(id)
+  const requestId = ++detailRequestId
+  const result = await getApplicationDetailApi(id)
+  if (!applicationPageActive || requestId !== detailRequestId) return
+  detail.value = result
   detailVisible.value = true
+}
+
+function closeDetail() {
+  detailRequestId += 1
+  detailVisible.value = false
+  detail.value = null
 }
 
 async function removeApplication(row: any) {
@@ -447,6 +457,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   applicationPageActive = false
   applicationLoadEpoch += 1
+  detailRequestId += 1
 })
 </script>
 

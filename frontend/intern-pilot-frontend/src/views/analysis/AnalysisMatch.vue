@@ -614,6 +614,7 @@ async function startTask() {
 function connectSocket(taskNo: string, session = taskSession) {
   connectionState.value = 'connecting'
   const attempt = ++socketAttempt
+  // SockJS 1.6.1's Vite browser prebundle still reads bare `global.*`; install the alias before its dynamic import.
   const browserRuntime = globalThis as typeof globalThis & { global?: typeof globalThis }
   browserRuntime.global ||= globalThis
   import('@/utils/analysisSocket')

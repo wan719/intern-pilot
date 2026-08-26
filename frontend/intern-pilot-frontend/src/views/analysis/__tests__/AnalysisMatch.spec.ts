@@ -142,6 +142,26 @@ afterEach(async () => {
 })
 
 describe('analysis match state and contract characterization', () => {
+  it('installs the SockJS browser-global compatibility alias before creating the existing socket', async () => {
+    const browserRuntime = globalThis as typeof globalThis & { global?: typeof globalThis }
+    const previousGlobal = browserRuntime.global
+    Reflect.deleteProperty(browserRuntime, 'global')
+    try {
+      const wrapper = await mountPage()
+      selectValidInputs(wrapper)
+      await flushPromises()
+
+      await (wrapper.vm as any).startTask()
+      await flushPromises()
+
+      expect(browserRuntime.global).toBe(globalThis)
+      expect(mockedSocket).toHaveBeenCalledWith('ANALYSIS_001', expect.any(Function), expect.any(Function))
+    } finally {
+      if (previousGlobal === undefined) Reflect.deleteProperty(browserRuntime, 'global')
+      else browserRuntime.global = previousGlobal
+    }
+  })
+
   it('keeps idle and validating states from creating or registering a task', async () => {
     const wrapper = await mountPage()
 

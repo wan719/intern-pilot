@@ -129,7 +129,7 @@
       </article>
     </section>
 
-    <el-drawer v-model="detailVisible" title="分析报告详情" :size="detailDrawerSize">
+    <el-drawer v-model="detailVisible" title="分析报告详情" :size="detailDrawerSize" @close="closeDetail">
       <section v-if="detailLoading" class="panel flat" role="status" aria-live="polite">
         <el-skeleton :rows="8" animated />
       </section>
@@ -235,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { CircleCheck, Clock, Files, MagicStick, Printer, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -266,6 +266,8 @@ const deletingId = ref<number | null>(null)
 const scoreFilter = ref('all')
 const query = reactive<{ minScore?: number }>({})
 let reportRequestId = 0
+let detailRequestId = 0
+let detailPageActive = true
 
 const scoreFilterOptions = [
   { label: '全部', value: 'all' },
@@ -316,17 +318,29 @@ async function hydrateReportDetails(records: any[]) {
 }
 
 async function openDetail(id: number) {
+  const requestId = ++detailRequestId
   detailVisible.value = true
   detailLoading.value = true
   detailError.value = ''
   detail.value = { reportId: id }
   try {
-    detail.value = await getAnalysisReportDetailApi(id)
+    const result = await getAnalysisReportDetailApi(id)
+    if (!detailPageActive || requestId !== detailRequestId) return
+    detail.value = result
   } catch (error: any) {
+    if (!detailPageActive || requestId !== detailRequestId) return
     detailError.value = error?.message || error?.response?.data?.message || '报告不存在、已被删除，或当前账号没有访问权限。'
   } finally {
-    detailLoading.value = false
+    if (detailPageActive && requestId === detailRequestId) detailLoading.value = false
   }
+}
+
+function closeDetail() {
+  detailRequestId += 1
+  detailVisible.value = false
+  detailLoading.value = false
+  detailError.value = ''
+  detail.value = null
 }
 
 function openReportFromQuery() {
@@ -460,6 +474,11 @@ watch(() => route.query.reportId, openReportFromQuery)
 onMounted(async () => {
   await loadReports()
   openReportFromQuery()
+})
+
+onBeforeUnmount(() => {
+  detailPageActive = false
+  detailRequestId += 1
 })
 </script>
 
