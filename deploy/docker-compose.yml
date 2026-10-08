@@ -111,7 +111,7 @@ services:
     volumes:
       - ./ssl:/etc/nginx/ssl:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1"]
       interval: 15s
       timeout: 5s
       retries: 10
