@@ -53,7 +53,7 @@ InternPilot aims to help students prepare for internships more efficiently throu
 - **Spring Boot Engineering Enhancements**: Integrates Actuator, Validation, global exception handling, AOP latency logging, operation log desensitization, and Docker healthchecks.
 - **Front-End Performance Optimization**: Uses route lazy loading, Vite manualChunks splitting, logo asset compression, Nginx gzip, and static asset caching.
 - **Complete Testing System**: Covers core workflows with JUnit 5, Mockito, MockMvc, Spring Security Test, H2, JaCoCo, and front-end type checking.
-- **GitHub Actions CI**: Automatically runs back-end tests and front-end builds on push or pull request.
+- **GitHub Actions CI**: Automatically runs back-end tests, front-end Vitest tests, and front-end builds on push or pull request.
 
 ### Target Users
 
@@ -182,7 +182,7 @@ flowchart TB
     ServiceTest --> ControllerTest["Controller Tests\nMockMvc / Parameter Validation / Response Structure"]
     ControllerTest --> SecurityTest["Permission Tests\nspring-security-test / 401 / 403"]
     SecurityTest --> Integration["Integration Tests\nSpringBootTest / H2 / Mock AI"]
-    Frontend["Front-End Verification\nvue-tsc / vite build"] --> CI["GitHub Actions CI"]
+    Frontend["Front-End Verification\nVitest / vue-tsc / vite build"] --> CI["GitHub Actions CI"]
     Integration --> CI
 ```
 
@@ -539,8 +539,8 @@ Core tables:
 | AI Interview Question Tests | Prompt construction, response parsing, category/difficulty normalization, and regenerate |
 | User Feedback Tests | Feedback table structure, permissions, and admin processing APIs |
 | Mock AI Tests | Injects MockAiClient in the test environment to avoid calling real AI APIs |
-| Front-End Verification | Vitest component tests, `vue-tsc` type checking, and Vite build; Vitest is not yet part of CI |
-| CI | GitHub Actions automatically runs back-end tests and front-end builds |
+| Front-End Verification | Vitest component tests, `vue-tsc` type checking, and Vite build, all included in CI |
+| CI | GitHub Actions automatically runs back-end tests, front-end tests, and front-end builds |
 
 ### Test Evidence and Coverage
 
@@ -605,7 +605,7 @@ npm run build
 CI configuration files:
 
 ```text
-.github/workflows/ci.yml           # Back-end tests + front-end build
+.github/workflows/ci.yml           # Back-end tests + front-end tests and build
 .github/workflows/docker-build.yml # Docker image build check
 ```
 
@@ -617,8 +617,10 @@ Trigger conditions:
 CI tasks:
 
 - `./gradlew clean test` for back-end unit and integration tests
-- `npm ci` + `npm run build` for front-end type checking and build. The `build` script internally runs `vue-tsc -b`
+- `npm ci` → `npm run test:run` → `npm run build` installs dependencies, runs Vitest, then type checks and builds the front end. A test failure prevents the build step from running.
 - `docker compose build` for Docker image build verification
+
+The front-end check retains its `Frontend Build` name. This describes the current branch configuration; the workflow at the `v1.4.0` tag does not yet include Vitest.
 
 ## Deployment Guide
 
@@ -840,7 +842,7 @@ Contributions through GitHub Issues and Pull Requests are welcome. If you view t
 1. Fork the GitHub main repository.
 2. Create a feature branch: `feature/your-feature-name`.
 3. Keep the code style consistent with the existing project.
-4. Run back-end tests and front-end builds before submitting.
+4. Run back-end tests, front-end tests, and front-end builds before submitting.
 5. When submitting a PR, describe the change scope, verification method, and potential impact.
 
 Code convention recommendations:

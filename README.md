@@ -54,7 +54,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 - **Spring Boot 工程增强**：接入 Actuator、Validation、全局异常处理、AOP 耗时日志、操作日志脱敏和 Docker healthcheck
 - **前端性能优化**：路由懒加载、Vite manualChunks 拆包、Logo 资源压缩、Nginx gzip 与静态资源缓存
 - **完整测试体系**：JUnit 5、Mockito、MockMvc、Spring Security Test、H2、JaCoCo 和前端类型检查覆盖核心链路
-- **GitHub Actions CI**：推送或 PR 时自动运行后端测试和前端构建
+- **GitHub Actions CI**：推送或 PR 时自动运行后端测试、前端 Vitest 测试和前端构建
 
 ### 适用人群
 
@@ -183,7 +183,7 @@ flowchart TB
     ServiceTest --> ControllerTest["Controller 测试\nMockMvc / 参数校验 / 返回结构"]
     ControllerTest --> SecurityTest["权限测试\nspring-security-test / 401 / 403"]
     SecurityTest --> Integration["集成测试\nSpringBootTest / H2 / Mock AI"]
-    Frontend["前端验证\nvue-tsc / vite build"] --> CI["GitHub Actions CI"]
+    Frontend["前端验证\nVitest / vue-tsc / vite build"] --> CI["GitHub Actions CI"]
     Integration --> CI
 ```
 
@@ -540,8 +540,8 @@ erDiagram
 | AI 面试题测试 | Prompt 构建、响应解析、分类/难度规范化、regenerate |
 | 用户反馈测试 | 反馈表结构、权限、管理员处理接口 |
 | Mock AI 测试 | 测试环境注入 MockAiClient，避免调用真实 AI API |
-| 前端验证 | Vitest 组件测试、`vue-tsc` 类型检查、Vite 构建；Vitest 尚未接入 CI |
-| CI | GitHub Actions 自动执行后端测试和前端构建 |
+| 前端验证 | Vitest 组件测试、`vue-tsc` 类型检查、Vite 构建，均接入 CI |
+| CI | GitHub Actions 自动执行后端测试、前端测试和前端构建 |
 
 ### 测试证据与覆盖率
 
@@ -606,7 +606,7 @@ npm run build
 CI 配置文件：
 
 ```text
-.github/workflows/ci.yml           # 后端测试 + 前端构建
+.github/workflows/ci.yml           # 后端测试 + 前端测试与构建
 .github/workflows/docker-build.yml # Docker 镜像构建检查
 ```
 
@@ -618,8 +618,10 @@ CI 配置文件：
 CI 执行内容：
 
 - `./gradlew clean test`（后端单元测试与集成测试）
-- `npm ci` + `npm run build`（前端类型检查与构建，`build` 内部会执行 `vue-tsc -b`）
+- `npm ci` → `npm run test:run` → `npm run build`（依次安装依赖、运行 Vitest、执行类型检查与构建；测试失败时不会继续构建）
 - `docker compose build`（Docker 镜像构建验证）
+
+前端检查沿用 `Frontend Build` 名称；以上为当前分支配置，`v1.4.0` 标签中的工作流尚未包含 Vitest 步骤。
 
 ## 部署说明
 
@@ -841,7 +843,7 @@ git push gitee dev
 1. Fork GitHub 主仓库
 2. 创建功能分支：`feature/your-feature-name`
 3. 保持代码风格与现有项目一致
-4. 提交前运行后端测试和前端构建
+4. 提交前运行后端测试、前端测试和前端构建
 5. 提交 PR 时说明改动范围、验证方式和潜在影响
 
 代码规范建议：
