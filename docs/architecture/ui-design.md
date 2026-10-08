@@ -2,9 +2,9 @@
 
 日期：2026-08-25
 
-状态：已完成讨论，待用户复核文档
+状态：v1.4.0 产品级界面设计基线；文中验收条目是设计要求，不代表全部人工验收已完成。
 
-目标分支：`codex/ui-product-redesign`
+文档整理日期：2026-10-08。实现细节以对应版本源码为准。
 
 ## 1. 背景
 
@@ -47,8 +47,7 @@ InternPilot 已具备完整的求职业务闭环，前端采用 Vue 3、Vite、T
 | 内容质感 | 结构化平衡：细边框、中等圆角、适度留白 |
 | 样式技术 | Sass + Element Plus + CSS 设计变量 |
 | 移动端 | 用户端精细适配，管理后台基础可用 |
-| 分支 | `codex/ui-product-redesign` |
-| 设计文档 | `docs/superpowers/specs/2026-08-25-internpilot-ui-product-redesign-design.md` |
+| 设计文档 | `docs/architecture/ui-design.md` |
 
 ## 4. 信息架构
 
@@ -212,6 +211,7 @@ Element Plus 主题通过全局 CSS 变量和有限公共封装实现。页面�
 
 每个批次至少执行：
 
+- `npm run test:run`
 - `npm run type-check`
 - `npm run build`
 - 登录、导航、权限、核心 CRUD、AI 任务进度、报告详情和打印页的关键流程检查
@@ -228,10 +228,6 @@ Element Plus 主题通过全局 CSS 变量和有限公共封装实现。页面�
 - 全站使用统一的颜色、间距、圆角、状态和反馈模式。
 - 业务页面不再依赖散落的临时样式修补。
 
-## 12. 版本控制与交付约定
+## 12. 文档维护
 
-- 所有工作在 `codex/ui-product-redesign` 分支进行。
-- 视觉讨论产生的 `.superpowers/` 草案目录加入 `.gitignore`，不进入版本库。
-- 设计文档和后续实施计划进入 `docs/superpowers/` 并随分支提交。
-- 每个迁移批次使用独立提交，避免无法拆分的巨型提交。
-- 未经用户明确要求，不推送远程、不合并 `main`、不部署线上。
+本文件维护界面信息架构、设计约束和验收标准。逐任务实施计划、截图和执行证据独立归档；不以设计要求代替验证结果。功能变更见[发布说明](../releases/v1.4.0.md)，部署见[部署指南](../deployment.md)。

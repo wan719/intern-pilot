@@ -5,7 +5,8 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- 演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)
+- v1.4.0：[发布说明](docs/releases/v1.4.0.md) · [部署指南](docs/deployment.md) · [技术文档](docs/README.md)
+- 历史演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)（旧版界面）
 
 
 ---
@@ -15,11 +16,11 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 
 项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、Vite、TypeScript、Element Plus、Vue Router、Pinia、Axios、ECharts 和 Sass。
 
-当前稳定演示版本：`v1.3.1`。线上管理员账号与密码不在 README、截图、提交记录或示例配置中公开。
+当前代码版本：`v1.4.0`（Tag → `e278add`，2026-08-26）。功能变更与已知限制见[发布说明](docs/releases/v1.4.0.md)。源码标签不代表站点当前运行版本；生产可用性未在本轮文档整理中验证。管理员凭据不在文档或示例配置中公开。
 
 ## 在线体验
 
-- 在线地址：https://internpilot.com.cn
+- 历史部署地址：https://internpilot.com.cn（当前服务状态待核验）
 - GitHub 仓库：https://github.com/wan719/intern-pilot
 
 ## 项目概述
@@ -35,7 +36,7 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 - AI 分析任务耗时较长，缺少清晰的进度与结果入口
 - 缺少一个能把“简历、岗位、分析、面试题、推荐、投递”串起来的工具
 
-InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，并为课程答辩展示提供完整、稳定、可演示的业务闭环。
+InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，形成从简历准备到投递跟踪的完整业务闭环。
 
 ### 核心价值与创新点
 
@@ -46,7 +47,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 - **RAG 岗位知识库**：管理员维护岗位方向知识，系统自动切片、生成 Embedding，在分析和面试题生成时检索相关知识增强 AI 输出
 - **DeepSeek + Mock AI 双模式**：线上默认使用 DeepSeek 真实 API，Mock AI 仅保留给 test / CI
 - **AI 模型路由与 Prompt 版本管理**：按简历分析、岗位推荐、面试题、RAG 等场景选择模型，缓存 key 包含模型、Prompt 版本和 promptHash
-- **AI 报告 PDF 导出**：分析报告支持独立打印页和浏览器保存 PDF，便于答辩演示和求职资料归档
+- **AI 报告 PDF 导出**：分析报告支持独立打印页和浏览器保存 PDF，便于报告分享和求职资料归档
 - **RBAC 管理后台**：用户、角色、权限、操作日志、RAG 知识库、用户反馈和后台看板管理
 - **岗位推荐闭环**：从岗位库、推荐批次、推荐理由到投递记录形成完整求职链路
 - **产品级前端体验**：以五阶段求职旅程组织用户工作台，配套移动底部导航、深色分组管理后台、统一页面组件、明确 loading / 空状态 / 错误恢复，以及 375px 到宽屏和独立打印页适配
@@ -67,14 +68,15 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 
 | 版本 | 日期 | 更新内容 |
 | --- | --- | --- |
+| [v1.4.0](docs/releases/v1.4.0.md) | 2026-08-26（Tag） | 产品级 UI 重塑：求职旅程导航、工作台、移动端、统一后台与异步状态修复；新增前端测试。运行状态需在部署环境单独验证 |
 | v1.3.1 | 2026-05-22 | 根据 `44-ai-report-pdf-export-and-frontend-performance-design.md` 完成 AI 报告 PDF 导出、打印页、前端路由懒加载、Vite 拆包、Logo 资源优化和 Nginx gzip / 缓存配置 |
 | v1.3.0 | 2026-05-22 | 根据 `43-spring-boot-engineering-enhancement-design.md` 完成 Actuator、参数校验、全局异常处理、AOP 耗时日志、操作日志脱敏、Redis key 规范、定时清理和 Docker healthcheck |
 | v1.2.0 | 2026-05-21 | 根据 `42-ai-model-router-and-prompt-optimization-design.md` 完成 AI 场景枚举、模型路由、Prompt 模板版本管理、AI JSON 清洗、缓存 key 优化、重试与 fallback |
-| v1.1.0 | 2026-05-21 | 根据 `41-project-architecture-review-and-interview-preparation.md` 完成架构复盘、答辩材料、面试问答和 Release 前项目包装 |
-| v1.0.0 | 2026-05-20 | 根据 `40-final-acceptance-release-and-deployment.md` 完成最终验收、发布收尾、README 更新、Docker 部署说明、数据库迁移说明和安全检查 |
+| v1.1.0 | 2026-05-21 | 完成架构复盘、答辩材料、面试问答和 Release 前项目包装 |
+| v1.0.0 | 2026-05-20 | 完成最终验收、发布收尾、README 更新、Docker 部署说明、数据库迁移说明和安全检查 |
 | v0.7.0 | 2026-05-20 | 根据 `39-ai-task-center-and-feedback-design.md` 完成 AI 任务中心、右下角结果提醒、用户反馈入口和管理员反馈管理 |
 | v0.6.0 | 2026-05-20 | 根据 `38-frontend-ui-polish-and-user-experience-design.md` 完成前端 UI 统一、管理员独立后台、多端适配和品牌图标替换 |
-| v0.5.0 | 2026-05-15 | 根据 `34-product-experience-bugfix-and-acceptance-design.md` 完成产品体验验收与 P0/P1 Bug 修复，根据 `35-readme-demo-script-and-project-packaging-design.md` 整理 README 与项目最终包装 |
+| v0.5.0 | 2026-05-15 | 根据 `34-product-experience-bugfix-and-acceptance-design.md` 完成产品体验验收与 P0/P1 Bug 修复，整理 README 与项目最终包装 |
 | v0.4.0 | 2026-05-13 | 根据 `28-testing-enhancement.md` 增强测试体系：补充 RAG 服务测试、测试运行配置、前端 `type-check` 脚本、GitHub Actions CI |
 | v0.3.0 | 2026-05-12 | 根据 `27-rag-job-knowledge-base-design.md` 接入 RAG 岗位知识库，新增知识文档、切片、Embedding、检索、管理页面和 AI 上下文增强 |
 | v0.2.0 | 2026-05-11 | 完成岗位推荐模块：推荐批次、推荐结果、前端推荐页面和推荐记录接口 |
@@ -263,11 +265,11 @@ intern-pilot
 │  ├─ docker-compose.yml
 │  └─ .env.example
 ├─ docs/
-│  ├─ 38-frontend-ui-polish-and-user-experience-design.md
-│  ├─ 39-ai-task-center-and-feedback-design.md
-│  ├─ 40-final-acceptance-release-and-deployment.md
-│  ├─ 41-project-architecture-review-and-interview-preparation.md
-│  └─ assets/screenshots/
+│  ├─ README.md              # 技术文档导航
+│  ├─ architecture/ui-design.md
+│  ├─ deployment.md
+│  ├─ releases/v1.4.0.md
+│  └─ 09-api-design.md
 └─ README.md
 ```
 
@@ -538,17 +540,20 @@ erDiagram
 | AI 面试题测试 | Prompt 构建、响应解析、分类/难度规范化、regenerate |
 | 用户反馈测试 | 反馈表结构、权限、管理员处理接口 |
 | Mock AI 测试 | 测试环境注入 MockAiClient，避免调用真实 AI API |
-| 前端验证 | `vue-tsc` 类型检查、Vite 构建 |
+| 前端验证 | Vitest 组件测试、`vue-tsc` 类型检查、Vite 构建；Vitest 尚未接入 CI |
 | CI | GitHub Actions 自动执行后端测试和前端构建 |
 
-### 当前覆盖率与测试规模
+### 测试证据与覆盖率
 
-最近一次本地执行 `.\gradlew.bat test jacocoTestReport --no-daemon --max-workers=1` 通过，当前后端测试规模与 JaCoCo 覆盖率如下：
+2026-10-08 在 `v1.4.0` 代码基线上重新验证：前端 36 个测试文件、296 项测试全部通过，`npm run build`（含类型检查）通过。测试范围与限制见[发布说明](docs/releases/v1.4.0.md)。
 
-| 指标 | 当前结果 |
+2026-10-08 执行 `test jacocoTestReport --no-daemon --max-workers=1` 成功。以下结果取自本轮后端测试 XML 和 JaCoCo 报告；后端 296 项与前端 296 项属于不同测试集合：
+
+| 指标 | 2026-10-08 本地结果 |
 | --- | ---: |
-| 测试文件 | 54 个 |
-| `@Test` 用例 | 296 个 |
+| Java 测试源文件 | 56 个 |
+| 实际运行测试套件 | 55 个 |
+| 执行用例 | 296 个；失败、错误、跳过均为 0 |
 | Instruction Coverage | 91.85% |
 | Line Coverage | 91.86% |
 | Method Coverage | 92.76% |
@@ -585,11 +590,12 @@ backend/intern-pilot-backend/build/reports/jacoco/test/jacocoTestReport.xml
 .\gradlew.bat test --tests RagKnowledgeServiceTest
 ```
 
-前端类型检查与构建：
+前端测试、类型检查与构建：
 
 ```powershell
 cd frontend/intern-pilot-frontend
-npm install
+npm ci
+npm run test:run
 npm run build
 ```
 
@@ -621,7 +627,7 @@ CI 执行内容：
 
 项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端 Nginx 四个服务，可一键启动。
 
-当前线上演示版本为 `v1.3.1`，部署在 `https://internpilot.com.cn`。生产环境 `.env` 只保留在服务器，不提交到 GitHub 或 Gitee。
+部署目标代码基线为 `v1.4.0`。指定版本升级、健康检查及回滚见[部署指南](docs/deployment.md)。部署前核实当前版本、有效配置和可恢复备份；生产环境 `.env` 不提交到版本库。
 
 **前置要求：**
 
@@ -773,7 +779,7 @@ server {
 
 | 分支 | 说明 |
 | --- | --- |
-| `main` | 稳定提交分支，用于最终课程提交 |
+| `main` | 稳定发布分支 |
 | `dev` | 开发集成分支 |
 | `feature/*` | 功能开发分支 |
 
@@ -797,7 +803,7 @@ dev 完成本地验收
 | 平台 | 定位 | 地址 |
 | --- | --- | --- |
 | GitHub | 主仓库，主要开发、README 维护、CI/CD、提交历史保留 | `https://github.com/wan719/intern-pilot` |
-| Gitee | 同步仓库，用于课程提交和国内访问 | `https://gitee.com/li-hong2006/intern-pilot` |
+| Gitee | 国内访问镜像仓库 | `https://gitee.com/li-hong2006/intern-pilot` |
 
 原则：
 
@@ -912,16 +918,3 @@ docker compose -f deploy/docker-compose.yml logs -f frontend
 docker compose -f deploy/docker-compose.yml logs --tail=200 mysql
 docker compose -f deploy/docker-compose.yml logs --tail=200 redis
 ```
-
-## 评分与答辩证据
-
-本项目按课程最终评分维度整理了可展示证据，方便答辩和仓库检查：
-
-| 评分项 | 项目证据 |
-| --- | --- |
-| 功能完整性 | 登录注册、简历管理、岗位管理、AI 分析、岗位推荐、面试题、RAG、任务中心、PDF 导出、用户反馈、管理员后台 |
-| 技术实现 | Spring Boot、Gradle、Swagger/Knife4j、MyBatis-Plus、Redis、WebSocket、DeepSeek、Actuator、Docker、JaCoCo；后端当前 296 个 `@Test`，Line Coverage 91.86%，Branch Coverage 70.48% |
-| Git 提交历史 | `main / dev / feature/*` 分支模型、110+ 次提交、`v1.0.0` 到 `v1.3.1` tag、GitHub Release |
-| README 文档 | 中文 README、[English README](README_EN.md)、架构图、10 张截图、快速开始、测试与部署说明 |
-| 创新与实用性 | AI 模型路由、Prompt 版本管理、RAG 检索增强、AI 任务中心、报告 PDF 导出、AI 调用重试与 fallback |
-| 加分项 | 在线部署、英文 README、演示视频、Docker Compose、GitHub Actions CI |

@@ -5,7 +5,8 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- 演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)
+- v1.4.0: [Release notes](docs/releases/v1.4.0.md) · [Deployment guide](docs/deployment.md) · [Technical docs](docs/README.md)
+- Historical demo: [InternPilot v1.3.1](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1) (previous UI)
 
 ---
 > An AI-powered resume optimization, job matching, interview preparation, and application management platform for college students seeking internships.
@@ -14,11 +15,11 @@ InternPilot is a front-end/back-end separated AI internship application and resu
 
 The project uses a front-end/back-end separated architecture. The back end is built with Spring Boot, Spring Security, MyBatis-Plus, MySQL, Redis, WebSocket, and the DeepSeek API. The front end is built with Vue 3, Vite, TypeScript, Element Plus, Vue Router, Pinia, Axios, ECharts, and Sass.
 
-Current stable demo version: `v1.3.1`. The production administrator account and password are not disclosed in the README, screenshots, commit history, or sample configuration files.
+Current tagged code version: `v1.4.0` (`e278add`, tagged 2026-08-26). See the [release notes](docs/releases/v1.4.0.md) for changes and known limitations. A source tag does not establish the currently deployed version; production availability was not verified during this documentation update. Administrator credentials are not published.
 
 ## Live Demo
 
-- Live Site: https://internpilot.com.cn
+- Historical deployment URL: https://internpilot.com.cn (current availability unverified)
 - GitHub Repository: https://github.com/wan719/intern-pilot
 
 ## Project Overview
@@ -34,7 +35,7 @@ College students often face the following problems when applying for internships
 - AI analysis tasks take a long time, but users lack clear progress updates and result entry points.
 - There is no unified tool that connects resumes, jobs, analysis, interview questions, recommendations, and applications.
 
-InternPilot aims to help students prepare for internships more efficiently through AI technology, while also providing a complete, stable, and demonstrable business workflow for course defense presentations.
+InternPilot aims to help students prepare for internships more efficiently through AI technology, connecting resume preparation with application tracking in one workflow.
 
 ### Core Value and Highlights
 
@@ -45,7 +46,7 @@ InternPilot aims to help students prepare for internships more efficiently throu
 - **RAG Job Knowledge Base**: Allows administrators to maintain job-related domain knowledge. The system automatically chunks documents, generates embeddings, and retrieves relevant knowledge to enhance AI outputs during analysis and interview question generation.
 - **DeepSeek + Mock AI Dual Mode**: The production environment uses the real DeepSeek API by default. Mock AI is kept only for tests and CI.
 - **AI Model Routing and Prompt Version Management**: Selects models by scenario, such as resume analysis, job recommendation, interview questions, and RAG. Cache keys include the model, prompt version, and promptHash.
-- **AI Report PDF Export**: Analysis reports support a standalone print page and browser-based PDF saving, making them convenient for defense demos and job-search documentation.
+- **AI Report PDF Export**: Analysis reports support a standalone print page and browser-based PDF saving for sharing reports and organizing job-search documentation.
 - **RBAC Admin Console**: Manages users, roles, permissions, operation logs, the RAG knowledge base, user feedback, and admin dashboards.
 - **Closed Job Recommendation Loop**: Forms a complete job-search workflow from the job library, recommendation batches, and recommendation reasons to application records.
 - **Product-Level Front-End Experience**: Organizes the user workspace around a five-stage job-search journey, with mobile bottom navigation, a dark grouped admin console, shared page primitives, explicit loading/empty/recovery states, responsive behavior from 375px to wide screens, and a standalone print layout.
@@ -66,14 +67,15 @@ InternPilot aims to help students prepare for internships more efficiently throu
 
 | Version | Date | Updates |
 | --- | --- | --- |
+| [v1.4.0](docs/releases/v1.4.0.md) | 2026-08-26 (tag) | Product UI redesign: journey navigation, workspace, mobile layout, shared admin UI, async-state fixes, and front-end tests. Deployment status must be verified separately |
 | v1.3.1 | 2026-05-22 | Completed AI report PDF export, print page, front-end route lazy loading, Vite chunk splitting, logo asset optimization, and Nginx gzip/cache configuration based on `44-ai-report-pdf-export-and-frontend-performance-design.md` |
 | v1.3.0 | 2026-05-22 | Completed Actuator, parameter validation, global exception handling, AOP latency logging, operation log desensitization, Redis key standardization, scheduled cleanup, and Docker healthcheck based on `43-spring-boot-engineering-enhancement-design.md` |
 | v1.2.0 | 2026-05-21 | Completed AI scenario enum, model routing, prompt template version management, AI JSON sanitization, cache key optimization, retry, and fallback based on `42-ai-model-router-and-prompt-optimization-design.md` |
-| v1.1.0 | 2026-05-21 | Completed architecture review, defense materials, interview Q&A, and pre-release project packaging based on `41-project-architecture-review-and-interview-preparation.md` |
-| v1.0.0 | 2026-05-20 | Completed final acceptance, release wrap-up, README updates, Docker deployment instructions, database migration instructions, and security checks based on `40-final-acceptance-release-and-deployment.md` |
+| v1.1.0 | 2026-05-21 | Completed architecture review, defense materials, interview Q&A, and pre-release project packaging |
+| v1.0.0 | 2026-05-20 | Completed final acceptance, release wrap-up, README updates, Docker deployment instructions, database migration instructions, and security checks |
 | v0.7.0 | 2026-05-20 | Completed the AI task center, bottom-right result notifications, user feedback entry point, and admin feedback management based on `39-ai-task-center-and-feedback-design.md` |
 | v0.6.0 | 2026-05-20 | Completed front-end UI unification, independent admin console, responsive adaptation, and brand icon replacement based on `38-frontend-ui-polish-and-user-experience-design.md` |
-| v0.5.0 | 2026-05-15 | Completed product experience acceptance and P0/P1 bug fixes based on `34-product-experience-bugfix-and-acceptance-design.md`, and organized the README and final project packaging based on `35-readme-demo-script-and-project-packaging-design.md` |
+| v0.5.0 | 2026-05-15 | Completed product experience acceptance and P0/P1 bug fixes based on `34-product-experience-bugfix-and-acceptance-design.md`, and organized the README and final project packaging |
 | v0.4.0 | 2026-05-13 | Enhanced the testing system based on `28-testing-enhancement.md`: added RAG service tests, test runtime configuration, front-end `type-check` script, and GitHub Actions CI |
 | v0.3.0 | 2026-05-12 | Integrated the RAG job knowledge base based on `27-rag-job-knowledge-base-design.md`, adding knowledge documents, chunking, embeddings, retrieval, management pages, and AI context enhancement |
 | v0.2.0 | 2026-05-11 | Completed the job recommendation module: recommendation batches, recommendation results, front-end recommendation page, and recommendation record APIs |
@@ -262,11 +264,11 @@ intern-pilot
 │  ├─ docker-compose.yml
 │  └─ .env.example
 ├─ docs/
-│  ├─ 38-frontend-ui-polish-and-user-experience-design.md
-│  ├─ 39-ai-task-center-and-feedback-design.md
-│  ├─ 40-final-acceptance-release-and-deployment.md
-│  ├─ 41-project-architecture-review-and-interview-preparation.md
-│  └─ assets/screenshots/
+│  ├─ README.md              # Technical documentation index
+│  ├─ architecture/ui-design.md
+│  ├─ deployment.md
+│  ├─ releases/v1.4.0.md
+│  └─ 09-api-design.md
 └─ README.md
 ```
 
@@ -537,17 +539,20 @@ Core tables:
 | AI Interview Question Tests | Prompt construction, response parsing, category/difficulty normalization, and regenerate |
 | User Feedback Tests | Feedback table structure, permissions, and admin processing APIs |
 | Mock AI Tests | Injects MockAiClient in the test environment to avoid calling real AI APIs |
-| Front-End Verification | `vue-tsc` type checking and Vite build |
+| Front-End Verification | Vitest component tests, `vue-tsc` type checking, and Vite build; Vitest is not yet part of CI |
 | CI | GitHub Actions automatically runs back-end tests and front-end builds |
 
-### Current Coverage and Test Scale
+### Test Evidence and Coverage
 
-The latest local run of `.\gradlew.bat test jacocoTestReport --no-daemon --max-workers=1` passed. The current back-end test scale and JaCoCo coverage are:
+On 2026-10-08, the `v1.4.0` code baseline passed all 296 front-end tests across 36 files and `npm run build` (including type checking). See the [release notes](docs/releases/v1.4.0.md) for scope and limitations.
 
-| Metric | Current Result |
+The back-end `test jacocoTestReport --no-daemon --max-workers=1` run passed on 2026-10-08. The figures below come from its test XML and JaCoCo reports. The 296 back-end cases are a separate set from the 296 front-end tests:
+
+| Metric | Local Result on 2026-10-08 |
 | --- | ---: |
-| Test files | 54 |
-| `@Test` cases | 296 |
+| Java test source files | 56 |
+| Executed test suites | 55 |
+| Executed cases | 296; no failures, errors, or skips |
 | Instruction Coverage | 91.85% |
 | Line Coverage | 91.86% |
 | Method Coverage | 92.76% |
@@ -584,11 +589,12 @@ Run a specific test class:
 .\gradlew.bat test --tests RagKnowledgeServiceTest
 ```
 
-Front-end type checking and build:
+Front-end tests, type checking and build:
 
 ```powershell
 cd frontend/intern-pilot-frontend
-npm install
+npm ci
+npm run test:run
 npm run build
 ```
 
@@ -620,7 +626,7 @@ CI tasks:
 
 The project provides complete Docker Compose orchestration, including four services: MySQL, Redis, the back end, and the front-end Nginx service. It can be started with one command.
 
-The current online demo version is `v1.3.1`, deployed at `https://internpilot.com.cn`. The production `.env` file is kept only on the server and is not committed to GitHub or Gitee.
+The target code baseline is `v1.4.0`. See the [deployment guide](docs/deployment.md) for tag-based upgrades, health checks, and rollback. Verify the running version, configuration, and restorable backups before deployment. Never commit the production `.env`.
 
 **Prerequisites:**
 
@@ -772,7 +778,7 @@ server {
 
 | Branch | Description |
 | --- | --- |
-| `main` | Stable submission branch for final course submission |
+| `main` | Stable release branch |
 | `dev` | Development integration branch |
 | `feature/*` | Feature development branches |
 
@@ -796,7 +802,7 @@ This project uses a dual-repository strategy:
 | Platform | Purpose | URL |
 | --- | --- | --- |
 | GitHub | Main repository for primary development, README maintenance, CI/CD, and commit history preservation | `https://github.com/wan719/intern-pilot` |
-| Gitee | Synchronized repository for course submission and domestic access | `https://gitee.com/li-hong2006/intern-pilot` |
+| Gitee | Mirror repository for domestic access | `https://gitee.com/li-hong2006/intern-pilot` |
 
 Principles:
 
@@ -911,16 +917,3 @@ docker compose -f deploy/docker-compose.yml logs -f frontend
 docker compose -f deploy/docker-compose.yml logs --tail=200 mysql
 docker compose -f deploy/docker-compose.yml logs --tail=200 redis
 ```
-
-## Grading and Defense Evidence
-
-This project organizes demonstrable evidence according to the final course grading criteria, making it convenient for defense presentations and repository review:
-
-| Grading Item | Project Evidence |
-| --- | --- |
-| Functional Completeness | Login and registration, resume management, job management, AI analysis, job recommendations, interview questions, RAG, task center, PDF export, user feedback, and admin console |
-| Technical Implementation | Spring Boot, Gradle, Swagger/Knife4j, MyBatis-Plus, Redis, WebSocket, DeepSeek, Actuator, Docker, and JaCoCo; currently 296 back-end `@Test` cases, 91.86% line coverage, and 70.48% branch coverage |
-| Git Commit History | `main / dev / feature/*` branch model, 110+ commits, tags from `v1.0.0` to `v1.3.1`, and GitHub Release |
-| README Documentation | Chinese README, [English README](README_EN.md), architecture diagrams, 10 screenshots, quick start, testing, and deployment instructions |
-| Innovation and Practicality | AI model routing, prompt version management, RAG retrieval enhancement, AI task center, report PDF export, AI call retry, and fallback |
-| Bonus Items | Online deployment, English README, demo video, Docker Compose, and GitHub Actions CI |

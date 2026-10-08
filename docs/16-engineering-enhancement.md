@@ -971,9 +971,8 @@ InternPilot
 
 ```text
 docs/17-api-test-guide.md
-docs/18-interview-summary.md
 docs/19-frontend-design.md
-docs/20-deployment-guide.md
+docs/deployment.md
 ```
 
 ### 16.3 README 加截图
@@ -1043,11 +1042,7 @@ dev：日常开发版本
 
 ### 19.1 新增文档
 
-建议新增：
-
-```text
-docs/18-interview-summary.md
-```
+面试总结与个人答辩材料已独立归档，公开仓库只维护产品和技术文档。
 
 ### 19.2 面试讲解结构
 
