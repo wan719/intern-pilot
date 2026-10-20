@@ -166,6 +166,7 @@
           </div>
           <p>{{ conclusionText(detail) }}</p>
           <div class="detail-actions">
+            <el-button data-plan-from-report type="primary" @click="goToPlanFromReport(detail.reportId)">加入投递计划</el-button>
             <el-button :icon="Printer" @click="openPrintPage(detail.reportId)">导出 PDF</el-button>
             <el-button type="primary" :icon="MagicStick" @click="router.push('/interview-questions')">生成面试题</el-button>
             <el-button @click="router.push('/analysis/match')">重新分析</el-button>
@@ -255,6 +256,10 @@ const authStore = useAuthStore()
 const route = useRoute()
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
+
+function goToPlanFromReport(reportId: number) {
+  router.push(`/applications?fromReportId=${reportId}`)
+}
 const detailVisible = ref(false)
 const { responsiveDrawerSize } = useResponsiveSize()
 const detailDrawerSize = responsiveDrawerSize('62%', '94%')

@@ -8,6 +8,8 @@ import {
   deleteApplicationApi,
   getApplicationDetailApi,
   getApplicationListApi,
+  getApplicationPlanContextApi,
+  createApplicationFromReportApi,
   updateApplicationNoteApi,
   updateApplicationStatusApi
 } from '@/api/application'
@@ -20,6 +22,8 @@ vi.mock('@/api/application', () => ({
   deleteApplicationApi: vi.fn(),
   getApplicationDetailApi: vi.fn(),
   getApplicationListApi: vi.fn(),
+  getApplicationPlanContextApi: vi.fn(),
+  createApplicationFromReportApi: vi.fn(),
   updateApplicationNoteApi: vi.fn(),
   updateApplicationStatusApi: vi.fn()
 }))
@@ -31,6 +35,8 @@ const mockedCreate = vi.mocked(createApplicationApi)
 const mockedDelete = vi.mocked(deleteApplicationApi)
 const mockedDetail = vi.mocked(getApplicationDetailApi)
 const mockedList = vi.mocked(getApplicationListApi)
+const mockedPlanContext = vi.mocked(getApplicationPlanContextApi)
+const mockedFromReport = vi.mocked(createApplicationFromReportApi)
 const mockedUpdateNote = vi.mocked(updateApplicationNoteApi)
 const mockedUpdateStatus = vi.mocked(updateApplicationStatusApi)
 
@@ -62,12 +68,12 @@ function button(wrapper: VueWrapper, label: string) {
   return match!
 }
 
-async function mountPage() {
+async function mountPage(path = '/applications') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/applications', component: { template: '<div />' }, meta: { title: '投递追踪' } }]
   })
-  await router.push('/applications')
+  await router.push(path)
   await router.isReady()
   const wrapper = mount(ApplicationList, {
     global: { plugins: [router], stubs: { teleport: true } }
@@ -84,12 +90,102 @@ beforeEach(() => {
   mockedUpdateStatus.mockResolvedValue(undefined as any)
   mockedUpdateNote.mockResolvedValue(undefined as any)
   mockedDelete.mockResolvedValue(undefined as any)
+  mockedPlanContext.mockResolvedValue({ outcome: 'READY', reportId: 9, job: { id: 7, companyName: '远航科技', jobTitle: '前端实习生' }, resume: { id: 3, resumeName: '前端简历' } } as any)
+  mockedFromReport.mockResolvedValue({ outcome: 'CREATED', applicationId: 18 } as any)
   vi.mocked(getJobListApi).mockResolvedValue({ records: [{ jobId: 7, companyName: '远航科技', jobTitle: '前端实习生' }] } as any)
   vi.mocked(getResumeListApi).mockResolvedValue({ records: [{ resumeId: 3, resumeName: '前端简历' }] } as any)
   vi.mocked(getAnalysisReportsApi).mockResolvedValue({ records: [{ reportId: 9, companyName: '远航科技', matchScore: 88 }] } as any)
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as any)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
+})
+
+describe('from-report plan flow', () => {
+  it('shows fixed source summary and creates only after explicit confirmation', async () => {
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    expect(mockedPlanContext).toHaveBeenCalledWith(9)
+    expect((wrapper.vm as any).planState).toBe('READY')
+    expect(wrapper.get('[data-plan-confirmation]').text()).toContain('前端实习生')
+    expect(wrapper.get('[data-plan-confirmation]').text()).toContain('尚未向招聘平台投递')
+    expect(mockedFromReport).not.toHaveBeenCalled()
+    ;(wrapper.vm as any).planNote = '准备项目经历'
+    await (wrapper.vm as any).confirmPlan()
+    await flushPromises()
+    expect(mockedFromReport).toHaveBeenCalledWith({ reportId: 9, note: '准备项目经历', priority: 'MEDIUM' })
+    expect(mockedDetail).toHaveBeenCalledWith(18)
+    expect((wrapper.vm as any).$route.query.fromReportId).toBeUndefined()
+  })
+
+  it('opens the returned existing record without writing, even if old resume is gone', async () => {
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'EXISTING', reportId: 9, applicationId: 77 } as any)
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    expect(mockedDetail).toHaveBeenCalledWith(77)
+    expect(mockedFromReport).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).$route.query.fromReportId).toBeUndefined()
+  })
+
+  it('keeps the source available to retry when an existing detail disappears', async () => {
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'EXISTING', reportId: 9, applicationId: 77 } as any)
+    mockedDetail.mockImplementation((id) => id === 77 ? Promise.reject(new Error('记录已变化')) : Promise.resolve(application as any))
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    expect((wrapper.vm as any).planState).toBe('ERROR')
+    expect(wrapper.get('[data-plan-error]').text()).toContain('记录已变化')
+    expect((wrapper.vm as any).$route.query.fromReportId).toBe('9')
+  })
+
+  it('requires a second explicit choice for ordinary creation and clears reportId', async () => {
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'RESUME_UNAVAILABLE', reportId: 9, reason: '旧简历已失效' } as any)
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    expect(wrapper.get('[data-plan-resume-unavailable]').text()).toContain('旧简历已失效')
+    expect((wrapper.vm as any).createVisible).toBe(false)
+    await wrapper.get('[data-plan-ordinary-create]').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as any).createVisible).toBe(true)
+    expect((wrapper.vm as any).createForm.reportId).toBeNull()
+    expect(mockedFromReport).not.toHaveBeenCalled()
+    ;(wrapper.vm as any).createForm.jobId = 7
+    await (wrapper.vm as any).createApplication()
+    expect(mockedCreate).toHaveBeenCalledWith(expect.objectContaining({ jobId: 7, reportId: null }))
+  })
+
+  it('does not let a late context response replace a newer report selection', async () => {
+    const oldRequest = deferred<any>()
+    mockedPlanContext.mockReturnValueOnce(oldRequest.promise)
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'READY', reportId: 10, job: { id: 8, companyName: '新公司', jobTitle: '新岗位' }, resume: { id: 4, resumeName: '新简历' } } as any)
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    await (wrapper.vm as any).$router.push('/applications?fromReportId=10')
+    await flushPromises()
+    oldRequest.resolve({ outcome: 'EXISTING', reportId: 9, applicationId: 77 })
+    await flushPromises()
+    expect((wrapper.vm as any).planContext.reportId).toBe(10)
+    expect(wrapper.get('[data-plan-confirmation]').text()).toContain('新岗位')
+    expect(mockedDetail).not.toHaveBeenCalledWith(77)
+  })
+
+  it('cancels confirmation without submitting and removes the source query', async () => {
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    await (wrapper.vm as any).cancelPlan()
+    expect(mockedFromReport).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).$route.query.fromReportId).toBeUndefined()
+    expect((wrapper.vm as any).planState).toBe('IDLE')
+  })
+
+  it('rejects invalid query IDs and sends only one write during repeated confirmation', async () => {
+    const invalid = await mountPage('/applications?fromReportId=9&fromReportId=10')
+    expect(invalid.get('[data-plan-error]').text()).toContain('来源 ID')
+    expect(mockedPlanContext).not.toHaveBeenCalled()
+    invalid.unmount()
+
+    const pending = deferred<any>()
+    mockedFromReport.mockReturnValueOnce(pending.promise)
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    const first = (wrapper.vm as any).confirmPlan()
+    const second = (wrapper.vm as any).confirmPlan()
+    expect(mockedFromReport).toHaveBeenCalledTimes(1)
+    pending.resolve({ outcome: 'EXISTING', applicationId: 77 })
+    await Promise.all([first, second])
+    expect(mockedDetail).toHaveBeenCalledWith(77)
+  })
 })
 
 describe('application tracking contract characterization', () => {

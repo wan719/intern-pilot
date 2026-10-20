@@ -1,5 +1,25 @@
 import request from '@/utils/request'
 
+export type ApplicationPlanContext = {
+  outcome: 'READY' | 'EXISTING' | 'RESUME_UNAVAILABLE'
+  reportId: number
+  applicationId?: number | null
+  job?: { id: number; companyName: string; jobTitle: string } | null
+  resume?: { id: number; resumeName: string } | null
+  reason?: string | null
+}
+
+export type ApplicationFromReportInput = { reportId: number; note?: string; priority?: 'HIGH' | 'MEDIUM' | 'LOW' }
+export type ApplicationFromReportResult = { outcome: 'CREATED' | 'EXISTING'; applicationId: number }
+
+export function getApplicationPlanContextApi(reportId: number) {
+  return request.get<any, ApplicationPlanContext>('/api/applications/plan-context', { params: { reportId } })
+}
+
+export function createApplicationFromReportApi(data: ApplicationFromReportInput) {
+  return request.post<any, ApplicationFromReportResult>('/api/applications/from-report', data)
+}
+
 export function createApplicationApi(data: any) {
   return request.post('/api/applications', data)
 }

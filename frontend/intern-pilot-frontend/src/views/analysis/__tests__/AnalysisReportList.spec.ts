@@ -117,6 +117,16 @@ describe('analysis report list contract characterization', () => {
     expect(window.open).toHaveBeenCalledWith('/analysis/reports/91/print', '_blank', 'noopener,noreferrer')
   })
 
+  it('offers planning only inside report detail and navigates without creating', async () => {
+    const wrapper = await mountPage()
+    expect(wrapper.findAll('button').some((item) => item.text().trim() === '加入投递计划')).toBe(false)
+    await button(wrapper, '查看详情').trigger('click')
+    await flushPromises()
+    expect((wrapper.vm as any).detailVisible).toBe(true)
+    ;(wrapper.vm as any).goToPlanFromReport(91)
+    expect(push).toHaveBeenCalledWith('/applications?fromReportId=91')
+  })
+
   it('keeps deletion confirmation, selected id and list refresh semantics', async () => {
     const wrapper = await mountPage()
 

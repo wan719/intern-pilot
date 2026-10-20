@@ -11,6 +11,19 @@
       <StatCard label="待跟进" :value="applicationStats.followUp" :icon="Bell" />
     </div>
 
+    <section v-if="planState === 'LOADING'" class="panel flat" role="status">正在核对报告与已有投递计划…</section>
+    <section v-if="planState === 'ERROR'" data-plan-error class="panel flat" role="alert">
+      <p>{{ planError }}</p>
+      <el-button @click="refreshPlanContext">重试核对</el-button>
+      <el-button @click="cancelPlan">返回投递追踪</el-button>
+    </section>
+    <section v-if="planState === 'RESUME_UNAVAILABLE'" data-plan-resume-unavailable class="panel flat" role="alert">
+      <h3>报告关联简历不可用于新建计划</h3>
+      <p>{{ planContext?.reason || '原简历已失效，请重新选择。' }}</p>
+      <el-button data-plan-ordinary-create type="primary" @click="startOrdinaryCreate">转普通创建</el-button>
+      <el-button @click="cancelPlan">取消</el-button>
+    </section>
+
     <FilterBar @reset="resetQuery">
       <template #filters>
         <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="loadApplications" />
@@ -86,6 +99,31 @@
           <el-button type="danger" plain @click="removeApplication(item)">删除</el-button>
         </div>
       </article>
+    </section>
+
+    <section v-if="planState === 'READY' && planContext" data-plan-confirmation class="panel flat" aria-label="加入待投递计划">
+        <h3>确认加入待投递计划</h3>
+        <p>请确认这份报告对应的岗位与简历。创建后状态为待投递，尚未向招聘平台投递。</p>
+        <p>岗位：{{ planContext.job?.companyName }} · {{ planContext.job?.jobTitle }}</p>
+        <p>简历：{{ planContext.resume?.resumeName }}</p>
+        <p>报告 ID：{{ planContext.reportId }}</p>
+        <el-form label-position="top">
+          <el-form-item label="优先级">
+            <el-select v-model="planPriority">
+              <el-option label="高" value="HIGH" />
+              <el-option label="中" value="MEDIUM" />
+              <el-option label="低" value="LOW" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="备注（最多 2000 字符）">
+            <el-input v-model="planNote" type="textarea" :rows="3" />
+          </el-form-item>
+        </el-form>
+        <p v-if="planError" role="alert">{{ planError }}</p>
+      <div class="responsive-actions">
+        <el-button @click="cancelPlan">取消</el-button>
+        <el-button type="primary" :loading="planSaving" @click="confirmPlan">确认加入待投递计划</el-button>
+      </div>
     </section>
 
     <el-dialog v-model="createVisible" title="创建投递记录" :width="createDialogWidth">
@@ -206,14 +244,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, Briefcase, Calendar, CircleCheck, CircleClose, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
-import { createApplicationApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, updateApplicationNoteApi, updateApplicationStatusApi } from '@/api/application'
+import { createApplicationApi, createApplicationFromReportApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, getApplicationPlanContextApi, updateApplicationNoteApi, updateApplicationStatusApi, type ApplicationPlanContext } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
@@ -225,6 +264,14 @@ const jobs = ref<any[]>([])
 const resumes = ref<any[]>([])
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
+const route = useRoute()
+const router = useRouter()
+const planContext = ref<ApplicationPlanContext | null>(null)
+const planState = ref<'IDLE' | 'LOADING' | 'READY' | 'RESUME_UNAVAILABLE' | 'ERROR'>('IDLE')
+const planSaving = ref(false)
+const planError = ref('')
+const planNote = ref('')
+const planPriority = ref<'HIGH' | 'MEDIUM' | 'LOW'>('MEDIUM')
 const loading = ref(false)
 const saving = ref(false)
 const statusSaving = ref(false)
@@ -247,6 +294,109 @@ const detailDrawerSize = responsiveDrawerSize('52%')
 let applicationLoadEpoch = 0
 let applicationPageActive = true
 let detailRequestId = 0
+let planRequestId = 0
+
+function parseReportId(raw: unknown): number | null {
+  if (typeof raw !== 'string' || !/^[1-9]\d*$/.test(raw)) return null
+  const id = Number(raw)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}
+
+async function clearSourceQuery() {
+  if (route.query.fromReportId === undefined) return
+  const query = { ...route.query }
+  delete query.fromReportId
+  await router.replace({ path: route.path, query })
+}
+
+async function loadPlanContext(raw: unknown) {
+  const requestId = ++planRequestId
+  planContext.value = null
+  planError.value = ''
+  planNote.value = ''
+  planPriority.value = 'MEDIUM'
+  if (raw === undefined) {
+    planState.value = 'IDLE'
+    return
+  }
+  const reportId = parseReportId(raw)
+  if (reportId === null) {
+    planState.value = 'ERROR'
+    planError.value = '来源 ID 无效，请从报告详情重新进入。'
+    return
+  }
+  planState.value = 'LOADING'
+  try {
+    const context = await getApplicationPlanContextApi(reportId)
+    if (!applicationPageActive || requestId !== planRequestId) return
+    if (context.reportId !== reportId) {
+      throw new Error('报告上下文已变化，请刷新后重试')
+    }
+    if (context.outcome === 'EXISTING' && Number.isSafeInteger(context.applicationId) && (context.applicationId || 0) > 0) {
+      await openDetail(context.applicationId!)
+      await clearSourceQuery()
+      return
+    }
+    planContext.value = context
+    if (context.outcome === 'READY' && context.job && context.resume) {
+      planState.value = 'READY'
+    } else if (context.outcome === 'RESUME_UNAVAILABLE') {
+      planState.value = 'RESUME_UNAVAILABLE'
+    } else {
+      throw new Error('来源状态无法识别，请刷新后重试')
+    }
+  } catch (error: any) {
+    if (!applicationPageActive || requestId !== planRequestId) return
+    planContext.value = null
+    planState.value = 'ERROR'
+    planError.value = error?.message || '无法核对报告与投递计划，请稍后重试。'
+  }
+}
+
+function refreshPlanContext() {
+  loadPlanContext(route.query.fromReportId)
+}
+
+async function cancelPlan() {
+  planRequestId += 1
+  planState.value = 'IDLE'
+  planContext.value = null
+  planError.value = ''
+  await clearSourceQuery()
+}
+
+async function startOrdinaryCreate() {
+  await cancelPlan()
+  openCreate()
+  createForm.reportId = null
+}
+
+async function confirmPlan() {
+  if (planSaving.value || planState.value !== 'READY' || !planContext.value) return
+  if ([...planNote.value].length > 2000) {
+    planError.value = '备注不能超过 2000 个字符'
+    return
+  }
+  const reportId = planContext.value.reportId
+  const requestId = planRequestId
+  planSaving.value = true
+  planError.value = ''
+  try {
+    const result = await createApplicationFromReportApi({ reportId, note: planNote.value, priority: planPriority.value })
+    if (!applicationPageActive || requestId !== planRequestId) return
+    if (!['CREATED', 'EXISTING'].includes(result.outcome) || !Number.isSafeInteger(result.applicationId) || result.applicationId <= 0) {
+      throw new Error('服务端未返回有效的投递记录，请刷新后核对。')
+    }
+    await openDetail(result.applicationId)
+    await cancelPlan()
+    await loadApplications()
+  } catch (error: any) {
+    if (!applicationPageActive || requestId !== planRequestId) return
+    planError.value = error?.message || '提交结果待确认，请刷新来源上下文后重试。'
+  } finally {
+    planSaving.value = false
+  }
+}
 
 const filteredApplications = computed(() => {
   if (!priorityFilter.value) return applications.value
@@ -314,6 +464,7 @@ function openCreate() {
 }
 
 async function createApplication() {
+  if (saving.value) return
   if (!createForm.jobId) {
     ElMessage.warning('请选择岗位')
     return
@@ -454,10 +605,13 @@ onMounted(() => {
   loadOptions()
 })
 
+watch(() => route.query.fromReportId, loadPlanContext, { immediate: true })
+
 onBeforeUnmount(() => {
   applicationPageActive = false
   applicationLoadEpoch += 1
   detailRequestId += 1
+  planRequestId += 1
 })
 </script>
 
