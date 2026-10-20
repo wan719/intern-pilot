@@ -3,7 +3,9 @@ package com.internpilot.service.application.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
+import com.internpilot.common.ResultCode;
 import com.internpilot.dto.application.ApplicationCreateRequest;
+import com.internpilot.dto.application.ApplicationFromReportRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
 import com.internpilot.entity.AnalysisReport;
@@ -20,9 +22,12 @@ import com.internpilot.mapper.ResumeMapper;
 import com.internpilot.service.application.ApplicationService;
 import com.internpilot.util.SecurityUtils;
 import com.internpilot.vo.application.ApplicationCreateResponse;
+import com.internpilot.vo.application.ApplicationFromReportResponse;
 import com.internpilot.vo.application.ApplicationDetailResponse;
 import com.internpilot.vo.application.ApplicationListResponse;
+import com.internpilot.vo.application.ApplicationPlanContextResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,19 +42,26 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final JobDescriptionMapper jobDescriptionMapper;
     private final ResumeMapper resumeMapper;
     private final AnalysisReportMapper analysisReportMapper;
+    private final ApplicationFromReportWriter fromReportWriter;
 
     @Override
     @Transactional
     public ApplicationCreateResponse create(ApplicationCreateRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
-        JobDescription job = getUserJobOrThrow(request.getJobId(), currentUserId);
-
-        if (request.getResumeId() != null) {
-            getUserResumeOrThrow(request.getResumeId(), currentUserId);
-        }
+        AnalysisReport report = null;
         if (request.getReportId() != null) {
-            getUserReportOrThrow(request.getReportId(), currentUserId);
+            report = getUserReportOrThrow(request.getReportId(), currentUserId, true);
+        }
+        JobDescription job = getUserJobOrThrow(request.getJobId(), currentUserId, true);
+        if (report != null && !request.getJobId().equals(report.getJobId())) {
+            throw new BusinessException("分析报告与岗位或简历不匹配");
+        }
+        if (request.getResumeId() != null) {
+            getUserResumeOrThrow(request.getResumeId(), currentUserId, true);
+            if (report != null && !request.getResumeId().equals(report.getResumeId())) {
+                throw new BusinessException("分析报告与岗位或简历不匹配");
+            }
         }
 
         Long existingCount = applicationRecordMapper.selectCount(
@@ -89,6 +101,98 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         applicationRecordMapper.insert(record);
         return toCreateResponse(record);
+    }
+
+    @Override
+    public ApplicationPlanContextResponse getPlanContext(Long reportId) {
+        if (reportId == null || reportId <= 0) {
+            throw new BusinessException("报告 ID 不合法");
+        }
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        AnalysisReport report;
+        JobDescription job;
+        try {
+            report = getUserReportOrThrow(reportId, currentUserId);
+            job = getUserJobOrThrow(report.getJobId(), currentUserId);
+        } catch (BusinessException exception) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "来源不可用或无权访问");
+        }
+        ApplicationPlanContextResponse response = new ApplicationPlanContextResponse();
+        response.setReportId(reportId);
+
+        ApplicationRecord existing = applicationRecordMapper.selectOne(
+                new LambdaQueryWrapper<ApplicationRecord>()
+                        .eq(ApplicationRecord::getUserId, currentUserId)
+                        .eq(ApplicationRecord::getJobId, job.getId())
+                        .eq(ApplicationRecord::getDeleted, 0)
+                        .last("LIMIT 1")
+        );
+        if (existing != null) {
+            response.setOutcome("EXISTING");
+            response.setApplicationId(existing.getId());
+            return response;
+        }
+
+        Resume resume = report.getResumeId() == null ? null : resumeMapper.selectOne(
+                new LambdaQueryWrapper<Resume>()
+                        .eq(Resume::getId, report.getResumeId())
+                        .eq(Resume::getUserId, currentUserId)
+                        .eq(Resume::getDeleted, 0)
+                        .last("LIMIT 1")
+        );
+        if (resume == null) {
+            response.setOutcome("RESUME_UNAVAILABLE");
+            response.setReason("报告关联简历不可用于新建投递计划");
+            return response;
+        }
+
+        response.setOutcome("READY");
+        ApplicationPlanContextResponse.JobSummary jobSummary = new ApplicationPlanContextResponse.JobSummary();
+        jobSummary.setId(job.getId());
+        jobSummary.setCompanyName(job.getCompanyName());
+        jobSummary.setJobTitle(job.getJobTitle());
+        response.setJob(jobSummary);
+        ApplicationPlanContextResponse.ResumeSummary resumeSummary = new ApplicationPlanContextResponse.ResumeSummary();
+        resumeSummary.setId(resume.getId());
+        resumeSummary.setResumeName(resume.getResumeName());
+        response.setResume(resumeSummary);
+        return response;
+    }
+
+    @Override
+    public ApplicationFromReportResponse createFromReport(ApplicationFromReportRequest request) {
+        if (request == null || request.getReportId() == null || request.getReportId() <= 0) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "报告 ID 必须为正整数");
+        }
+        if (request.getNote() != null && request.getNote().codePointCount(0, request.getNote().length()) > 2000) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "备注不能超过 2000 个字符");
+        }
+        if (StringUtils.hasText(request.getPriority()) && !ApplicationPriorityEnum.isValid(request.getPriority())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "投递优先级不合法");
+        }
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        try {
+            return fromReportWriter.write(currentUserId, request);
+        } catch (DuplicateKeyException exception) {
+            String detail = exception.getMostSpecificCause().getMessage();
+            if (detail == null || !detail.contains("uk_app_user_active_job")) {
+                throw exception;
+            }
+            // This read occurs only after the writer's transaction has finished/rolled back.
+            AnalysisReport report = getUserReportOrThrow(request.getReportId(), currentUserId);
+            JobDescription job = getUserJobOrThrow(report.getJobId(), currentUserId);
+            ApplicationRecord existing = applicationRecordMapper.selectOne(
+                    new LambdaQueryWrapper<ApplicationRecord>()
+                            .eq(ApplicationRecord::getUserId, currentUserId)
+                            .eq(ApplicationRecord::getJobId, job.getId())
+                            .eq(ApplicationRecord::getDeleted, 0)
+                            .last("LIMIT 1")
+            );
+            if (existing == null) {
+                throw new BusinessException(ResultCode.INTERNAL_ERROR, "投递结果待确认，请稍后刷新或重试");
+            }
+            return ApplicationFromReportResponse.of("EXISTING", existing.getId());
+        }
     }
 
     @Override
@@ -192,12 +296,16 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     private JobDescription getUserJobOrThrow(Long jobId, Long userId) {
+        return getUserJobOrThrow(jobId, userId, false);
+    }
+
+    private JobDescription getUserJobOrThrow(Long jobId, Long userId, boolean forUpdate) {
         JobDescription job = jobDescriptionMapper.selectOne(
                 new LambdaQueryWrapper<JobDescription>()
                         .eq(JobDescription::getId, jobId)
                         .eq(JobDescription::getUserId, userId)
                         .eq(JobDescription::getDeleted, 0)
-                        .last("LIMIT 1")
+                        .last(forUpdate ? "FOR UPDATE" : "LIMIT 1")
         );
 
         if (job == null) {
@@ -207,12 +315,16 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     private Resume getUserResumeOrThrow(Long resumeId, Long userId) {
+        return getUserResumeOrThrow(resumeId, userId, false);
+    }
+
+    private Resume getUserResumeOrThrow(Long resumeId, Long userId, boolean forUpdate) {
         Resume resume = resumeMapper.selectOne(
                 new LambdaQueryWrapper<Resume>()
                         .eq(Resume::getId, resumeId)
                         .eq(Resume::getUserId, userId)
                         .eq(Resume::getDeleted, 0)
-                        .last("LIMIT 1")
+                        .last(forUpdate ? "FOR UPDATE" : "LIMIT 1")
         );
 
         if (resume == null) {
@@ -222,12 +334,16 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     private AnalysisReport getUserReportOrThrow(Long reportId, Long userId) {
+        return getUserReportOrThrow(reportId, userId, false);
+    }
+
+    private AnalysisReport getUserReportOrThrow(Long reportId, Long userId, boolean forUpdate) {
         AnalysisReport report = analysisReportMapper.selectOne(
                 new LambdaQueryWrapper<AnalysisReport>()
                         .eq(AnalysisReport::getId, reportId)
                         .eq(AnalysisReport::getUserId, userId)
                         .eq(AnalysisReport::getDeleted, 0)
-                        .last("LIMIT 1")
+                        .last(forUpdate ? "FOR UPDATE" : "LIMIT 1")
         );
 
         if (report == null) {
