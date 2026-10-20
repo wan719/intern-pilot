@@ -104,6 +104,15 @@ class ApplicationFromReportWriterTest {
         verify(resumeMapper, never()).selectOne(any(LambdaQueryWrapper.class));
     }
 
+    @Test
+    void failedInsertCannotBeReportedAsCreated() {
+        when(reportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report());
+        when(jobMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(job());
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(resume());
+
+        assertEquals(500, assertThrows(BusinessException.class, () -> writer.write(1L, request())).getCode());
+    }
+
     private ApplicationFromReportRequest request() {
         ApplicationFromReportRequest request = new ApplicationFromReportRequest();
         request.setReportId(30L);

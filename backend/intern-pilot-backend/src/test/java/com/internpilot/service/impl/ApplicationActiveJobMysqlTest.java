@@ -9,6 +9,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,7 +59,50 @@ class ApplicationActiveJobMysqlTest {
                     result.next();
                     assertEquals(5, result.getInt(1));
                 }
+
+                assertConcurrentInsertHasSingleWinner(mysql);
             }
+        }
+    }
+
+    private void assertConcurrentInsertHasSingleWinner(MySQLContainer<?> mysql) throws Exception {
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch start = new CountDownLatch(1);
+            java.util.concurrent.Callable<Boolean> attempt = () -> {
+                try (Connection connection = DriverManager.getConnection(
+                        mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+                    ready.countDown();
+                    if (!start.await(5, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Concurrent insert start timed out");
+                    }
+                    try {
+                        insert(connection, 3, 20, 0);
+                        return true;
+                    } catch (SQLException duplicate) {
+                        assertEquals(1062, duplicate.getErrorCode());
+                        return false;
+                    }
+                }
+            };
+            var first = workers.submit(attempt);
+            var second = workers.submit(attempt);
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            int winners = (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0);
+            assertEquals(1, winners);
+        } finally {
+            workers.shutdownNow();
+        }
+        try (Connection connection = DriverManager.getConnection(
+                mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
+             Statement statement = connection.createStatement();
+             var result = statement.executeQuery("SELECT COUNT(*) FROM application_record "
+                     + "WHERE user_id=3 AND job_id=20 AND deleted=0")) {
+            result.next();
+            assertEquals(1, result.getInt(1));
         }
     }
 

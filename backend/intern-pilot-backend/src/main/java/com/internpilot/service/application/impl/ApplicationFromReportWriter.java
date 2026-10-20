@@ -78,7 +78,10 @@ public class ApplicationFromReportWriter {
         record.setApplyDate(null);
         record.setPriority(StringUtils.hasText(request.getPriority()) ? request.getPriority() : "MEDIUM");
         record.setNote(StringUtils.hasText(request.getNote()) ? request.getNote() : null);
-        applicationRecordMapper.insert(record);
+        int inserted = applicationRecordMapper.insert(record);
+        if (inserted != 1 || record.getId() == null) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "投递计划暂时无法创建，请稍后重试");
+        }
         return ApplicationFromReportResponse.of("CREATED", record.getId());
     }
 }

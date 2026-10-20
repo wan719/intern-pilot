@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -125,5 +126,17 @@ class ApplicationPlanControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
         verify(service, never()).createFromReport(any(ApplicationFromReportRequest.class));
+    }
+
+    @Test
+    @WithMockUser(authorities = "application:write")
+    void unrelatedDatabaseConstraintDoesNotLeakSqlOrMasqueradeAsExisting() throws Exception {
+        when(service.createFromReport(any(ApplicationFromReportRequest.class)))
+                .thenThrow(new DuplicateKeyException("SQL duplicate key secret_parameter"));
+        mockMvc.perform(post("/api/applications/from-report").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reportId\":30}"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value(500))
+                .andExpect(jsonPath("$.message").value("投递计划暂时无法创建，请稍后重试"));
     }
 }

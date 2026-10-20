@@ -1477,6 +1477,28 @@ GET /api/applications?status=APPLIED&pageNum=1&pageSize=10
 2. 第一阶段采用逻辑删除；
 3. 删除后列表不再显示。
 
+### 11.7 从 AI 报告读取投递计划上下文（v1.5 候选）
+
+`GET /api/applications/plan-context?reportId={positiveLong}` 要求登录及 `application:read`。`reportId` 必须是单个正整数；重复、零、负数、非数字或超出 Long 范围返回 HTTP 400。结果仅依据当前登录用户的未删除报告、岗位、简历和有效投递记录，不根据页面列表查重，也不返回简历正文或 AI 原文。成功 HTTP 200、体内 `code=200`：
+
+```json
+{"code":200,"message":"success","data":{"outcome":"READY","reportId":41,"applicationId":null,"job":{"id":12,"companyName":"示例公司","jobTitle":"Java 实习生"},"resume":{"id":8,"resumeName":"后端简历"},"reason":null}}
+```
+
+`outcome` 还可为 `EXISTING`（仅返回 `applicationId`，不更新原记录）或 `RESUME_UNAVAILABLE`（仅返回稳定 `reason`，无可提交的旧简历摘要）。已有记录优先于旧简历是否失效。来源报告或岗位不存在、被删除或不属于本人，统一 HTTP/体内 404；不区分他人资源是否存在。响应使用 `Cache-Control: no-store`。
+
+### 11.8 从报告确认加入待投递计划（v1.5 候选）
+
+`POST /api/applications/from-report` 要求登录及 `application:write`，请求体只接受 `reportId`、可选 `note`、可选 `priority`：
+
+```json
+{"reportId":41,"note":"准备完善项目经历","priority":"MEDIUM"}
+```
+
+`reportId` 必须为正 Long；`note` 最多 2000 个 Unicode 码点，空白值按空备注；`priority` 只能为 `HIGH/MEDIUM/LOW`，缺省为 `MEDIUM`。`jobId/resumeId/status/applyDate` 等派生字段一律拒绝。创建成功时 HTTP 201，`data={"outcome":"CREATED","applicationId":73}`；已有本人同岗位有效记录或目标唯一键竞争后读到胜者时 HTTP 200，`outcome="EXISTING"`，原记录所有字段不变。两者的体内 `code` 均为 200。新记录固定 `TO_APPLY`、`applyDate=null`；这**不是**实际向招聘平台投递。
+
+新增接口错误使用一致的 HTTP/体内码：参数 400、未登录 401、缺权限 403、来源不可用 404、旧简历失效 409、冲突后无法确认结果 500。原 `POST /api/applications` 的成功路径和响应 DTO 不变；它若携带 `reportId`，新请求会校验报告/岗位以及非空简历的一致性，旧版曾允许的错配请求将被拒绝。此收紧需在上线前审计旧客户端及存量记录；本节描述候选分支实现，不表示生产环境已部署。
+
 ---
 
 ## 12. 数据看板接口，第二阶段

@@ -611,6 +611,7 @@ analysis_report.user_id == currentUserId
 5. 修改备注；
 6. 删除投递记录；
 7. 后续统计投递数据。
+8. 从本人 AI 分析报告确认创建待投递计划；已有有效记录时按 ID 打开，不重复创建。
 
 ### 11.2 投递记录状态设计
 
@@ -647,6 +648,8 @@ ApplicationController 接收请求
   ↓
 返回创建结果
 ```
+
+报告来源流程由报告详情导航到 `/applications?fromReportId=...`，在投递页调用来源上下文接口并要求用户确认。后端按本人报告、岗位、已有有效投递、必要时简历的顺序校验；确认后新建 `TO_APPLY`、空投递日期的记录。独立写事务负责锁定关联资源；MySQL 的 `(user_id, active_job_id)` 唯一键负责并发最终裁决，失败写事务结束后才回读胜者。新入口不执行真实平台投递；上线前须先通过存量审计与受控迁移门禁。详细契约见 `09-api-design.md` 的 11.7/11.8 节和 `15-application-record-design.md` 的 5.4 节。
 
 ### 11.4 状态修改流程
 
@@ -801,7 +804,7 @@ JobDescription 1 —— N ApplicationRecord
 2. 一个用户可以创建多个岗位 JD；
 3. 一份简历可以生成多份分析报告；
 4. 一个岗位可以生成多份分析报告；
-5. 一个岗位可以关联多条投递记录；
+5. 一个岗位可关联不同用户或历史已逻辑删除的多条投递记录；同一用户同一岗位最多一条有效记录（候选索引上线后）；
 6. 一条投递记录可以关联一份简历。
 
 ---
@@ -889,6 +892,8 @@ JobDescription 1 —— N ApplicationRecord
 | PUT | /api/applications/{id}/status | 修改投递状态 |
 | PUT | /api/applications/{id}/note | 修改备注 |
 | DELETE | /api/applications/{id} | 删除投递记录 |
+| GET | /api/applications/plan-context | 按本人报告读取待投递上下文 |
+| POST | /api/applications/from-report | 确认从报告创建或返回已有有效记录 |
 
 ---
 

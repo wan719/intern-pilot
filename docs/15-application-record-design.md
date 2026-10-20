@@ -125,12 +125,14 @@ CREATE TABLE IF NOT EXISTS application_record (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT NOT NULL DEFAULT 0 COMMENT '是否逻辑删除：0未删除，1已删除',
+    active_job_id BIGINT GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN job_id ELSE NULL END) STORED,
     KEY idx_app_user_id (user_id),
     KEY idx_app_job_id (job_id),
     KEY idx_app_resume_id (resume_id),
     KEY idx_app_status (status),
     KEY idx_app_apply_date (apply_date),
-    KEY idx_app_user_job (user_id, job_id)
+    KEY idx_app_user_job (user_id, job_id),
+    UNIQUE KEY uk_app_user_active_job (user_id, active_job_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='投递记录表';
 ```
 
@@ -152,6 +154,7 @@ CREATE TABLE IF NOT EXISTS application_record (
 | created_at | 创建时间 |
 | updated_at | 更新时间 |
 | deleted | 逻辑删除标记 |
+| active_job_id | 仅有效记录生成的岗位 ID；已删除记录为 NULL，不由应用写入 |
 
 ### 5.3 设计说明
 
@@ -163,6 +166,18 @@ CREATE TABLE IF NOT EXISTS application_record (
 6. 删除投递记录使用逻辑删除；
 7. 所有查询都必须带 `user_id` 条件；
 8. 第一阶段不使用物理外键，由业务层校验关联关系。
+
+### 5.4 v1.5 候选唯一性迁移与回滚
+
+空库定义已同步到 `src/main/resources/sql/init.sql`；已有库**不会**因 `CREATE TABLE IF NOT EXISTS` 自动增加索引，需在受控窗口手工审核并执行 `src/main/resources/sql/migration/V41__application_active_job_unique.sql`。迁移前制作并验证当次备份，暂停投递写入，执行以下只读审计；有任何返回行立即停止，不自动合并或删除用户记录：
+
+```sql
+SELECT user_id, job_id, COUNT(*) AS active_count
+FROM application_record WHERE deleted = 0
+GROUP BY user_id, job_id HAVING COUNT(*) > 1;
+```
+
+候选迁移在隔离 MySQL 8.0 容器通过了有效唯一、逻辑删除后重建、跨用户隔离、两连接并发仅一条有效记录、重复数据阻断和索引回滚/重建测试。生产小版本、存量关联和写阻塞仍须单独核对。回滚先关闭新入口并停止写入，评估新建记录，再考虑 `ALTER TABLE application_record DROP INDEX uk_app_user_active_job, DROP COLUMN active_job_id;`；回滚不删除记录。**当前仓库提交不代表线上迁移已执行。**
 
 ## 6. 状态枚举设计
 
@@ -549,6 +564,12 @@ GET /api/applications?status=APPLIED&keyword=Java&pageNum=1&pageSize=10
 2. 第一阶段采用逻辑删除；
 3. 删除后列表不再显示；
 4. 历史数据仍保留在数据库中。
+
+### 7.7 报告来源创建用例（v1.5 候选）
+
+新增 `ApplicationPlanController` 提供 `GET /api/applications/plan-context`（`application:read`）和 `POST /api/applications/from-report`（`application:write`）；字段、HTTP/体内码以 `09-api-design.md` 的 11.7/11.8 节为准。`ApplicationServiceImpl` 读取上下文、校验来源请求并在目标唯一键冲突后独立回读；`ApplicationFromReportWriter` 是独立 Spring 事务边界，按报告 → 岗位 → 已有有效记录 → 必要时简历的顺序处理。资源行在写事务中锁定，已有记录立即返回其 ID，不更新原记录。无已有记录才插入 `TO_APPLY`、`apply_date=NULL`、默认 `MEDIUM`。
+
+普通创建仍保留旧路径与成功响应，但携带报告时新请求必须满足报告岗位与传入岗位一致、非空简历与报告简历一致；历史行不自动改写。目标唯一约束只在受控迁移执行后成为实际生产保证，因此候选分支不能绕过迁移门禁直接开放前端入口。页面处理迟到响应、取消、已有详情失效和失效简历的显式普通创建退路；退路请求设置 `reportId=null`。
 
 ## 8. Entity 与 Mapper 设计
 
@@ -1704,9 +1725,7 @@ WHERE id = 1;
 同一用户同一岗位只能创建一条投递记录
 ```
 
-如果你希望允许重复创建，可以删除这段校验。
-
-但建议保留，因为一个岗位通常只需要一条投递记录。
+v1.5 候选约束已将“本人同岗位最多一条有效记录”下沉为数据库不变量；删除应用层预查不再允许有效重复。历史逻辑删除行可以保留多条，若需变更此产品规则，须先评审数据模型与迁移方案。
 
 ### 19.3 修改状态提示“投递状态不合法”
 

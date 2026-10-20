@@ -10,6 +10,7 @@ import com.internpilot.vo.application.ApplicationPlanContextResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -67,5 +68,11 @@ public class ApplicationPlanController {
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Result<Void>> handlePlanBadRequest(Exception exception) {
         return ResponseEntity.badRequest().body(Result.fail(ResultCode.BAD_REQUEST, "请求参数格式错误，请检查后重试"));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Result<Void>> handlePlanDataIntegrityFailure(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Result.fail(ResultCode.INTERNAL_ERROR, "投递计划暂时无法创建，请稍后重试"));
     }
 }
