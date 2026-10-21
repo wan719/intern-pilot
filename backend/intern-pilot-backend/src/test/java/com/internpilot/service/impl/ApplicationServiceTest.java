@@ -182,6 +182,51 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void createShouldRejectReportForAnotherJobWithoutInserting() {
+        mockLoginUser(1L);
+        JobDescription job = new JobDescription();
+        job.setId(10L);
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(job);
+        AnalysisReport report = new AnalysisReport();
+        report.setId(30L);
+        report.setJobId(11L);
+        report.setResumeId(20L);
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+
+        ApplicationCreateRequest request = new ApplicationCreateRequest();
+        request.setJobId(10L);
+        request.setResumeId(20L);
+        request.setReportId(30L);
+
+        assertThrows(BusinessException.class, () -> applicationService.create(request));
+        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never()).insert(any(ApplicationRecord.class));
+    }
+
+    @Test
+    void createShouldRejectReportForAnotherResumeWithoutInserting() {
+        mockLoginUser(1L);
+        AnalysisReport report = new AnalysisReport();
+        report.setId(30L);
+        report.setJobId(10L);
+        report.setResumeId(21L);
+        when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
+        JobDescription job = new JobDescription();
+        job.setId(10L);
+        when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(job);
+        Resume resume = new Resume();
+        resume.setId(20L);
+        when(resumeMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(resume);
+
+        ApplicationCreateRequest request = new ApplicationCreateRequest();
+        request.setJobId(10L);
+        request.setResumeId(20L);
+        request.setReportId(30L);
+
+        assertThrows(BusinessException.class, () -> applicationService.create(request));
+        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never()).insert(any(ApplicationRecord.class));
+    }
+
+    @Test
     void listShouldReturnPagedApplications() {
         mockLoginUser(1L);
 

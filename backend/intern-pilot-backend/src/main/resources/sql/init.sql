@@ -578,12 +578,14 @@ CREATE TABLE IF NOT EXISTS application_record (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
+    active_job_id BIGINT GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN job_id ELSE NULL END) STORED,
     KEY idx_app_user_id (user_id),
     KEY idx_app_job_id (job_id),
     KEY idx_app_resume_id (resume_id),
     KEY idx_app_status (status),
     KEY idx_app_apply_date (apply_date),
-    KEY idx_app_user_job (user_id, job_id)
+    KEY idx_app_user_job (user_id, job_id),
+    UNIQUE KEY uk_app_user_active_job (user_id, active_job_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS system_operation_log (
