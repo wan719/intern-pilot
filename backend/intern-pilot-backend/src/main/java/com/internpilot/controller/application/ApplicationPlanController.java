@@ -10,12 +10,14 @@ import com.internpilot.vo.application.ApplicationPlanContextResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,5 +76,11 @@ public class ApplicationPlanController {
     public ResponseEntity<Result<Void>> handlePlanDataIntegrityFailure(DataIntegrityViolationException exception) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Result.fail(ResultCode.INTERNAL_ERROR, "投递计划暂时无法创建，请稍后重试"));
+    }
+
+    @ExceptionHandler({DataAccessException.class, TransactionException.class})
+    public ResponseEntity<Result<Void>> handlePlanDatabaseFailure(Exception exception) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Result.fail(ResultCode.INTERNAL_ERROR, "投递计划暂时不可用，请稍后重试"));
     }
 }

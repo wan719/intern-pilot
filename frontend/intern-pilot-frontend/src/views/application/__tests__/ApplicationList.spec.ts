@@ -162,6 +162,71 @@ describe('from-report plan flow', () => {
     expect(mockedDetail).not.toHaveBeenCalledWith(77)
   })
 
+  it('drops stale confirmation data after a resource-change response and can recheck the source', async () => {
+    mockedFromReport.mockRejectedValueOnce({ response: { status: 409, data: { message: '报告关联简历已失效' } } })
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    await (wrapper.vm as any).confirmPlan()
+    await flushPromises()
+
+    expect((wrapper.vm as any).planState).toBe('ERROR')
+    expect((wrapper.vm as any).planContext).toBeNull()
+    expect(wrapper.find('[data-plan-confirmation]').exists()).toBe(false)
+    expect(wrapper.get('[data-plan-error]').text()).toContain('报告关联简历已失效')
+    expect((wrapper.vm as any).$route.query.fromReportId).toBe('9')
+
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'RESUME_UNAVAILABLE', reportId: 9, reason: '旧简历已失效' } as any)
+    await button(wrapper, '重试核对').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-plan-resume-unavailable]').text()).toContain('旧简历已失效')
+    expect(wrapper.find('[data-plan-ordinary-create]').exists()).toBe(true)
+  })
+
+  it('hides the old confirmation if its report is deleted before submission', async () => {
+    mockedFromReport.mockRejectedValueOnce({ response: { status: 404, data: { message: '来源不可用或无权访问' } } })
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    await (wrapper.vm as any).confirmPlan()
+    await flushPromises()
+    expect((wrapper.vm as any).planState).toBe('ERROR')
+    expect(wrapper.find('[data-plan-confirmation]').exists()).toBe(false)
+    expect(wrapper.get('[data-plan-error]').text()).toContain('来源不可用或无权访问')
+  })
+
+  it('does not open an existing detail after the source changes during detail loading', async () => {
+    const oldDetail = deferred<any>()
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'EXISTING', reportId: 9, applicationId: 77 } as any)
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'READY', reportId: 10, job: { id: 8, companyName: '新公司', jobTitle: '新岗位' }, resume: { id: 4, resumeName: '新简历' } } as any)
+    mockedDetail.mockImplementation((id) => id === 77 ? oldDetail.promise : Promise.resolve(application as any))
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    await (wrapper.vm as any).$router.push('/applications?fromReportId=10')
+    await flushPromises()
+    oldDetail.resolve({ ...application, applicationId: 77 })
+    await flushPromises()
+    expect((wrapper.vm as any).detailVisible).toBe(false)
+    expect((wrapper.vm as any).detail).toBeNull()
+    expect((wrapper.vm as any).$route.query.fromReportId).toBe('10')
+    expect(wrapper.get('[data-plan-confirmation]').text()).toContain('新岗位')
+  })
+
+  it('does not clear a newer source after a submitted plan detail resolves late', async () => {
+    const oldDetail = deferred<any>()
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'READY', reportId: 9, job: { id: 7, companyName: '旧公司', jobTitle: '旧岗位' }, resume: { id: 3, resumeName: '旧简历' } } as any)
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'READY', reportId: 10, job: { id: 8, companyName: '新公司', jobTitle: '新岗位' }, resume: { id: 4, resumeName: '新简历' } } as any)
+    mockedDetail.mockImplementation((id) => id === 77 ? oldDetail.promise : Promise.resolve(application as any))
+    mockedFromReport.mockResolvedValueOnce({ outcome: 'CREATED', applicationId: 77 } as any)
+    const wrapper = await mountPage('/applications?fromReportId=9')
+    const confirmation = (wrapper.vm as any).confirmPlan()
+    await flushPromises()
+    await (wrapper.vm as any).$router.push('/applications?fromReportId=10')
+    await flushPromises()
+    oldDetail.resolve({ ...application, applicationId: 77 })
+    await confirmation
+    await flushPromises()
+    expect((wrapper.vm as any).detailVisible).toBe(false)
+    expect((wrapper.vm as any).detail).toBeNull()
+    expect((wrapper.vm as any).$route.query.fromReportId).toBe('10')
+    expect(wrapper.get('[data-plan-confirmation]').text()).toContain('新岗位')
+  })
+
   it('cancels confirmation without submitting and removes the source query', async () => {
     const wrapper = await mountPage('/applications?fromReportId=9')
     await (wrapper.vm as any).cancelPlan()

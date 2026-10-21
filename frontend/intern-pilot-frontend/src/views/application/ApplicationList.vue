@@ -302,6 +302,10 @@ function parseReportId(raw: unknown): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null
 }
 
+function isCurrentPlanSource(requestId: number, reportId: number): boolean {
+  return applicationPageActive && requestId === planRequestId && route.query.fromReportId === String(reportId)
+}
+
 async function clearSourceQuery() {
   if (route.query.fromReportId === undefined) return
   const query = { ...route.query }
@@ -333,7 +337,8 @@ async function loadPlanContext(raw: unknown) {
       throw new Error('报告上下文已变化，请刷新后重试')
     }
     if (context.outcome === 'EXISTING' && Number.isSafeInteger(context.applicationId) && (context.applicationId || 0) > 0) {
-      await openDetail(context.applicationId!)
+      await openDetail(context.applicationId!, () => isCurrentPlanSource(requestId, reportId))
+      if (!isCurrentPlanSource(requestId, reportId)) return
       await clearSourceQuery()
       return
     }
@@ -387,12 +392,15 @@ async function confirmPlan() {
     if (!['CREATED', 'EXISTING'].includes(result.outcome) || !Number.isSafeInteger(result.applicationId) || result.applicationId <= 0) {
       throw new Error('服务端未返回有效的投递记录，请刷新后核对。')
     }
-    await openDetail(result.applicationId)
+    await openDetail(result.applicationId, () => isCurrentPlanSource(requestId, reportId))
+    if (!isCurrentPlanSource(requestId, reportId)) return
     await cancelPlan()
     await loadApplications()
   } catch (error: any) {
     if (!applicationPageActive || requestId !== planRequestId) return
-    planError.value = error?.message || '提交结果待确认，请刷新来源上下文后重试。'
+    planContext.value = null
+    planState.value = 'ERROR'
+    planError.value = error?.response?.data?.message || error?.message || '提交结果待确认，请刷新来源上下文后重试。'
   } finally {
     planSaving.value = false
   }
@@ -520,10 +528,10 @@ async function saveNote() {
   }
 }
 
-async function openDetail(id: number) {
+async function openDetail(id: number, isCurrent: () => boolean = () => true) {
   const requestId = ++detailRequestId
   const result = await getApplicationDetailApi(id)
-  if (!applicationPageActive || requestId !== detailRequestId) return
+  if (!applicationPageActive || requestId !== detailRequestId || !isCurrent()) return
   detail.value = result
   detailVisible.value = true
 }
