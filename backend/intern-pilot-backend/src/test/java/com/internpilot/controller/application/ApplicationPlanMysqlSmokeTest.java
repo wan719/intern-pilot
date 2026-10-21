@@ -21,6 +21,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -108,10 +111,17 @@ class ApplicationPlanMysqlSmokeTest {
 
     @Test
     void existingRecordWinsAfterOldResumeIsDeletedWithoutOverwritingFields() throws Exception {
-        jdbc.update("INSERT INTO application_record (id, user_id, job_id, resume_id, report_id, status, note, priority) "
-                + "VALUES (9501, 9101, 9301, 9201, 9401, 'INTERVIEWING', '原备注', 'HIGH')");
+        jdbc.update("INSERT INTO application_record (id, user_id, job_id, resume_id, report_id, status, "
+                + "apply_date, interview_date, note, priority) "
+                + "VALUES (9501, 9101, 9301, 9201, 9401, 'INTERVIEWING', "
+                + "'2026-10-01', '2026-10-22 10:00:00', '原备注', 'HIGH')");
         jdbc.update("UPDATE resume SET deleted = 1 WHERE id = 9201");
 
+        mockMvc.perform(get("/api/applications/plan-context").param("reportId", "9401")
+                        .with(syntheticUser(9101)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.outcome").value("EXISTING"))
+                .andExpect(jsonPath("$.data.applicationId").value(9501));
         mockMvc.perform(post("/api/applications/from-report")
                         .with(syntheticUser(9101)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reportId\":9401,\"note\":\"新备注\",\"priority\":\"LOW\"}"))
@@ -122,6 +132,9 @@ class ApplicationPlanMysqlSmokeTest {
         assertEquals("INTERVIEWING|原备注|HIGH", jdbc.queryForObject(
                 "SELECT CONCAT(status, '|', note, '|', priority) FROM application_record WHERE id = 9501",
                 String.class));
+        assertEquals("9201|9401|2026-10-01|2026-10-22 10:00:00", jdbc.queryForObject(
+                "SELECT CONCAT(resume_id, '|', report_id, '|', apply_date, '|', interview_date) "
+                        + "FROM application_record WHERE id = 9501", String.class));
     }
 
     @Test
@@ -138,6 +151,100 @@ class ApplicationPlanMysqlSmokeTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409));
         assertEquals(0, activeCount(9101, 9301));
+    }
+
+    @Test
+    void unavailableResumeCanOnlyUseOrdinaryCreationWithAnotherOwnedResumeAndNoReport() throws Exception {
+        jdbc.update("UPDATE resume SET deleted = 1 WHERE id = 9201");
+        jdbc.update("INSERT INTO resume (id, user_id, resume_name, original_file_name, stored_file_name, "
+                + "file_path, file_type, file_size) VALUES "
+                + "(9203, 9101, '合成新简历', 'new.pdf', 'new.pdf', '/synthetic/new.pdf', 'PDF', 1)");
+        try {
+            mockMvc.perform(get("/api/applications/plan-context").param("reportId", "9401")
+                            .with(syntheticUser(9101)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.outcome").value("RESUME_UNAVAILABLE"));
+            mockMvc.perform(post("/api/applications").with(syntheticUser(9101))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"jobId\":9301,\"resumeId\":9203,\"reportId\":null}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200));
+            assertEquals("9203|TO_APPLY", jdbc.queryForObject(
+                    "SELECT CONCAT(resume_id, '|', status) FROM application_record "
+                            + "WHERE user_id = 9101 AND job_id = 9301 AND deleted = 0", String.class));
+            assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM application_record "
+                    + "WHERE user_id = 9101 AND job_id = 9301 AND report_id IS NOT NULL", Integer.class));
+        } finally {
+            jdbc.update("DELETE FROM resume WHERE id = 9203");
+        }
+    }
+
+    @Test
+    void deletedReportOrJobIsUnavailableWithoutLeakingSummaryOrWriting() throws Exception {
+        jdbc.update("UPDATE analysis_report SET deleted = 1 WHERE id = 9401");
+        assertUnavailableForBothMethods(9401);
+        jdbc.update("UPDATE analysis_report SET deleted = 0 WHERE id = 9401");
+        jdbc.update("UPDATE job_description SET deleted = 1 WHERE id = 9301");
+        assertUnavailableForBothMethods(9401);
+        assertEquals(0, activeCount(9101, 9301));
+    }
+
+    @Test
+    void invalidAndMultiValuedReportIdsAreRejectedWithoutWriting() throws Exception {
+        for (String id : List.of("0", "-1", "999999999999999999999999999999")) {
+            mockMvc.perform(get("/api/applications/plan-context").param("reportId", id)
+                            .with(syntheticUser(9101)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(400));
+        }
+        mockMvc.perform(get("/api/applications/plan-context")
+                        .param("reportId", "9401", "9402").with(syntheticUser(9101)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+        mockMvc.perform(post("/api/applications/from-report")
+                        .with(syntheticUser(9101)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reportId\":0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+        assertEquals(0, activeCount(9101, 9301));
+    }
+
+    @Test
+    void concurrentConfirmationsReturnOneCreatedAndOneExistingForTheSameRecord() throws Exception {
+        var workers = Executors.newFixedThreadPool(2);
+        try {
+            var ready = new CountDownLatch(2);
+            var start = new CountDownLatch(1);
+            java.util.concurrent.Callable<org.springframework.test.web.servlet.MvcResult> request = () -> {
+                ready.countDown();
+                if (!start.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Concurrent request start timed out");
+                }
+                return mockMvc.perform(post("/api/applications/from-report")
+                                .with(syntheticUser(9101)).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"reportId\":9401}"))
+                        .andReturn();
+            };
+            var first = workers.submit(request);
+            var second = workers.submit(request);
+            org.junit.jupiter.api.Assertions.assertTrue(ready.await(10, TimeUnit.SECONDS));
+            start.countDown();
+            var firstResult = first.get(20, TimeUnit.SECONDS);
+            var secondResult = second.get(20, TimeUnit.SECONDS);
+            var firstBody = json.readTree(firstResult.getResponse().getContentAsString());
+            var secondBody = json.readTree(secondResult.getResponse().getContentAsString());
+            assertEquals(List.of(200, 201), java.util.stream.Stream.of(
+                    firstResult.getResponse().getStatus(), secondResult.getResponse().getStatus())
+                    .sorted().toList());
+            assertEquals(List.of("CREATED", "EXISTING"), java.util.stream.Stream.of(
+                    firstBody.at("/data/outcome").asText(), secondBody.at("/data/outcome").asText())
+                    .sorted().toList());
+            assertEquals(firstBody.at("/data/applicationId").asLong(),
+                    secondBody.at("/data/applicationId").asLong());
+            assertEquals(1, activeCount(9101, 9301));
+        } finally {
+            workers.shutdownNow();
+        }
     }
 
     @Test
@@ -173,6 +280,24 @@ class ApplicationPlanMysqlSmokeTest {
         var user = new CustomUserDetails(id, "plan-smoke-" + id, List.of("USER"),
                 List.of("application:read", "application:write"));
         return SecurityMockMvcRequestPostProcessors.user(user);
+    }
+
+    private void assertUnavailableForBothMethods(long reportId) throws Exception {
+        var context = mockMvc.perform(get("/api/applications/plan-context")
+                        .param("reportId", Long.toString(reportId)).with(syntheticUser(9101)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404))
+                .andReturn();
+        var creation = mockMvc.perform(post("/api/applications/from-report")
+                        .with(syntheticUser(9101)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reportId\":" + reportId + "}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404))
+                .andReturn();
+        org.junit.jupiter.api.Assertions.assertFalse(
+                context.getResponse().getContentAsString().contains("合成公司 A"));
+        org.junit.jupiter.api.Assertions.assertFalse(
+                creation.getResponse().getContentAsString().contains("合成公司 A"));
     }
 
     private int activeCount(long userId, long jobId) {
