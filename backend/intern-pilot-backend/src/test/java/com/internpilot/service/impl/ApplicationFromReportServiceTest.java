@@ -104,7 +104,7 @@ class ApplicationFromReportServiceTest {
     }
 
     @Test
-    void missingResumeReturnsNoStaleSummary() {
+    void missingResumeReturnsOwnedJobForOrdinaryCreationWithoutStaleResume() {
         login(1L);
         AnalysisReport report = new AnalysisReport();
         report.setId(30L);
@@ -112,6 +112,8 @@ class ApplicationFromReportServiceTest {
         report.setResumeId(20L);
         JobDescription job = new JobDescription();
         job.setId(10L);
+        job.setCompanyName("示例公司");
+        job.setJobTitle("Java 实习生");
         when(analysisReportMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(report);
         when(jobDescriptionMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(job);
 
@@ -119,7 +121,9 @@ class ApplicationFromReportServiceTest {
 
         assertEquals("RESUME_UNAVAILABLE", result.getOutcome());
         assertNotNull(result.getReason());
-        assertNull(result.getJob());
+        assertEquals(10L, result.getJob().getId());
+        assertEquals("示例公司", result.getJob().getCompanyName());
+        assertEquals("Java 实习生", result.getJob().getJobTitle());
         assertNull(result.getResume());
     }
 

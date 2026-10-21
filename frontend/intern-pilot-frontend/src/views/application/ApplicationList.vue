@@ -130,7 +130,7 @@
       <el-form :model="createForm" label-position="top">
         <el-form-item label="岗位">
           <el-select v-model="createForm.jobId" filterable placeholder="请选择岗位">
-            <el-option v-for="item in jobs" :key="item.jobId" :label="`${item.companyName} - ${item.jobTitle}`" :value="item.jobId" />
+            <el-option v-for="item in createJobs" :key="item.jobId" :label="`${item.companyName} - ${item.jobTitle}`" :value="item.jobId" />
           </el-select>
         </el-form-item>
         <div class="form-grid two">
@@ -261,6 +261,12 @@ import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
 const applications = ref<any[]>([])
 const jobs = ref<any[]>([])
+const fallbackJob = ref<NonNullable<ApplicationPlanContext['job']> | null>(null)
+const createJobs = computed(() => {
+  const job = fallbackJob.value
+  if (!job || jobs.value.some((item) => item.jobId === job.id)) return jobs.value
+  return [{ jobId: job.id, companyName: job.companyName, jobTitle: job.jobTitle }, ...jobs.value]
+})
 const resumes = ref<any[]>([])
 const reports = ref<any[]>([])
 const detail = ref<any>(null)
@@ -371,8 +377,13 @@ async function cancelPlan() {
 }
 
 async function startOrdinaryCreate() {
+  const job = planContext.value?.job
   await cancelPlan()
   openCreate()
+  if (job) {
+    fallbackJob.value = job
+    createForm.jobId = job.id
+  }
   createForm.reportId = null
 }
 
@@ -467,6 +478,7 @@ function resetQuery() {
 }
 
 function openCreate() {
+  fallbackJob.value = null
   Object.assign(createForm, { jobId: undefined, resumeId: undefined, reportId: undefined, status: 'TO_APPLY', priority: 'MEDIUM', applyDate: '', note: '' })
   createVisible.value = true
 }

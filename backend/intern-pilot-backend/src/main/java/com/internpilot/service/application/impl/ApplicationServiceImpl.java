@@ -133,6 +133,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             return response;
         }
 
+        ApplicationPlanContextResponse.JobSummary jobSummary = new ApplicationPlanContextResponse.JobSummary();
+        jobSummary.setId(job.getId());
+        jobSummary.setCompanyName(job.getCompanyName());
+        jobSummary.setJobTitle(job.getJobTitle());
+        response.setJob(jobSummary);
+
         Resume resume = report.getResumeId() == null ? null : resumeMapper.selectOne(
                 new LambdaQueryWrapper<Resume>()
                         .eq(Resume::getId, report.getResumeId())
@@ -147,11 +153,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         response.setOutcome("READY");
-        ApplicationPlanContextResponse.JobSummary jobSummary = new ApplicationPlanContextResponse.JobSummary();
-        jobSummary.setId(job.getId());
-        jobSummary.setCompanyName(job.getCompanyName());
-        jobSummary.setJobTitle(job.getJobTitle());
-        response.setJob(jobSummary);
         ApplicationPlanContextResponse.ResumeSummary resumeSummary = new ApplicationPlanContextResponse.ResumeSummary();
         resumeSummary.setId(resume.getId());
         resumeSummary.setResumeName(resume.getResumeName());

@@ -133,19 +133,22 @@ describe('from-report plan flow', () => {
     expect((wrapper.vm as any).$route.query.fromReportId).toBe('9')
   })
 
-  it('requires a second explicit choice for ordinary creation and clears reportId', async () => {
-    mockedPlanContext.mockResolvedValueOnce({ outcome: 'RESUME_UNAVAILABLE', reportId: 9, reason: '旧简历已失效' } as any)
+  it('preserves an owned job absent from the first options page when reselecting the resume', async () => {
+    mockedPlanContext.mockResolvedValueOnce({ outcome: 'RESUME_UNAVAILABLE', reportId: 9, reason: '旧简历已失效', job: { id: 101, companyName: '旧岗位公司', jobTitle: '后端实习生' }, resume: null } as any)
     const wrapper = await mountPage('/applications?fromReportId=9')
     expect(wrapper.get('[data-plan-resume-unavailable]').text()).toContain('旧简历已失效')
     expect((wrapper.vm as any).createVisible).toBe(false)
     await wrapper.get('[data-plan-ordinary-create]').trigger('click')
     await flushPromises()
     expect((wrapper.vm as any).createVisible).toBe(true)
+    expect((wrapper.vm as any).createForm.jobId).toBe(101)
+    expect((wrapper.vm as any).createJobs).toContainEqual(expect.objectContaining({ jobId: 101, companyName: '旧岗位公司', jobTitle: '后端实习生' }))
+    expect((wrapper.vm as any).createForm.resumeId).toBeUndefined()
     expect((wrapper.vm as any).createForm.reportId).toBeNull()
     expect(mockedFromReport).not.toHaveBeenCalled()
-    ;(wrapper.vm as any).createForm.jobId = 7
+    ;(wrapper.vm as any).createForm.resumeId = 3
     await (wrapper.vm as any).createApplication()
-    expect(mockedCreate).toHaveBeenCalledWith(expect.objectContaining({ jobId: 7, reportId: null }))
+    expect(mockedCreate).toHaveBeenCalledWith(expect.objectContaining({ jobId: 101, resumeId: 3, reportId: null }))
   })
 
   it('does not let a late context response replace a newer report selection', async () => {
