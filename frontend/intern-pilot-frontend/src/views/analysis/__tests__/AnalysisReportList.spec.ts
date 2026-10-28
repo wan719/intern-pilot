@@ -158,9 +158,11 @@ describe('ASE P2-001: loaded report keyword search', () => {
         { ...report, reportId: 92, companyName: 'Northwind Labs', jobTitle: 'Backend Engineer' }
       ]
     } as any)
-    mockedDetail.mockImplementation(async (id: number) =>
-      id === 91 ? reportDetail : { ...reportDetail, reportId: 92, companyName: 'Northwind Labs', jobTitle: 'Backend Engineer' }
-    )
+    mockedDetail
+      .mockResolvedValueOnce(reportDetail as any)
+      .mockResolvedValueOnce({
+        ...reportDetail, reportId: 92, companyName: 'Northwind Labs', jobTitle: 'Backend Engineer'
+      } as any)
     const wrapper = await mountPage()
     expect(wrapper.findAll('[data-report-card]')).toHaveLength(2)
     const search = wrapper.get('input[aria-label="搜索当前已加载报告"]')
