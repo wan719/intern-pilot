@@ -6,6 +6,7 @@ import com.internpilot.common.Result;
 import com.internpilot.dto.application.ApplicationCreateRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
+import com.internpilot.dto.application.ApplicationPriorityUpdateRequest;
 import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.service.application.ApplicationService;
 import com.internpilot.vo.application.ApplicationCreateResponse;
@@ -72,6 +73,15 @@ public class ApplicationController {
 
     @Operation(summary = "修改投递备", description = "修改当前用户某条投递记录的备注、复盘和面试时间")
     @OperationLog(module = "投递记", operation = "修改投递备", type = OperationTypeEnum.UPDATE)
+    @Operation(summary = "修改投递优先级", description = "仅允许修改本人未删除投递记录的优先级")
+    @PreAuthorize("hasAuthority('application:write')")
+    @PutMapping("/{id}/priority")
+    public Result<Boolean> updatePriority(
+            @PathVariable Long id,
+            @RequestBody @Valid ApplicationPriorityUpdateRequest request) {
+        return Result.success(applicationService.updatePriority(id, request));
+    }
+
     @PreAuthorize("hasAuthority('application:write')")
     @PutMapping("/{id}/note")
     public Result<Boolean> updateNote(

@@ -95,6 +95,7 @@
         <div class="responsive-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
           <el-button type="primary" @click="openDetail(item.applicationId)">详情</el-button>
           <el-button @click="openStatus(item)">改状态</el-button>
+          <el-button @click="openPriority(item)">改优先级</el-button>
           <el-button @click="openNote(item)">备注</el-button>
           <el-button type="danger" plain @click="removeApplication(item)">删除</el-button>
         </div>
@@ -182,6 +183,27 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="priorityVisible"
+      data-priority-dialog
+      title="修改投递优先级"
+      :width="statusDialogWidth"
+      :close-on-click-modal="!prioritySaving"
+      :close-on-press-escape="!prioritySaving"
+      :show-close="!prioritySaving"
+    >
+      <el-select v-model="priorityForm.priority" aria-label="选择投递优先级">
+        <el-option label="高" value="HIGH" />
+        <el-option label="中" value="MEDIUM" />
+        <el-option label="低" value="LOW" />
+      </el-select>
+      <p v-if="priorityError" role="alert">{{ priorityError }}</p>
+      <template #footer>
+        <el-button :disabled="prioritySaving" @click="priorityVisible = false">取消</el-button>
+        <el-button type="primary" :loading="prioritySaving" @click="savePriority">保存</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="noteVisible" title="备注与复盘" :width="noteDialogWidth">
       <el-form label-position="top">
         <el-form-item label="备注"><el-input v-model="noteForm.note" type="textarea" :rows="3" placeholder="记录投递渠道、HR 沟通和下一步事项" /></el-form-item>
@@ -252,7 +274,7 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import StatCard from '@/components/common/StatCard.vue'
-import { createApplicationApi, createApplicationFromReportApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, getApplicationPlanContextApi, updateApplicationNoteApi, updateApplicationStatusApi, type ApplicationPlanContext } from '@/api/application'
+import { createApplicationApi, createApplicationFromReportApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, getApplicationPlanContextApi, updateApplicationNoteApi, updateApplicationStatusApi, updateApplicationPriorityApi, type ApplicationPriority, type ApplicationPlanContext } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
@@ -282,6 +304,11 @@ const loading = ref(false)
 const saving = ref(false)
 const statusSaving = ref(false)
 const noteSaving = ref(false)
+const prioritySaving = ref(false)
+const priorityVisible = ref(false)
+const priorityCurrentId = ref<number>()
+const priorityError = ref('')
+const priorityForm = reactive<{ priority: ApplicationPriority }>({ priority: 'MEDIUM' })
 const createVisible = ref(false)
 const statusVisible = ref(false)
 const noteVisible = ref(false)
@@ -298,6 +325,7 @@ const statusDialogWidth = responsiveDialogWidth('360px')
 const noteDialogWidth = responsiveDialogWidth('560px')
 const detailDrawerSize = responsiveDrawerSize('52%')
 let applicationLoadEpoch = 0
+let priorityEditEpoch = 0
 let applicationPageActive = true
 let detailRequestId = 0
 let planRequestId = 0
@@ -519,6 +547,37 @@ async function saveStatus() {
   }
 }
 
+function openPriority(row: any) {
+  if (prioritySaving.value) return
+  priorityEditEpoch += 1
+  priorityCurrentId.value = row.applicationId
+  priorityForm.priority = ['HIGH', 'MEDIUM', 'LOW'].includes(row.priority) ? row.priority : 'MEDIUM'
+  priorityError.value = ''
+  priorityVisible.value = true
+}
+
+async function savePriority() {
+  if (prioritySaving.value || !priorityCurrentId.value) return
+  const epoch = priorityEditEpoch
+  const id = priorityCurrentId.value
+  const selected = priorityForm.priority
+  prioritySaving.value = true
+  priorityError.value = ''
+  try {
+    await updateApplicationPriorityApi(id, { priority: selected })
+    if (!applicationPageActive || epoch !== priorityEditEpoch) return
+    ElMessage.success('优先级已更新')
+    priorityVisible.value = false
+    void loadApplications()
+  } catch (error: unknown) {
+    if (applicationPageActive && epoch === priorityEditEpoch) {
+      priorityError.value = error instanceof Error ? error.message : '修改优先级失败，请重试'
+    }
+  } finally {
+    prioritySaving.value = false
+  }
+}
+
 function openNote(row: any) {
   currentId.value = row.applicationId
   noteForm.note = row.note || ''
@@ -630,6 +689,7 @@ watch(() => route.query.fromReportId, loadPlanContext, { immediate: true })
 onBeforeUnmount(() => {
   applicationPageActive = false
   applicationLoadEpoch += 1
+  priorityEditEpoch += 1
   detailRequestId += 1
   planRequestId += 1
 })

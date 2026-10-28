@@ -36,6 +36,12 @@ export function updateApplicationStatusApi(id: number, data: any) {
   return request.put(`/api/applications/${id}/status`, data)
 }
 
+export type ApplicationPriority = 'HIGH' | 'MEDIUM' | 'LOW'
+
+export function updateApplicationPriorityApi(id: number, data: { priority: ApplicationPriority }) {
+  return request.put(`/api/applications/${id}/priority`, data)
+}
+
 export function updateApplicationNoteApi(id: number, data: any) {
   return request.put(`/api/applications/${id}/note`, data)
 }

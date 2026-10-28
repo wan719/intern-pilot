@@ -8,6 +8,7 @@ import com.internpilot.dto.application.ApplicationCreateRequest;
 import com.internpilot.dto.application.ApplicationFromReportRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
+import com.internpilot.dto.application.ApplicationPriorityUpdateRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.ApplicationRecord;
 import com.internpilot.entity.JobDescription;
@@ -254,6 +255,22 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         record.setStatus(request.getStatus());
+        applicationRecordMapper.updateById(record);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public Boolean updatePriority(Long id, ApplicationPriorityUpdateRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        ApplicationRecord record = getUserApplicationOrThrow(id, currentUserId);
+
+        if (!ApplicationPriorityEnum.isValid(request.getPriority())) {
+            throw new BusinessException("投递优先级不合法");
+        }
+
+        // Reuse the current-user/active-record ownership check. Never bind another field from the request.
+        record.setPriority(request.getPriority());
         applicationRecordMapper.updateById(record);
         return true;
     }
