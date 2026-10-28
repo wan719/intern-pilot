@@ -306,6 +306,13 @@ describe('P5-B application priority editing contract', () => {
     expect((wrapper.vm as any).priorityForm.priority).toBe('MEDIUM')
     expect((wrapper.vm as any).priorityError).toBeTruthy()
     expect(mockedList).toHaveBeenCalledTimes(1)
+
+    // The transient failure must not trap the user in a disabled editor.
+    await (wrapper.vm as any).savePriority()
+    expect(mockedUpdatePriority).toHaveBeenCalledTimes(2)
+    expect(mockedUpdatePriority).toHaveBeenLastCalledWith(17, { priority: 'MEDIUM' })
+    expect((wrapper.vm as any).priorityError).toBe('')
+    expect((wrapper.vm as any).priorityVisible).toBe(false)
   })
 })
 
