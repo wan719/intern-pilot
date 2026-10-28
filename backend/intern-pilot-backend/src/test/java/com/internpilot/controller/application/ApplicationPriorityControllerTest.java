@@ -63,7 +63,8 @@ class ApplicationPriorityControllerTest {
         for (String body : new String[]{"{}", "{\"priority\":null}", "{\"priority\":\"\"}", "{\"priority\":\" \"}"}) {
             mockMvc.perform(put("/api/applications/17/priority").contentType(MediaType.APPLICATION_JSON)
                             .content(body))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(400));
         }
         verify(service, never()).updatePriority(eq(17L), any());
     }
