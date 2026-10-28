@@ -36,6 +36,8 @@ jobs:
         run: docker info --format '{{.ServerVersion}}'
 
       - name: Run backend tests
+        env:
+          JAVA_TOOL_OPTIONS: "-Dapi.version=1.44"
         run: ./gradlew clean test jacocoTestReport --no-daemon
 
       - name: Upload JaCoCo coverage report
