@@ -150,6 +150,53 @@ describe('analysis report list contract characterization', () => {
   })
 })
 
+describe('ASE P2-001: loaded report keyword search', () => {
+  it('filters the already loaded cards by company or job without calling the API again', async () => {
+    mockedList.mockResolvedValueOnce({
+      records: [
+        report,
+        { ...report, reportId: 92, companyName: 'Northwind Labs', jobTitle: 'Backend Engineer' }
+      ]
+    } as any)
+    mockedDetail.mockImplementation(async (id: number) =>
+      id === 91 ? reportDetail : { ...reportDetail, reportId: 92, companyName: 'Northwind Labs', jobTitle: 'Backend Engineer' }
+    )
+    const wrapper = await mountPage()
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(2)
+    const search = wrapper.get('input[aria-label="搜索当前已加载报告"]')
+
+    await search.setValue('  星河  ')
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(1)
+    expect(wrapper.get('[data-report-card]').text()).toContain('星河科技')
+
+    await search.setValue('backend')
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(1)
+    expect(wrapper.get('[data-report-card]').text()).toContain('Backend Engineer')
+    expect(mockedList).toHaveBeenCalledTimes(1)
+  })
+
+  it('distinguishes zero search matches from an empty report library and resets locally', async () => {
+    const wrapper = await mountPage()
+    const search = wrapper.get('input[aria-label="搜索当前已加载报告"]')
+
+    await search.setValue('no-matching-company')
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(0)
+    expect(wrapper.get('[data-report-search-empty]').text()).toContain('没有匹配的报告')
+    expect(wrapper.text()).not.toContain('还没有分析报告')
+
+    await wrapper.get('[data-report-clear-search]').trigger('click')
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(1)
+    expect(mockedList).toHaveBeenCalledTimes(1)
+
+    await search.setValue('another-missing-name')
+    await wrapper.get('[data-filter-reset]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-report-card]')).toHaveLength(1)
+    expect((wrapper.vm as any).keyword).toBe('')
+    expect(mockedList).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('analysis report list redesign', () => {
   it('uses one result-led heading, summary metrics and the shared FilterBar', async () => {
     const wrapper = await mountPage()
