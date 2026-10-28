@@ -21,6 +21,13 @@
 
     <FilterBar class="report-filter" @reset="resetQuery">
       <template #filters>
+        <el-input
+          v-model="keyword"
+          class="report-keyword-search"
+          aria-label="搜索当前已加载报告"
+          placeholder="搜索公司或岗位（当前已加载）"
+          clearable
+        />
         <el-segmented v-model="scoreFilter" :options="scoreFilterOptions" @change="applyScoreFilter" />
         <label class="score-input">
           <span>最低匹配分</span>
@@ -59,7 +66,17 @@
         </el-button>
       </AppEmpty>
 
-      <article v-for="item in reports" v-else :key="item.reportId" class="report-card" data-report-card>
+      <AppEmpty
+        v-else-if="!visibleReports.length"
+        data-report-search-empty
+        title="没有匹配的报告"
+        description="当前已加载的报告中，没有符合关键词的公司或岗位。"
+        hint="清空搜索后可查看完整的已加载列表。"
+      >
+        <el-button data-report-clear-search @click="keyword = ''">清空搜索</el-button>
+      </AppEmpty>
+
+      <article v-for="item in visibleReports" v-else :key="item.reportId" class="report-card" data-report-card>
         <div class="score-panel" :class="scoreClass(item.matchScore)" :aria-label="`匹配分 ${normalizedScore(item.matchScore)}，${item.matchLevel || scoreLabel(item.matchScore)}`">
           <span>匹配分</span>
           <strong>{{ normalizedScore(item.matchScore) }}</strong>
@@ -269,6 +286,7 @@ const detailLoading = ref(false)
 const detailError = ref('')
 const deletingId = ref<number | null>(null)
 const scoreFilter = ref('all')
+const keyword = ref('')
 const query = reactive<{ minScore?: number }>({})
 let reportRequestId = 0
 let detailRequestId = 0
@@ -280,6 +298,15 @@ const scoreFilterOptions = [
   { label: '可尝试', value: 'medium' },
   { label: '需优化', value: 'low' }
 ]
+
+const visibleReports = computed(() => {
+  const term = keyword.value.trim().toLocaleLowerCase()
+  if (!term) return reports.value
+  return reports.value.filter((item) =>
+    [item.companyName, item.jobTitle]
+      .some((value) => String(value ?? '').toLocaleLowerCase().includes(term))
+  )
+})
 
 const reportStats = computed(() => {
   const totalScore = reports.value.reduce((sum, item) => sum + normalizedScore(item.matchScore), 0)
@@ -376,6 +403,7 @@ async function handleDelete(row: any) {
 }
 
 function resetQuery() {
+  keyword.value = ''
   scoreFilter.value = 'all'
   query.minScore = undefined
   loadReports()
@@ -497,6 +525,10 @@ onBeforeUnmount(() => {
 
 .report-filter {
   margin-bottom: var(--space-5);
+}
+
+.report-keyword-search {
+  width: min(280px, 100%);
 }
 
 .score-input {
