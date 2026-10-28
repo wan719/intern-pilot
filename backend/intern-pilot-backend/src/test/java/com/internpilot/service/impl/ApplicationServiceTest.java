@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.dto.application.ApplicationCreateRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
+import com.internpilot.dto.application.ApplicationPriorityUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
 import com.internpilot.entity.AnalysisReport;
 import com.internpilot.entity.ApplicationRecord;
@@ -459,6 +460,96 @@ class ApplicationServiceTest {
 
         assertEquals(true, result);
         verify(applicationRecordMapper).deleteById(1L);
+    }
+
+
+    @Test
+    void updatePriorityShouldChangeOnlyTheOwnedRecordPriority() {
+        mockLoginUser(1L);
+        ApplicationRecord record = new ApplicationRecord();
+        record.setId(17L);
+        record.setUserId(1L);
+        record.setJobId(8L);
+        record.setStatus("APPLIED");
+        record.setPriority("MEDIUM");
+        record.setNote("保留原备注");
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record);
+        when(applicationRecordMapper.updateById(any(ApplicationRecord.class))).thenReturn(1);
+
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("HIGH");
+
+        assertEquals(true, applicationService.updatePriority(17L, request));
+        ArgumentCaptor<ApplicationRecord> saved = ArgumentCaptor.forClass(ApplicationRecord.class);
+        verify(applicationRecordMapper).updateById(saved.capture());
+        assertEquals(17L, saved.getValue().getId());
+        assertEquals(1L, saved.getValue().getUserId());
+        assertEquals("HIGH", saved.getValue().getPriority());
+        assertEquals("APPLIED", saved.getValue().getStatus());
+        assertEquals("保留原备注", saved.getValue().getNote());
+        assertEquals(8L, saved.getValue().getJobId());
+    }
+
+    @Test
+    void updatePrioritySameValueDoesNotCreateAnotherApplication() {
+        mockLoginUser(1L);
+        ApplicationRecord record = new ApplicationRecord();
+        record.setId(17L);
+        record.setUserId(1L);
+        record.setPriority("HIGH");
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record);
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("HIGH");
+
+        assertEquals(true, applicationService.updatePriority(17L, request));
+        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
+                .insert(any(ApplicationRecord.class));
+    }
+
+    @Test
+    void updatePriorityRejectsInvalidValueWithoutWriting() {
+        mockLoginUser(1L);
+        ApplicationRecord record = new ApplicationRecord();
+        record.setId(17L);
+        record.setUserId(1L);
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record);
+
+        for (String invalid : new String[]{null, "", " ", "URGENT", "high"}) {
+            ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+            request.setPriority(invalid);
+            assertThrows(BusinessException.class, () -> applicationService.updatePriority(17L, request));
+        }
+        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
+                .updateById(any(ApplicationRecord.class));
+    }
+
+    @Test
+    void updatePriorityRejectsMissingOrOtherUsersRecordWithoutWriting() {
+        mockLoginUser(1L);
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("LOW");
+
+        assertThrows(BusinessException.class, () -> applicationService.updatePriority(991L, request));
+        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
+                .updateById(any(ApplicationRecord.class));
+    }
+
+    @Test
+    void updatePriorityLookupMustBeScopedToAuthenticatedUserAndActiveRow() {
+        mockLoginUser(1L);
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("LOW");
+
+        assertThrows(BusinessException.class, () -> applicationService.updatePriority(991L, request));
+        ArgumentCaptor<LambdaQueryWrapper> filter = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(applicationRecordMapper).selectOne(filter.capture());
+        String sql = filter.getValue().getSqlSegment().toLowerCase();
+        assertTrue(sql.contains("user_id"));
+        assertTrue(sql.contains("deleted"));
+        assertTrue(filter.getValue().getParamNameValuePairs().containsValue(1L));
+        assertTrue(filter.getValue().getParamNameValuePairs().containsValue(991L));
     }
 
     private void mockLoginUser(Long userId) {
