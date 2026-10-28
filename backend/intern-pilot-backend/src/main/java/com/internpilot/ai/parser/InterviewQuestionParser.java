@@ -28,7 +28,7 @@ public class InterviewQuestionParser {
         int sortOrder = 1;
 
         for (AiInterviewQuestionResult.QuestionItem item : result.getQuestions()) {
-            if (item.getQuestion() == null || item.getQuestion().isBlank()) {
+            if (item == null || item.getQuestion() == null || item.getQuestion().isBlank()) {
                 continue;
             }
 
