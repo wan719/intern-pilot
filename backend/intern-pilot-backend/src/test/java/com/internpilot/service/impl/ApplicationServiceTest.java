@@ -3,6 +3,7 @@ package com.internpilot.service.impl;
 import com.internpilot.service.application.impl.ApplicationServiceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.dto.application.ApplicationCreateRequest;
@@ -37,6 +38,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +46,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.isNull;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationServiceTest {
@@ -464,7 +469,7 @@ class ApplicationServiceTest {
 
 
     @Test
-    void updatePriorityShouldChangeOnlyTheOwnedRecordPriority() {
+    void updatePriorityShouldOnlySetPriorityAndTimestampWithOwnedActiveRowPredicate() {
         mockLoginUser(1L);
         ApplicationRecord record = new ApplicationRecord();
         record.setId(17L);
@@ -472,38 +477,112 @@ class ApplicationServiceTest {
         record.setJobId(8L);
         record.setStatus("APPLIED");
         record.setPriority("MEDIUM");
-        record.setNote("保留原备注");
+        record.setNote("旧备注");
         when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record);
-        when(applicationRecordMapper.updateById(any(ApplicationRecord.class))).thenReturn(1);
+        when(applicationRecordMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
 
         ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
         request.setPriority("HIGH");
-
         assertEquals(true, applicationService.updatePriority(17L, request));
-        ArgumentCaptor<ApplicationRecord> saved = ArgumentCaptor.forClass(ApplicationRecord.class);
-        verify(applicationRecordMapper).updateById(saved.capture());
-        assertEquals(17L, saved.getValue().getId());
-        assertEquals(1L, saved.getValue().getUserId());
-        assertEquals("HIGH", saved.getValue().getPriority());
-        assertEquals("APPLIED", saved.getValue().getStatus());
-        assertEquals("保留原备注", saved.getValue().getNote());
-        assertEquals(8L, saved.getValue().getJobId());
+
+        ArgumentCaptor<LambdaUpdateWrapper> updateCaptor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(applicationRecordMapper).update(isNull(), updateCaptor.capture());
+        LambdaUpdateWrapper wrapper = updateCaptor.getValue();
+
+        // Inspect the actual MyBatis-Plus wrapper SET, not the unchanged Java entity.
+        String setClause = wrapper.getSqlSet().toLowerCase();
+        assertTrue(setClause.contains("priority"));
+        assertTrue(setClause.contains("updated_at"));
+        assertFalse(setClause.contains("status"));
+        assertFalse(setClause.contains("note"));
+        assertFalse(setClause.contains("job_id"));
+        assertFalse(setClause.contains("resume_id"));
+        assertFalse(setClause.contains("user_id"));
+        assertFalse(setClause.contains("deleted"));
+        assertFalse(setClause.contains("interview_date"));
+
+        String predicate = wrapper.getSqlSegment().toLowerCase();
+        assertTrue(predicate.contains("id"));
+        assertTrue(predicate.contains("user_id"));
+        assertTrue(predicate.contains("deleted"));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(17L));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(1L));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue(0));
+        assertTrue(wrapper.getParamNameValuePairs().containsValue("HIGH"));
+        verify(applicationRecordMapper, never()).updateById(any(ApplicationRecord.class));
     }
 
     @Test
-    void updatePrioritySameValueDoesNotCreateAnotherApplication() {
+    void updatePrioritySameValueIsIdempotentWithMatchingRow() {
         mockLoginUser(1L);
         ApplicationRecord record = new ApplicationRecord();
         record.setId(17L);
         record.setUserId(1L);
         record.setPriority("HIGH");
         when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record);
+        when(applicationRecordMapper.update(isNull(), any(LambdaUpdateWrapper.class))).thenReturn(1);
         ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
         request.setPriority("HIGH");
 
         assertEquals(true, applicationService.updatePriority(17L, request));
-        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
-                .insert(any(ApplicationRecord.class));
+        verify(applicationRecordMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+        verify(applicationRecordMapper, never()).insert(any(ApplicationRecord.class));
+    }
+
+    @Test
+    void updatePriorityZeroRowsAfterConcurrentSoftDeleteMustNotReportSuccess() {
+        mockLoginUser(1L);
+        ApplicationRecord beforeDelete = new ApplicationRecord();
+        beforeDelete.setId(17L);
+        beforeDelete.setUserId(1L);
+        beforeDelete.setPriority("MEDIUM");
+        // The first read finds the record; subsequent read fails after an intervening soft delete.
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(beforeDelete, null);
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("HIGH");
+
+        assertThrows(BusinessException.class, () -> applicationService.updatePriority(17L, request));
+        verify(applicationRecordMapper, times(2)).selectOne(any(LambdaQueryWrapper.class));
+        verify(applicationRecordMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updatePriorityZeroRowsWithLiveSamePriorityMayBeIdempotent() {
+        mockLoginUser(1L);
+        ApplicationRecord oldRecord = new ApplicationRecord();
+        oldRecord.setId(17L);
+        oldRecord.setUserId(1L);
+        oldRecord.setPriority("MEDIUM");
+        ApplicationRecord currentRecord = new ApplicationRecord();
+        currentRecord.setId(17L);
+        currentRecord.setUserId(1L);
+        currentRecord.setPriority("HIGH");
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class)))
+                .thenReturn(oldRecord, currentRecord);
+        // Default Mockito update(...) return value 0 simulates matched-but-unchanged / concurrent same-priority state.
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("HIGH");
+
+        assertEquals(true, applicationService.updatePriority(17L, request));
+        verify(applicationRecordMapper, times(2)).selectOne(any(LambdaQueryWrapper.class));
+        verify(applicationRecordMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updatePriorityZeroRowsWithDifferentLivePriorityIsConflict() {
+        mockLoginUser(1L);
+        ApplicationRecord record = new ApplicationRecord();
+        record.setId(17L);
+        record.setUserId(1L);
+        record.setPriority("MEDIUM");
+        when(applicationRecordMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(record, record);
+        ApplicationPriorityUpdateRequest request = new ApplicationPriorityUpdateRequest();
+        request.setPriority("HIGH");
+
+        BusinessException failure = assertThrows(BusinessException.class,
+                () -> applicationService.updatePriority(17L, request));
+        assertEquals(409, failure.getCode());
+        verify(applicationRecordMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
     @Test
@@ -519,8 +598,8 @@ class ApplicationServiceTest {
             request.setPriority(invalid);
             assertThrows(BusinessException.class, () -> applicationService.updatePriority(17L, request));
         }
-        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
-                .updateById(any(ApplicationRecord.class));
+        verify(applicationRecordMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+        verify(applicationRecordMapper, never()).updateById(any(ApplicationRecord.class));
     }
 
     @Test
@@ -531,8 +610,7 @@ class ApplicationServiceTest {
         request.setPriority("LOW");
 
         assertThrows(BusinessException.class, () -> applicationService.updatePriority(991L, request));
-        org.mockito.Mockito.verify(applicationRecordMapper, org.mockito.Mockito.never())
-                .updateById(any(ApplicationRecord.class));
+        verify(applicationRecordMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
     @Test
