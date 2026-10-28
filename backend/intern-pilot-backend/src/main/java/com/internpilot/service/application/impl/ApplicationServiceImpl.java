@@ -1,6 +1,7 @@
 package com.internpilot.service.application.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.ResultCode;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -263,16 +265,43 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     public Boolean updatePriority(Long id, ApplicationPriorityUpdateRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        ApplicationRecord record = getUserApplicationOrThrow(id, currentUserId);
+        getUserApplicationOrThrow(id, currentUserId);
 
         if (!ApplicationPriorityEnum.isValid(request.getPriority())) {
             throw new BusinessException("投递优先级不合法");
         }
 
-        // Reuse the current-user/active-record ownership check. Never bind another field from the request.
-        record.setPriority(request.getPriority());
-        applicationRecordMapper.updateById(record);
-        return true;
+        // Do not write the stale entity: it may contain status/note changes made by others.
+        // This atomic, owner-scoped UPDATE only touches the requested priority and timestamp.
+        LambdaUpdateWrapper<ApplicationRecord> update = new LambdaUpdateWrapper<ApplicationRecord>()
+                .set(ApplicationRecord::getPriority, request.getPriority())
+                .set(ApplicationRecord::getUpdatedAt, LocalDateTime.now())
+                .eq(ApplicationRecord::getId, id)
+                .eq(ApplicationRecord::getUserId, currentUserId)
+                .eq(ApplicationRecord::getDeleted, 0);
+        int affected = applicationRecordMapper.update(null, update);
+        if (affected == 1) {
+            return true;
+        }
+
+        if (affected == 0) {
+            // A locking current read avoids a stale REPEATABLE_READ snapshot after a
+            // concurrent logical delete; also supports no-op/same-value idempotency.
+            ApplicationRecord live = applicationRecordMapper.selectOne(
+                    new LambdaQueryWrapper<ApplicationRecord>()
+                            .eq(ApplicationRecord::getId, id)
+                            .eq(ApplicationRecord::getUserId, currentUserId)
+                            .eq(ApplicationRecord::getDeleted, 0)
+                            .last("LIMIT 1 FOR UPDATE")
+            );
+            if (live == null) {
+                throw new BusinessException("投递记录不存在或无权限访问");
+            }
+            if (request.getPriority().equals(live.getPriority())) {
+                return true;
+            }
+        }
+        throw new BusinessException(ResultCode.CONFLICT, "投递优先级未更新，请刷新后重试");
     }
 
     @Override
