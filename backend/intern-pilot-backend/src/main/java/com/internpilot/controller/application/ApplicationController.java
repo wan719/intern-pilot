@@ -71,9 +71,8 @@ public class ApplicationController {
         return Result.success(applicationService.updateStatus(id, request));
     }
 
-    @Operation(summary = "修改投递备", description = "修改当前用户某条投递记录的备注、复盘和面试时间")
-    @OperationLog(module = "投递记", operation = "修改投递备", type = OperationTypeEnum.UPDATE)
     @Operation(summary = "修改投递优先级", description = "仅允许修改本人未删除投递记录的优先级")
+    @OperationLog(module = "投递记", operation = "修改投递优先级", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('application:write')")
     @PutMapping("/{id}/priority")
     public Result<Boolean> updatePriority(
@@ -82,6 +81,8 @@ public class ApplicationController {
         return Result.success(applicationService.updatePriority(id, request));
     }
 
+    @Operation(summary = "修改投递备", description = "修改当前用户某条投递记录的备注、复盘和面试时间")
+    @OperationLog(module = "投递记", operation = "修改投递备", type = OperationTypeEnum.UPDATE)
     @PreAuthorize("hasAuthority('application:write')")
     @PutMapping("/{id}/note")
     public Result<Boolean> updateNote(
