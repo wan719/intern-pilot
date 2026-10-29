@@ -5,6 +5,7 @@ import com.internpilot.dto.application.ApplicationCreateRequest;
 import com.internpilot.dto.application.ApplicationFromReportRequest;
 import com.internpilot.dto.application.ApplicationNoteUpdateRequest;
 import com.internpilot.dto.application.ApplicationStatusUpdateRequest;
+import com.internpilot.dto.application.ApplicationPriorityUpdateRequest;
 import com.internpilot.vo.application.ApplicationCreateResponse;
 import com.internpilot.vo.application.ApplicationFromReportResponse;
 import com.internpilot.vo.application.ApplicationDetailResponse;
@@ -29,6 +30,8 @@ public interface ApplicationService {
     ApplicationDetailResponse getDetail(Long id);
 
     Boolean updateStatus(Long id, ApplicationStatusUpdateRequest request);
+
+    Boolean updatePriority(Long id, ApplicationPriorityUpdateRequest request);
 
     Boolean updateNote(Long id, ApplicationNoteUpdateRequest request);
 

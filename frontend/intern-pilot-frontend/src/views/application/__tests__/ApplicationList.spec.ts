@@ -11,7 +11,8 @@ import {
   getApplicationPlanContextApi,
   createApplicationFromReportApi,
   updateApplicationNoteApi,
-  updateApplicationStatusApi
+  updateApplicationStatusApi,
+  updateApplicationPriorityApi
 } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
@@ -25,7 +26,8 @@ vi.mock('@/api/application', () => ({
   getApplicationPlanContextApi: vi.fn(),
   createApplicationFromReportApi: vi.fn(),
   updateApplicationNoteApi: vi.fn(),
-  updateApplicationStatusApi: vi.fn()
+  updateApplicationStatusApi: vi.fn(),
+  updateApplicationPriorityApi: vi.fn()
 }))
 vi.mock('@/api/analysis', () => ({ getAnalysisReportsApi: vi.fn() }))
 vi.mock('@/api/job', () => ({ getJobListApi: vi.fn() }))
@@ -39,6 +41,7 @@ const mockedPlanContext = vi.mocked(getApplicationPlanContextApi)
 const mockedFromReport = vi.mocked(createApplicationFromReportApi)
 const mockedUpdateNote = vi.mocked(updateApplicationNoteApi)
 const mockedUpdateStatus = vi.mocked(updateApplicationStatusApi)
+const mockedUpdatePriority = vi.mocked(updateApplicationPriorityApi)
 
 const application = {
   applicationId: 17,
@@ -88,6 +91,7 @@ beforeEach(() => {
   mockedDetail.mockResolvedValue(application as any)
   mockedCreate.mockResolvedValue({ applicationId: 18 } as any)
   mockedUpdateStatus.mockResolvedValue(undefined as any)
+  mockedUpdatePriority.mockResolvedValue(undefined as any)
   mockedUpdateNote.mockResolvedValue(undefined as any)
   mockedDelete.mockResolvedValue(undefined as any)
   mockedPlanContext.mockResolvedValue({ outcome: 'READY', reportId: 9, job: { id: 7, companyName: '远航科技', jobTitle: '前端实习生' }, resume: { id: 3, resumeName: '前端简历' } } as any)
@@ -253,6 +257,62 @@ describe('from-report plan flow', () => {
     pending.resolve({ outcome: 'EXISTING', applicationId: 77 })
     await Promise.all([first, second])
     expect(mockedDetail).toHaveBeenCalledWith(77)
+  })
+})
+
+
+describe('P5-B application priority editing contract', () => {
+  it('opens the current priority and persists only the selected value', async () => {
+    const wrapper = await mountPage()
+    await button(wrapper, '改优先级').trigger('click')
+    expect((wrapper.vm as any).priorityForm.priority).toBe('HIGH')
+    ;(wrapper.vm as any).priorityForm.priority = 'LOW'
+    await (wrapper.vm as any).savePriority()
+    expect(mockedUpdatePriority).toHaveBeenCalledWith(17, { priority: 'LOW' })
+    expect((wrapper.vm as any).priorityVisible).toBe(false)
+    expect(mockedList).toHaveBeenCalledTimes(2)
+    expect(mockedUpdateStatus).not.toHaveBeenCalled()
+    expect(mockedUpdateNote).not.toHaveBeenCalled()
+  })
+
+  it('cancels priority editing without making a write request', async () => {
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).openPriority(application)
+    ;(wrapper.vm as any).priorityVisible = false
+    expect(mockedUpdatePriority).not.toHaveBeenCalled()
+  })
+
+  it('prevents duplicate priority saves while the first request is pending', async () => {
+    const pending = deferred<void>()
+    mockedUpdatePriority.mockReturnValueOnce(pending.promise as any)
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).openPriority(application)
+    const one = (wrapper.vm as any).savePriority()
+    const two = (wrapper.vm as any).savePriority()
+    expect(mockedUpdatePriority).toHaveBeenCalledTimes(1)
+    expect((wrapper.vm as any).prioritySaving).toBe(true)
+    pending.resolve()
+    await Promise.all([one, two])
+    expect((wrapper.vm as any).prioritySaving).toBe(false)
+  })
+
+  it('retains the dialog, selected value and error when priority saving fails', async () => {
+    mockedUpdatePriority.mockRejectedValueOnce(new Error('网络异常'))
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).openPriority(application)
+    ;(wrapper.vm as any).priorityForm.priority = 'MEDIUM'
+    await (wrapper.vm as any).savePriority()
+    expect((wrapper.vm as any).priorityVisible).toBe(true)
+    expect((wrapper.vm as any).priorityForm.priority).toBe('MEDIUM')
+    expect((wrapper.vm as any).priorityError).toBeTruthy()
+    expect(mockedList).toHaveBeenCalledTimes(1)
+
+    // The transient failure must not trap the user in a disabled editor.
+    await (wrapper.vm as any).savePriority()
+    expect(mockedUpdatePriority).toHaveBeenCalledTimes(2)
+    expect(mockedUpdatePriority).toHaveBeenLastCalledWith(17, { priority: 'MEDIUM' })
+    expect((wrapper.vm as any).priorityError).toBe('')
+    expect((wrapper.vm as any).priorityVisible).toBe(false)
   })
 })
 
