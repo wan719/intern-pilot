@@ -118,6 +118,72 @@ class InterviewQuestionParserTest {
     }
 
     @Test
+    void parseShouldSkipNullItemAndNormalizeRemainingQuestion() {
+        String rawResponse = """
+                {
+                  "title": "测试",
+                  "questions": [
+                    null,
+                    {
+                      "questionType": "INVALID_TYPE",
+                      "difficulty": "INVALID",
+                      "question": "有效问题",
+                      "answer": "有效答案"
+                    }
+                  ]
+                }
+                """;
+
+        AiInterviewQuestionResult result = InterviewQuestionParser.parse(rawResponse);
+
+        assertEquals(1, result.getQuestions().size());
+        assertEquals("有效问题", result.getQuestions().get(0).getQuestion());
+        assertEquals("JOB_SKILL", result.getQuestions().get(0).getQuestionType());
+        assertEquals("MEDIUM", result.getQuestions().get(0).getDifficulty());
+        assertEquals(1, result.getQuestions().get(0).getSortOrder());
+        assertNotNull(result.getQuestions().get(0).getAnswerPoints());
+    }
+
+    @Test
+    void parseShouldThrowBusinessExceptionWhenAllItemsAreNull() {
+        String rawResponse = """
+                {
+                  "title": "测试",
+                  "questions": [null, null]
+                }
+                """;
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> InterviewQuestionParser.parse(rawResponse));
+        assertEquals("AI 未生成有效面试题", exception.getMessage());
+    }
+
+    @Test
+    void parseShouldKeepSequentialOrderAfterSkippingNullAndEmptyItems() {
+        String rawResponse = """
+                {
+                  "title": "测试",
+                  "questions": [
+                    null,
+                    {"question": "", "answer": "空问题"},
+                    {"question": "问题一", "questionType": "JAVA_BASIC", "difficulty": "EASY"},
+                    null,
+                    {"question": "问题二", "questionType": "MYSQL", "difficulty": "HARD"}
+                  ]
+                }
+                """;
+
+        AiInterviewQuestionResult result = InterviewQuestionParser.parse(rawResponse);
+
+        assertEquals(2, result.getQuestions().size());
+        assertEquals("问题一", result.getQuestions().get(0).getQuestion());
+        assertEquals(1, result.getQuestions().get(0).getSortOrder());
+        assertEquals("问题二", result.getQuestions().get(1).getQuestion());
+        assertEquals(2, result.getQuestions().get(1).getSortOrder());
+    }
+
+    @Test
     void parseShouldHandleNullFields() {
         String rawResponse = """
                 {
