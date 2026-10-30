@@ -1,7 +1,9 @@
 import dayjs from 'dayjs'
 
 export function formatDateTime(value?: string) {
-  return value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-'
+  if (!value?.trim()) return '-'
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '-'
 }
 
 export function percent(value?: number) {
