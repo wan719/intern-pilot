@@ -9,7 +9,7 @@ import com.internpilot.entity.SystemOperationLog;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisReportMapper;
-import com.internpilot.mapper.ApplicationRecordMapper;
+import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.PermissionMapper;
@@ -129,9 +129,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         detail.setAnalysisReportCount(toInt(analysisReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.AnalysisReport>()
                 .eq(com.internpilot.entity.AnalysisReport::getUserId, userId)
                 .eq(com.internpilot.entity.AnalysisReport::getDeleted, 0))));
-        detail.setApplicationCount(toInt(applicationRecordMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.ApplicationRecord>()
-                .eq(com.internpilot.entity.ApplicationRecord::getUserId, userId)
-                .eq(com.internpilot.entity.ApplicationRecord::getDeleted, 0))));
+        detail.setApplicationCount(toInt(applicationRecordMapper.selectCount(new LambdaQueryWrapper<com.internpilot.application.entity.ApplicationRecord>()
+                .eq(com.internpilot.application.entity.ApplicationRecord::getUserId, userId)
+                .eq(com.internpilot.application.entity.ApplicationRecord::getDeleted, 0))));
         detail.setInterviewQuestionReportCount(toInt(interviewQuestionReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.InterviewQuestionReport>()
                 .eq(com.internpilot.entity.InterviewQuestionReport::getUserId, userId)
                 .eq(com.internpilot.entity.InterviewQuestionReport::getDeleted, 0))));
@@ -223,7 +223,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         data.setJobCount(jobDescriptionMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.JobDescription>().eq(com.internpilot.entity.JobDescription::getDeleted, 0)));
         data.setAnalysisReportCount(analysisReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.AnalysisReport>().eq(com.internpilot.entity.AnalysisReport::getDeleted, 0)));
         data.setInterviewQuestionReportCount(interviewQuestionReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.InterviewQuestionReport>().eq(com.internpilot.entity.InterviewQuestionReport::getDeleted, 0)));
-        data.setApplicationCount(applicationRecordMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.ApplicationRecord>().eq(com.internpilot.entity.ApplicationRecord::getDeleted, 0)));
+        data.setApplicationCount(applicationRecordMapper.selectCount(new LambdaQueryWrapper<com.internpilot.application.entity.ApplicationRecord>().eq(com.internpilot.application.entity.ApplicationRecord::getDeleted, 0)));
         data.setTodayOperationLogCount(systemOperationLogMapper.selectCount(new LambdaQueryWrapper<SystemOperationLog>()
                 .eq(SystemOperationLog::getDeleted, 0)
                 .ge(SystemOperationLog::getCreatedAt, todayStart)));

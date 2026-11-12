@@ -233,8 +233,9 @@ intern-pilot
 ├─ backend/
 │  └─ build.gradle, gradlew, src/
 │     ├─ src/main/java/com/internpilot/
-│     │  ├─ controller/       # REST APIs
-│     │  ├─ service/          # Business services
+│     │  ├─ application/      # Job applications: API, services, persistence, and models
+│     │  ├─ controller/       # REST APIs for other domains
+│     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers
 │     │  ├─ entity/           # Database entities
 │     │  ├─ dto/              # Request objects

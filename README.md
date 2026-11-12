@@ -234,8 +234,9 @@ intern-pilot
 ├─ backend/
 │  └─ build.gradle, gradlew, src/
 │     ├─ src/main/java/com/internpilot/
-│     │  ├─ controller/       # REST 接口
-│     │  ├─ service/          # 业务服务
+│     │  ├─ application/      # 投递业务：接口、服务、数据访问和模型
+│     │  ├─ controller/       # 其他业务的 REST 接口
+│     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper
 │     │  ├─ entity/           # 数据库实体
 │     │  ├─ dto/              # 请求对象

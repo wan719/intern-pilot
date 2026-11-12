@@ -8,7 +8,7 @@ import com.internpilot.entity.Role;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisReportMapper;
-import com.internpilot.mapper.ApplicationRecordMapper;
+import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.PermissionMapper;

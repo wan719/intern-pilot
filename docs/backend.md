@@ -34,11 +34,19 @@ backend/
 └── src/
     ├── main/
     │   ├── java/com/internpilot/
-    │   │   ├── controller/      # HTTP 接口，按业务域分包
-    │   │   ├── service/         # 业务服务及实现，按业务域分包
-    │   │   ├── mapper/          # MyBatis-Plus Mapper 接口
-    │   │   ├── entity/          # 数据库实体
-    │   │   ├── dto/ 与 vo/      # 请求与响应对象
+    │   │   ├── application/     # 投递模块：按业务聚合的试点
+    │   │   │   ├── controller/
+    │   │   │   ├── service/
+    │   │   │   │   └── impl/
+    │   │   │   ├── mapper/
+    │   │   │   ├── entity/
+    │   │   │   ├── dto/
+    │   │   │   ├── vo/
+    │   │   │   └── enums/
+    │   │   ├── controller/、service/  # 其他业务的接口与服务
+    │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
+    │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
+    │   │   ├── common/、exception/   # 共享响应、错误码及异常处理
     │   │   ├── security/        # JWT 过滤器、401/403 处理、用户身份
     │   │   ├── config/          # 安全、分页、异步、Redis、WebSocket 等配置
     │   │   └── ai/、task/ 等    # AI 客户端、任务及补偿逻辑
@@ -48,11 +56,11 @@ backend/
     │       ├── application-prod.yml
     │       └── sql/            # 初始化与人工审查的迁移脚本
     └── test/
-        ├── java/com/internpilot/
+        ├── java/com/internpilot/  # 投递专属测试位于 application/ 下
         └── resources/          # test profile 与隔离测试 SQL
 ```
 
-`controller/` 和 `service/` 中已有 `auth`、`user`、`resume`、`job`、`analysis`、`interview`、`recommendation`、`application`、`feedback`、`admin` 等业务目录；`service/` 另有 `rag`。共享的 `common/`、`exception/`、`util/` 等包承载响应、异常和通用工具。新增业务应先看相邻模块现有的 Controller、Service、Mapper、DTO/VO 和测试，再决定包结构，不机械复制别的项目模板。
+投递是目前唯一按业务聚合的模块，负责投递记录的创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录。对应接口仍位于 `/api/applications`。其他业务暂沿用原有的按层分包；健康检查、全局异常处理和基础设施配置仍在原处。[启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 扫描原有 Mapper 包和投递 Mapper 包；[MyBatis 配置](../backend/src/main/resources/application.yml) 同时注册两处实体包的类型别名。
 
 | 层或组件 | 主要职责 | 修改时核对 |
 | --- | --- | --- |
@@ -62,7 +70,7 @@ backend/
 | `security/` 与 `config/` | 认证、授权、外部依赖和基础设施配置 | 401/403、公开路径、环境差异和秘密注入 |
 | `ai/`、`task/`、`runner/` | AI 调用、异步状态及恢复 | 超时、重试、幂等、缓存键和进度通知 |
 
-Controller 不直接承载数据库业务逻辑；跨模块调用优先经过对方 Service。新接口需同时核对前端调用方、参数校验、后端授权、错误响应和可观察的测试断言。
+模块内按 Controller → Service → Mapper 的方向调用；按实际职责建包，无需为每个模块复制空目录。`common/` 只收纳确实跨模块共享的通用组件，`config/` 用于全局配置。新增跨模块调用优先使用所属模块对外提供的接口，避免直接依赖其 Mapper 或持久化实体。现阶段投递仍直接查询简历、岗位和分析报告，后台用户管理和岗位推荐仍使用投递 Mapper；这些调用保留原有的查询、权限和事务语义。新接口需同步核对前端调用方、参数校验、后端授权、错误响应和测试断言。
 
 ## 配置与本地运行
 

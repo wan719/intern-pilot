@@ -10,7 +10,7 @@ import com.internpilot.entity.Resume;
 import com.internpilot.entity.ResumeVersion;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.AnalysisReportMapper;
-import com.internpilot.mapper.ApplicationRecordMapper;
+import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.JobRecommendationBatchMapper;
 import com.internpilot.mapper.JobRecommendationItemMapper;
