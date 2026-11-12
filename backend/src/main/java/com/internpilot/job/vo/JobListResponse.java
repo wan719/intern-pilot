@@ -1,4 +1,4 @@
-package com.internpilot.vo.job;
+package com.internpilot.job.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -6,8 +6,8 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@Schema(description = "创建岗位响应")
-public class JobCreateResponse {
+@Schema(description = "岗位列表响应")
+public class JobListResponse {
 
     @Schema(description = "岗位ID")
     private Long jobId;
@@ -26,6 +26,15 @@ public class JobCreateResponse {
 
     @Schema(description = "来源平台")
     private String sourcePlatform;
+
+    @Schema(description = "薪资范围")
+    private String salaryRange;
+
+    @Schema(description = "每周工作天数")
+    private String workDaysPerWeek;
+
+    @Schema(description = "实习周期")
+    private String internshipDuration;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

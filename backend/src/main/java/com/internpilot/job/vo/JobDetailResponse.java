@@ -1,4 +1,4 @@
-package com.internpilot.vo.job;
+package com.internpilot.job.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

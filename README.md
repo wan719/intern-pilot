@@ -236,6 +236,7 @@ intern-pilot
 │     ├─ src/main/java/com/internpilot/
 │     │  ├─ application/      # 投递业务：接口、服务、数据访问和模型
 │     │  ├─ feedback/         # 用户反馈与后台处理
+│     │  ├─ job/              # 岗位描述管理
 │     │  ├─ controller/       # 其他业务的 REST 接口
 │     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper

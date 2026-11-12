@@ -1,4 +1,4 @@
-package com.internpilot.dto.job;
+package com.internpilot.job.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-@Schema(description = "修改岗位请求")
-public class JobUpdateRequest {
+@Schema(description = "创建岗位请求")
+public class JobCreateRequest {
 
     @Schema(description = "公司名称", example = "腾讯")
     @NotBlank(message = "公司名称不能为空")

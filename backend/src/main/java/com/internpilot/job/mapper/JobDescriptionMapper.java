@@ -1,7 +1,7 @@
-package com.internpilot.mapper;
+package com.internpilot.job.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.internpilot.entity.JobDescription;
+import com.internpilot.job.entity.JobDescription;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

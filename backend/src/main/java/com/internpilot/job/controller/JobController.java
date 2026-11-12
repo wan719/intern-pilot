@@ -1,15 +1,15 @@
-package com.internpilot.controller.job;
+package com.internpilot.job.controller;
 
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
-import com.internpilot.dto.job.JobCreateRequest;
-import com.internpilot.dto.job.JobUpdateRequest;
+import com.internpilot.job.dto.JobCreateRequest;
+import com.internpilot.job.dto.JobUpdateRequest;
 import com.internpilot.enums.OperationTypeEnum;
-import com.internpilot.service.job.JobService;
-import com.internpilot.vo.job.JobCreateResponse;
-import com.internpilot.vo.job.JobDetailResponse;
-import com.internpilot.vo.job.JobListResponse;
+import com.internpilot.job.service.JobService;
+import com.internpilot.job.vo.JobCreateResponse;
+import com.internpilot.job.vo.JobDetailResponse;
+import com.internpilot.job.vo.JobListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

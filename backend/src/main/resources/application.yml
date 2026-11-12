@@ -53,7 +53,7 @@ spring:
 
 mybatis-plus:
   mapper-locations: classpath:/mapper/*.xml
-  type-aliases-package: com.internpilot.entity,com.internpilot.application.entity,com.internpilot.feedback.entity
+  type-aliases-package: com.internpilot.entity,com.internpilot.application.entity,com.internpilot.feedback.entity,com.internpilot.job.entity
   configuration:
     map-underscore-to-camel-case: true
   global-config:

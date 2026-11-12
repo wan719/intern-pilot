@@ -8,7 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan({
         "com.internpilot.mapper",
         "com.internpilot.application.mapper",
-        "com.internpilot.feedback.mapper"
+        "com.internpilot.feedback.mapper",
+        "com.internpilot.job.mapper"
 })
 @EnableScheduling
 @SpringBootApplication

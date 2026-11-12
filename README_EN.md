@@ -235,6 +235,7 @@ intern-pilot
 │     ├─ src/main/java/com/internpilot/
 │     │  ├─ application/      # Job applications: API, services, persistence, and models
 │     │  ├─ feedback/         # User feedback and administrative handling
+│     │  ├─ job/              # Job description management
 │     │  ├─ controller/       # REST APIs for other domains
 │     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers

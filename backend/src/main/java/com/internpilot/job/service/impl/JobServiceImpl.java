@@ -1,18 +1,18 @@
-package com.internpilot.service.job.impl;
+package com.internpilot.job.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
-import com.internpilot.dto.job.JobCreateRequest;
-import com.internpilot.dto.job.JobUpdateRequest;
-import com.internpilot.entity.JobDescription;
+import com.internpilot.job.dto.JobCreateRequest;
+import com.internpilot.job.dto.JobUpdateRequest;
+import com.internpilot.job.entity.JobDescription;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.JobDescriptionMapper;
-import com.internpilot.service.job.JobService;
+import com.internpilot.job.mapper.JobDescriptionMapper;
+import com.internpilot.job.service.JobService;
 import com.internpilot.util.SecurityUtils;
-import com.internpilot.vo.job.JobCreateResponse;
-import com.internpilot.vo.job.JobDetailResponse;
-import com.internpilot.vo.job.JobListResponse;
+import com.internpilot.job.vo.JobCreateResponse;
+import com.internpilot.job.vo.JobDetailResponse;
+import com.internpilot.job.vo.JobListResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

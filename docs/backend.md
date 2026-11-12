@@ -44,6 +44,7 @@ backend/
     │   │   │   ├── vo/
     │   │   │   └── enums/
     │   │   ├── feedback/        # 用户反馈与后台处理，目录层次同投递模块
+    │   │   ├── job/             # 岗位描述管理，包含接口、服务、Mapper、实体和请求响应模型
     │   │   ├── controller/、service/  # 其他业务的接口与服务
     │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
     │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
@@ -57,13 +58,13 @@ backend/
     │       ├── application-prod.yml
     │       └── sql/            # 初始化与人工审查的迁移脚本
     └── test/
-        ├── java/com/internpilot/  # 投递和反馈测试分别位于 application/、feedback/
+        ├── java/com/internpilot/  # 投递、反馈和岗位测试分别位于 application/、feedback/、job/
         └── resources/          # test profile 与隔离测试 SQL
 ```
 
-投递和反馈已按业务分包。投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。其他业务沿用按层分包。
+投递、反馈和岗位已按业务分包。投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。其他业务沿用按层分包。
 
-MyBatis 同时扫描原有 Mapper 包、投递 Mapper 包和反馈 Mapper 包，并注册三处实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
+MyBatis 扫描原有 Mapper 包以及投递、反馈和岗位模块的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
 
 | 层或组件 | 主要职责 | 修改时核对 |
 | --- | --- | --- |
@@ -73,7 +74,7 @@ MyBatis 同时扫描原有 Mapper 包、投递 Mapper 包和反馈 Mapper 包，
 | `security/` 与 `config/` | 认证、授权、外部依赖和基础设施配置 | 401/403、公开路径、环境差异和秘密注入 |
 | `ai/`、`task/`、`runner/` | AI 调用、异步状态及恢复 | 超时、重试、幂等、缓存键和进度通知 |
 
-模块内按 Controller → Service → Mapper 的方向调用，根据实际职责建包。`common/` 收纳跨模块共享的通用组件，`config/` 用于全局配置。新增跨模块调用优先使用所属模块对外提供的接口。现有依赖包括投递直接查询简历、岗位和分析报告，后台用户管理和岗位推荐使用投递 Mapper，以及反馈通过用户 Mapper 读取用户信息。新接口需同步核对前端调用方、参数校验、后端授权、错误响应和测试断言。
+模块内按 Controller → Service → Mapper 的方向调用，根据实际职责建包。`common/` 收纳跨模块共享的通用组件，`config/` 用于全局配置。新增跨模块调用优先使用所属模块对外提供的接口。投递、简历版本、分析、面试、推荐和后台用户管理仍直接使用岗位 Mapper。后台用户管理和岗位推荐也使用投递 Mapper，反馈通过用户 Mapper 读取用户信息。新接口需同步核对前端调用方、参数校验、后端授权、错误响应和测试断言。
 
 ## 配置与本地运行
 

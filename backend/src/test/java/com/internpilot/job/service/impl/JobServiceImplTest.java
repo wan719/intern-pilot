@@ -1,17 +1,17 @@
-package com.internpilot.service.impl;
+package com.internpilot.job.service.impl;
 
-import com.internpilot.service.job.impl.JobServiceImpl;
+import com.internpilot.job.service.impl.JobServiceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.internpilot.dto.job.JobCreateRequest;
-import com.internpilot.dto.job.JobUpdateRequest;
-import com.internpilot.entity.JobDescription;
-import com.internpilot.mapper.JobDescriptionMapper;
+import com.internpilot.job.dto.JobCreateRequest;
+import com.internpilot.job.dto.JobUpdateRequest;
+import com.internpilot.job.entity.JobDescription;
+import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.vo.job.JobCreateResponse;
-import com.internpilot.vo.job.JobDetailResponse;
-import com.internpilot.vo.job.JobListResponse;
+import com.internpilot.job.vo.JobCreateResponse;
+import com.internpilot.job.vo.JobDetailResponse;
+import com.internpilot.job.vo.JobListResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
