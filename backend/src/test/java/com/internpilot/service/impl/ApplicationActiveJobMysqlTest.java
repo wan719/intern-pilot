@@ -112,7 +112,8 @@ class ApplicationActiveJobMysqlTest {
             if (stream == null) {
                 throw new IllegalStateException("V41 migration resource is missing");
             }
-            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n");
             int start = sql.indexOf("ALTER TABLE application_record\n  ADD COLUMN");
             if (start < 0) {
                 throw new IllegalStateException("V41 migration ALTER TABLE is missing");

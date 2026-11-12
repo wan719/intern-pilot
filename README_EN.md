@@ -5,7 +5,7 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- v1.4.0: [Release notes](docs/releases/v1.4.0.md) · [Deployment guide](docs/deployment.md) · [Technical docs](docs/README.md)
+- v1.4.0: [GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) · [Deployment guide](#deployment-guide) · [Backend guide](docs/backend.md) · [Frontend guide](docs/frontend.md) · [Test guide](docs/test.md)
 - Historical demo: [InternPilot v1.3.1](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1) (previous UI)
 
 ---
@@ -15,7 +15,7 @@ InternPilot is a front-end/back-end separated AI internship application and resu
 
 The project uses a front-end/back-end separated architecture. The back end is built with Spring Boot, Spring Security, MyBatis-Plus, MySQL, Redis, WebSocket, and the DeepSeek API. The front end is built with Vue 3, Vite, TypeScript, Element Plus, Vue Router, Pinia, Axios, ECharts, and Sass.
 
-Current tagged code version: `v1.4.0` (`e278add`, tagged 2026-08-26). See the [release notes](docs/releases/v1.4.0.md) for changes and known limitations. A source tag does not establish the currently deployed version; production availability was not verified during this documentation update. Administrator credentials are not published.
+Current tagged code version: `v1.4.0` (`e278add`, tagged 2026-08-26). See the [GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) for changes and known limitations. A source tag does not establish the currently deployed version; production availability was not verified during this documentation update. Administrator credentials are not published.
 
 ## Live Demo
 
@@ -67,7 +67,7 @@ InternPilot aims to help students prepare for internships more efficiently throu
 
 | Version | Date | Updates |
 | --- | --- | --- |
-| [v1.4.0](docs/releases/v1.4.0.md) | 2026-08-26 (tag) | Product UI redesign: journey navigation, workspace, mobile layout, shared admin UI, async-state fixes, and front-end tests. Deployment status must be verified separately |
+| [v1.4.0](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) | 2026-08-26 (tag) | Product UI redesign: journey navigation, workspace, mobile layout, shared admin UI, async-state fixes, and front-end tests. Deployment status must be verified separately |
 | v1.3.1 | 2026-05-22 | Completed AI report PDF export, print page, front-end route lazy loading, Vite chunk splitting, logo asset optimization, and Nginx gzip/cache configuration based on `44-ai-report-pdf-export-and-frontend-performance-design.md` |
 | v1.3.0 | 2026-05-22 | Completed Actuator, parameter validation, global exception handling, AOP latency logging, operation log desensitization, Redis key standardization, scheduled cleanup, and Docker healthcheck based on `43-spring-boot-engineering-enhancement-design.md` |
 | v1.2.0 | 2026-05-21 | Completed AI scenario enum, model routing, prompt template version management, AI JSON sanitization, cache key optimization, retry, and fallback based on `42-ai-model-router-and-prompt-optimization-design.md` |
@@ -231,7 +231,7 @@ intern-pilot
 │     ├─ ci.yml
 │     └─ docker-build.yml
 ├─ backend/
-│  └─ intern-pilot-backend/
+│  └─ build.gradle, gradlew, src/
 │     ├─ src/main/java/com/internpilot/
 │     │  ├─ controller/       # REST APIs
 │     │  ├─ service/          # Business services
@@ -250,7 +250,7 @@ intern-pilot
 │     ├─ src/test/java/       # JUnit / Mockito / MockMvc tests
 │     └─ src/test/resources/  # application-test.yml and test SQL
 ├─ frontend/
-│  └─ intern-pilot-frontend/
+│  └─ package.json, src/
 │     ├─ public/              # Static assets such as favicon
 │     ├─ src/api/             # Axios API wrappers
 │     ├─ src/assets/          # Brand icon assets
@@ -264,11 +264,10 @@ intern-pilot
 │  ├─ docker-compose.yml
 │  └─ .env.example
 ├─ docs/
-│  ├─ README.md              # Technical documentation index
-│  ├─ architecture/ui-design.md
-│  ├─ deployment.md
-│  ├─ releases/v1.4.0.md
-│  └─ 09-api-design.md
+│  ├─ backend.md             # Backend guide
+│  ├─ frontend.md            # Frontend guide
+│  ├─ git.md                 # Git collaboration
+│  └─ test.md                # Test guide
 └─ README.md
 ```
 
@@ -333,7 +332,7 @@ CREATE DATABASE intern_pilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 4. Start the back end:
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat bootRun
 ```
 
@@ -346,7 +345,7 @@ Invoke-WebRequest http://localhost:8080/api/health
 ### Start the Front End
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -361,7 +360,7 @@ http://localhost:5173
 
 The online system does not disclose default accounts or administrator passwords. The administrator account and initial password are maintained by the deployment personnel through secure channels. Plaintext passwords are not recorded in the README, screenshots, commit history, or sample configuration files.
 
-At this stage, the system no longer initializes public demo accounts or old default administrator accounts. If existing server data needs to be cleaned, back up the database first, then execute `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` or rebuild the Docker volume.
+At this stage, the system no longer initializes public demo accounts or old default administrator accounts. If existing server data needs to be cleaned, back up the database first, then execute `backend/src/main/resources/sql/prod-single-admin-reset.sql` or rebuild the Docker volume.
 
 When the system starts, it executes `src/main/resources/sql/init.sql`, which includes:
 
@@ -544,7 +543,7 @@ Core tables:
 
 ### Test Evidence and Coverage
 
-On 2026-10-08, the `v1.4.0` code baseline passed all 296 front-end tests across 36 files and `npm run build` (including type checking). See the [release notes](docs/releases/v1.4.0.md) for scope and limitations.
+On 2026-10-08, the `v1.4.0` code baseline passed all 296 front-end tests across 36 files and `npm run build` (including type checking). See the [GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) for scope and limitations.
 
 The back-end `test jacocoTestReport --no-daemon --max-workers=1` run passed on 2026-10-08. The figures below come from its test XML and JaCoCo reports. The 296 back-end cases are a separate set from the 296 front-end tests:
 
@@ -559,14 +558,14 @@ The back-end `test jacocoTestReport --no-daemon --max-workers=1` run passed on 2
 | Branch Coverage | 70.48% |
 | Class Coverage | 97.37% |
 
-After generating the JaCoCo HTML report, open `backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html` to inspect details.
+After generating the JaCoCo HTML report, open `backend/build/reports/jacoco/test/html/index.html` to inspect details.
 
 ### Local Acceptance Commands
 
 Full back-end tests:
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat test --no-daemon --max-workers=1
 ```
 
@@ -579,8 +578,8 @@ Generate JaCoCo coverage report:
 Report paths:
 
 ```text
-backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html
-backend/intern-pilot-backend/build/reports/jacoco/test/jacocoTestReport.xml
+backend/build/reports/jacoco/test/html/index.html
+backend/build/reports/jacoco/test/jacocoTestReport.xml
 ```
 
 Run a specific test class:
@@ -592,7 +591,7 @@ Run a specific test class:
 Front-end tests, type checking and build:
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm ci
 npm run test:run
 npm run build
@@ -628,7 +627,7 @@ The front-end check retains its `Frontend Build` name. This describes the curren
 
 The project provides complete Docker Compose orchestration, including four services: MySQL, Redis, the back end, and the front-end Nginx service. It can be started with one command.
 
-The target code baseline is `v1.4.0`. See the [deployment guide](docs/deployment.md) for tag-based upgrades, health checks, and rollback. Verify the running version, configuration, and restorable backups before deployment. Never commit the production `.env`.
+The steps below are an initial installation example, **not an upgrade or rollback script for an existing production deployment**. Before updating a running environment, verify its current commit and images, Compose project name, and data volumes; back up the database and uploaded files and verify restoration. Assess database migrations separately. Keep usable previous images, then check backend health and core user flows after updating. Rolling back the application does not automatically reverse database changes; do not use `docker compose down -v` for a routine update. Never commit the production `.env`.
 
 **Prerequisites:**
 
@@ -676,7 +675,7 @@ docker compose --env-file .env -f docker-compose.yml down
 ### Build and Run the Back End
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat clean bootJar
 java -jar build\libs\intern-pilot-backend-0.0.1-SNAPSHOT.jar
 ```
@@ -684,15 +683,15 @@ java -jar build\libs\intern-pilot-backend-0.0.1-SNAPSHOT.jar
 ### Build the Front End
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm install
 npm run build
-# Build output is located at frontend/intern-pilot-frontend/dist
+# Build output is located at frontend/dist
 ```
 
 ### Nginx Configuration Example
 
-The project Docker front-end image uses `frontend/intern-pilot-frontend/nginx.conf`. The core proxy rules are as follows:
+The project Docker front-end image uses `frontend/nginx.conf`. The core proxy rules are as follows:
 
 ```nginx
 server {
@@ -766,7 +765,7 @@ server {
 - `.env` should be kept only on the server and should not be committed to the repository.
 - MySQL is recommended to use `utf8mb4`.
 - The Docker MySQL volume executes `init.sql` only during first initialization.
-- If the online database already exists, back up the database first, then manually execute `backend/intern-pilot-backend/src/main/resources/sql/migration/V40__final_release_update.sql` to add the `user_feedback` table and `feedback:*` permissions.
+- If the online database already exists, back up the database first, then manually execute `backend/src/main/resources/sql/migration/V40__final_release_update.sql` to add the `user_feedback` table and `feedback:*` permissions.
 - Redis without a password is recommended only for local development.
 - The current RAG implementation stores vectors in MySQL JSON and calculates similarity in memory. It is suitable for course projects and small-scale demos. For a large-scale production knowledge base, replace it with Qdrant, Milvus, pgvector, or Elasticsearch vector retrieval.
 
@@ -907,7 +906,7 @@ curl http://localhost:8080/actuator/health
 During local development, you can view back-end startup and business logs with:
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat bootRun --no-daemon
 ```
 

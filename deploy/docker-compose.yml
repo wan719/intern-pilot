@@ -9,7 +9,7 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - internpilot-mysql-data:/var/lib/mysql
-      - ../backend/intern-pilot-backend/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ../backend/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     command:
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
@@ -43,7 +43,7 @@ services:
 
   backend:
     build:
-      context: ../backend/intern-pilot-backend
+      context: ../backend
       dockerfile: Dockerfile
     container_name: internpilot-backend
     restart: always
@@ -98,7 +98,7 @@ services:
 
   frontend:
     build:
-      context: ../frontend/intern-pilot-frontend
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: internpilot-frontend
     restart: always

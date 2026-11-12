@@ -21,15 +21,15 @@ application-local.yml
 !.env.example
 
 # backend
-backend/intern-pilot-backend/build/
-backend/intern-pilot-backend/.gradle/
-backend/intern-pilot-backend/uploads/
-backend/intern-pilot-backend/*.log
+backend/build/
+backend/.gradle/
+backend/uploads/
+backend/*.log
 
 # frontend
-frontend/intern-pilot-frontend/node_modules/
-frontend/intern-pilot-frontend/dist/
-frontend/intern-pilot-frontend/.env.local
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
 
 # runtime TLS certificates
 deploy/ssl/*
@@ -41,3 +41,14 @@ deploy/ssl/*
 Thumbs.db
 .superpowers/
 .worktrees/
+
+# Keep only four public development guides under docs/. Design and operations
+# notes remain available locally after being removed from the Git index.
+/docs/**
+!/docs/backend.md
+!/docs/frontend.md
+!/docs/git.md
+!/docs/test.md
+
+# Local test helper output
+/gradle_result.txt

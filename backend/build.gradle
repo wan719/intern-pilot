@@ -93,7 +93,7 @@ tasks.named('bootRun') {
 	doFirst {
 		[
 				file('.env'),
-				file('../../deploy/.env')
+				file('../deploy/.env')
 		].findAll { it.exists() }.each { envFile ->
 			envFile.readLines('UTF-8').each { line ->
 				def trimmed = line.trim()
