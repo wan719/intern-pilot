@@ -1,7 +1,7 @@
-package com.internpilot.mapper;
+package com.internpilot.feedback.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.internpilot.entity.UserFeedback;
+import com.internpilot.feedback.entity.UserFeedback;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

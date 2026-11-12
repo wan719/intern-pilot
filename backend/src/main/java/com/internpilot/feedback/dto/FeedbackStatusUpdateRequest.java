@@ -1,4 +1,4 @@
-package com.internpilot.dto.feedback;
+package com.internpilot.feedback.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

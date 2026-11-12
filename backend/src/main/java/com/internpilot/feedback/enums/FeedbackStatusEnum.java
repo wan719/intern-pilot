@@ -1,4 +1,4 @@
-package com.internpilot.enums;
+package com.internpilot.feedback.enums;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;

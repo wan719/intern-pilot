@@ -1,9 +1,9 @@
-package com.internpilot.controller.feedback;
+package com.internpilot.feedback.controller;
 
 import com.internpilot.common.Result;
-import com.internpilot.dto.feedback.FeedbackCreateRequest;
-import com.internpilot.service.feedback.FeedbackService;
-import com.internpilot.vo.feedback.FeedbackResponse;
+import com.internpilot.feedback.dto.FeedbackCreateRequest;
+import com.internpilot.feedback.service.FeedbackService;
+import com.internpilot.feedback.vo.FeedbackResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

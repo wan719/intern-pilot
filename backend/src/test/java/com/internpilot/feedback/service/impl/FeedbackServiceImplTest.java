@@ -1,18 +1,18 @@
-package com.internpilot.service.feedback.impl;
+package com.internpilot.feedback.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.internpilot.dto.feedback.FeedbackCreateRequest;
-import com.internpilot.dto.feedback.FeedbackReplyRequest;
-import com.internpilot.dto.feedback.FeedbackStatusUpdateRequest;
+import com.internpilot.feedback.dto.FeedbackCreateRequest;
+import com.internpilot.feedback.dto.FeedbackReplyRequest;
+import com.internpilot.feedback.dto.FeedbackStatusUpdateRequest;
 import com.internpilot.entity.User;
-import com.internpilot.entity.UserFeedback;
-import com.internpilot.enums.FeedbackStatusEnum;
-import com.internpilot.enums.FeedbackTypeEnum;
+import com.internpilot.feedback.entity.UserFeedback;
+import com.internpilot.feedback.enums.FeedbackStatusEnum;
+import com.internpilot.feedback.enums.FeedbackTypeEnum;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.UserFeedbackMapper;
+import com.internpilot.feedback.mapper.UserFeedbackMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.security.CustomUserDetails;
-import com.internpilot.vo.feedback.FeedbackResponse;
+import com.internpilot.feedback.vo.FeedbackResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

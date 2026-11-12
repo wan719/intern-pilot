@@ -1,12 +1,12 @@
-package com.internpilot.controller.admin;
+package com.internpilot.feedback.controller;
 
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.Result;
-import com.internpilot.dto.feedback.FeedbackReplyRequest;
-import com.internpilot.dto.feedback.FeedbackStatusUpdateRequest;
+import com.internpilot.feedback.dto.FeedbackReplyRequest;
+import com.internpilot.feedback.dto.FeedbackStatusUpdateRequest;
 import com.internpilot.enums.OperationTypeEnum;
-import com.internpilot.service.feedback.FeedbackService;
-import com.internpilot.vo.feedback.FeedbackResponse;
+import com.internpilot.feedback.service.FeedbackService;
+import com.internpilot.feedback.vo.FeedbackResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

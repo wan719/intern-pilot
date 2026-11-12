@@ -1,9 +1,9 @@
-package com.internpilot.service.feedback;
+package com.internpilot.feedback.service;
 
-import com.internpilot.dto.feedback.FeedbackCreateRequest;
-import com.internpilot.dto.feedback.FeedbackReplyRequest;
-import com.internpilot.dto.feedback.FeedbackStatusUpdateRequest;
-import com.internpilot.vo.feedback.FeedbackResponse;
+import com.internpilot.feedback.dto.FeedbackCreateRequest;
+import com.internpilot.feedback.dto.FeedbackReplyRequest;
+import com.internpilot.feedback.dto.FeedbackStatusUpdateRequest;
+import com.internpilot.feedback.vo.FeedbackResponse;
 
 import java.util.List;
 
