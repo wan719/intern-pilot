@@ -1,7 +1,7 @@
 package com.internpilot.util;
 
 import com.internpilot.exception.BusinessException;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

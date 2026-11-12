@@ -34,12 +34,29 @@ backend/
 └── src/
     ├── main/
     │   ├── java/com/internpilot/
-    │   │   ├── controller/      # HTTP 接口，按业务域分包
-    │   │   ├── service/         # 业务服务及实现，按业务域分包
-    │   │   ├── mapper/          # MyBatis-Plus Mapper 接口
-    │   │   ├── entity/          # 数据库实体
-    │   │   ├── dto/ 与 vo/      # 请求与响应对象
-    │   │   ├── security/        # JWT 过滤器、401/403 处理、用户身份
+    │   │   ├── application/     # 投递模块
+    │   │   │   ├── controller/
+    │   │   │   ├── service/
+    │   │   │   │   └── impl/
+    │   │   │   ├── mapper/
+    │   │   │   ├── entity/
+    │   │   │   ├── dto/
+    │   │   │   ├── vo/
+    │   │   │   └── enums/
+    │   │   ├── feedback/        # 用户反馈与后台处理，目录层次同投递模块
+    │   │   ├── job/             # 岗位描述管理，包含接口、服务、Mapper、实体和请求响应模型
+    │   │   ├── resume/          # 简历、版本、上传配置、文件保存与解析
+    │   │   ├── analysis/        # 匹配分析、报告、异步任务与进度推送
+    │   │   ├── interview/       # 面试题生成与报告
+    │   │   ├── recommendation/  # 岗位推荐、评分与推荐批次
+    │   │   ├── rag/             # 知识库管理、向量检索与启动补齐
+    │   │   ├── auth/            # 登录、注册、验证码与 JWT
+    │   │   ├── user/            # 用户账户与个人资料
+    │   │   ├── rbac/            # 角色、权限及关联
+    │   │   ├── admin/           # 后台组合入口、用户管理与仪表盘
+    │   │   ├── audit/           # 操作日志、审计注解与切面
+    │   │   ├── controller/      # 全局健康检查
+    │   │   ├── common/、exception/   # 共享响应、错误码及异常处理
     │   │   ├── config/          # 安全、分页、异步、Redis、WebSocket 等配置
     │   │   └── ai/、task/ 等    # AI 客户端、任务及补偿逻辑
     │   └── resources/
@@ -48,21 +65,35 @@ backend/
     │       ├── application-prod.yml
     │       └── sql/            # 初始化与人工审查的迁移脚本
     └── test/
-        ├── java/com/internpilot/
+        ├── java/com/internpilot/  # 已按业务分包的测试与生产包对应
         └── resources/          # test profile 与隔离测试 SQL
 ```
 
-`controller/` 和 `service/` 中已有 `auth`、`user`、`resume`、`job`、`analysis`、`interview`、`recommendation`、`application`、`feedback`、`admin` 等业务目录；`service/` 另有 `rag`。共享的 `common/`、`exception/`、`util/` 等包承载响应、异常和通用工具。新增业务应先看相邻模块现有的 Controller、Service、Mapper、DTO/VO 和测试，再决定包结构，不机械复制别的项目模板。
+投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。
+
+简历模块负责 PDF 和 DOCX 文件保存与解析，以及简历版本的创建、比较和优化。接口位于 `/api/resumes` 和 `/api/resumes/{resumeId}/versions`。简历上传配置和文件解析异常归入简历包，头像处理由用户资料服务负责。
+
+匹配分析模块负责简历与岗位的匹配、报告管理、异步任务和进度发布，接口位于 `/api/analysis` 和 `/api/analysis/tasks`。任务进度通过 `/ws/analysis` 连接订阅 `/topic/analysis/{taskNo}`。WebSocket 和线程池装配由 `config/` 负责，AI 客户端和缓存键工具位于 `ai/`，统一清理任务仍负责清理分析任务、操作日志和 Redis 通知。
+
+面试题模块负责题目生成、重新生成和报告管理，接口位于 `/api/interview-questions`。岗位推荐模块负责推荐评分和批次管理，接口位于 `/api/job-recommendations`。两个模块使用 `ai/` 中的提示词模板和 AI 支撑代码。
+
+RAG 模块管理知识文档、分块和向量检索。后台接口位于 `/api/admin/rag/knowledge`，读写操作分别使用 `rag:read` 和 `rag:manage` 权限。启动时，`rag/runner/` 为启用且尚无有效分块的文档生成分块。向量客户端由 `ai/client/` 提供，分块和向量计算工具位于 `util/`。
+
+认证模块负责 `/api/auth`、验证码发送、JWT 过滤和身份加载。用户模块负责 `/api/user`、账户和个人资料。角色权限模块负责角色、权限与关联数据，以及后台角色权限服务。Spring Security 的全局装配位于 `config/`，当前登录用户的读取由 `util/SecurityUtils` 提供。
+
+后台模块通过 `/api/admin` 提供组合入口、用户管理、角色权限操作和仪表盘汇总。操作审计模块提供 `/api/admin/operation-logs`，并通过 `@OperationLog` 和切面记录各模块标记的操作。全局健康检查、执行耗时切面和定期清理任务由公共基础设施提供。
+
+MyBatis 扫描各业务模块的 Mapper 包，并注册对应实体包的类型别名。[启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) · [application.yml](../backend/src/main/resources/application.yml)
 
 | 层或组件 | 主要职责 | 修改时核对 |
 | --- | --- | --- |
 | Controller 与 DTO | 接收请求、参数校验、调用服务、形成响应 | URL、请求格式、权限注解、HTTP 与业务错误 |
 | Service | 业务规则、事务、资源所属关系和状态转换 | 重复提交、并发、跨用户访问、失败回滚 |
 | Mapper 与 Entity | 查询、更新及表映射 | 过滤条件、软删除、分页、数据库约束 |
-| `security/` 与 `config/` | 认证、授权、外部依赖和基础设施配置 | 401/403、公开路径、环境差异和秘密注入 |
-| `ai/`、`task/`、`runner/` | AI 调用、异步状态及恢复 | 超时、重试、幂等、缓存键和进度通知 |
+| `auth/security/` 与 `config/` | 认证、授权、外部依赖和基础设施配置 | 401/403、公开路径、环境差异和秘密注入 |
+| `ai/`、`task/`、`rag/runner/` | AI 支撑、定期清理和知识分块补齐 | 超时、重试、幂等、缓存键和任务状态 |
 
-Controller 不直接承载数据库业务逻辑；跨模块调用优先经过对方 Service。新接口需同时核对前端调用方、参数校验、后端授权、错误响应和可观察的测试断言。
+模块内按 Controller → Service → Mapper 的方向调用，根据实际职责建包。`common/` 收纳跨模块共享的通用组件，`config/` 用于全局配置。新增跨模块调用优先使用所属模块对外提供的接口。投递、简历版本、分析、面试、推荐和后台用户管理仍直接使用岗位 Mapper。后台用户管理和岗位推荐也使用投递 Mapper，反馈通过用户 Mapper 读取用户信息。新接口需同步核对前端调用方、参数校验、后端授权、错误响应和测试断言。
 
 ## 配置与本地运行
 
@@ -109,7 +140,7 @@ Linux/macOS 将 `.\gradlew.bat` 换为 `./gradlew`。开发时先准备所需 My
 
 ## 认证、权限与数据隔离
 
-- 登录接口在 `/api/auth`；请求通过 `Authorization: Bearer <token>` 携带 JWT。[JwtAuthenticationFilter.java](../backend/src/main/java/com/internpilot/security/JwtAuthenticationFilter.java) 解析 token，并从当前用户信息加载权限。
+- 登录接口在 `/api/auth`。请求通过 `Authorization: Bearer <token>` 携带 JWT。JWT 过滤器解析 token，并从当前用户信息加载权限。[JwtAuthenticationFilter.java](../backend/src/main/java/com/internpilot/auth/security/JwtAuthenticationFilter.java)
 - [SecurityConfig.java](../backend/src/main/java/com/internpilot/config/SecurityConfig.java) 配置无状态会话、白名单和方法级授权；密码通过 BCrypt 哈希。Controller 使用 `@PreAuthorize` 约束操作，但业务层仍须校验简历、报告、投递等记录的所属用户。
 - 未认证与无权限路径分别由安全处理器返回 HTTP 401 和 403。新增端点时应为普通用户、管理员、跨用户资源和过期 token 设计验证，不能只靠前端隐藏按钮。
 - 当前白名单包含 `/uploads/**` 和 `/ws/analysis/**`。修改上传或实时进度时，要重新审查文件内容、链接可见性与订阅范围；公开路径的存在不能视为资源天然可公开。

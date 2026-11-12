@@ -1,8 +1,8 @@
 package com.internpilot.config;
 
-import com.internpilot.security.JwtAccessDeniedHandler;
-import com.internpilot.security.JwtAuthenticationEntryPoint;
-import com.internpilot.security.JwtAuthenticationFilter;
+import com.internpilot.auth.security.JwtAccessDeniedHandler;
+import com.internpilot.auth.security.JwtAuthenticationEntryPoint;
+import com.internpilot.auth.security.JwtAuthenticationFilter;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;

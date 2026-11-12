@@ -1,6 +1,6 @@
 package com.internpilot.util;
 
-import com.internpilot.dto.analysis.AiAnalysisResult;
+import com.internpilot.analysis.dto.AiAnalysisResult;
 import com.internpilot.exception.AiServiceException;
 import org.junit.jupiter.api.Test;
 

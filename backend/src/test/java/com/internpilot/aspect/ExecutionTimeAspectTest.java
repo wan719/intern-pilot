@@ -1,7 +1,7 @@
 package com.internpilot.aspect;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;

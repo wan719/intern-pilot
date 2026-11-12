@@ -1,8 +1,8 @@
 package com.internpilot.ai.parser;
 
-import com.internpilot.dto.interview.AiInterviewQuestionResult;
-import com.internpilot.enums.InterviewQuestionTypeEnum;
-import com.internpilot.enums.QuestionDifficultyEnum;
+import com.internpilot.interview.dto.AiInterviewQuestionResult;
+import com.internpilot.interview.enums.InterviewQuestionTypeEnum;
+import com.internpilot.interview.enums.QuestionDifficultyEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.util.JsonUtils;
 

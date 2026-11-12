@@ -233,14 +233,21 @@ intern-pilot
 ├─ backend/
 │  └─ build.gradle, gradlew, src/
 │     ├─ src/main/java/com/internpilot/
-│     │  ├─ controller/       # REST APIs
-│     │  ├─ service/          # Business services
-│     │  ├─ mapper/           # MyBatis-Plus mappers
-│     │  ├─ entity/           # Database entities
-│     │  ├─ dto/              # Request objects
-│     │  ├─ vo/               # Response objects
-│     │  ├─ security/         # JWT and permission control
-│     │  ├─ runner/           # Startup compensation tasks
+│     │  ├─ application/      # Job applications: API, services, persistence, and models
+│     │  ├─ feedback/         # User feedback and administrative handling
+│     │  ├─ job/              # Job description management
+│     │  ├─ resume/           # Resumes, versions, file storage, and parsing
+│     │  ├─ analysis/         # Match analysis, reports, async tasks, and progress updates
+│     │  ├─ interview/        # Interview question generation and reports
+│     │  ├─ recommendation/   # Job recommendations, scoring, and batches
+│     │  ├─ rag/              # Knowledge base, vector search, and startup backfill
+│     │  ├─ auth/             # Login, registration, verification codes, and JWT
+│     │  ├─ user/             # User accounts and profiles
+│     │  ├─ rbac/             # Roles, permissions, and assignments
+│     │  ├─ admin/            # Admin endpoints, user management, and dashboard
+│     │  ├─ audit/            # Operation logs, audit annotation, and aspect
+│     │  ├─ controller/       # Global health check
+│     │  ├─ config/           # Global infrastructure configuration
 │     │  └─ util/             # Prompt, text chunking, vector, and JSON utilities
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

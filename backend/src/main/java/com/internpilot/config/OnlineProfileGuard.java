@@ -1,5 +1,7 @@
 package com.internpilot.config;
 
+import com.internpilot.auth.config.CaptchaProperties;
+import com.internpilot.auth.config.JwtProperties;
 import java.util.Arrays;
 
 import lombok.RequiredArgsConstructor;

@@ -4,7 +4,7 @@ import com.internpilot.ai.prompt.AiOutputFormat;
 import com.internpilot.ai.prompt.AiPromptContext;
 import com.internpilot.ai.prompt.InterviewQuestionPromptBuilder;
 import com.internpilot.ai.scenario.AiScenarioEnum;
-import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
+import com.internpilot.interview.dto.InterviewQuestionGenerateRequest;
 import org.springframework.stereotype.Component;
 
 @Component
