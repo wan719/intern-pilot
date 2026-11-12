@@ -1,6 +1,6 @@
 package com.internpilot.util;
 
-import com.internpilot.enums.MatchLevelEnum;
+import com.internpilot.analysis.enums.MatchLevelEnum;
 import com.internpilot.enums.RecommendationLevelEnum;
 import org.junit.jupiter.api.Test;
 

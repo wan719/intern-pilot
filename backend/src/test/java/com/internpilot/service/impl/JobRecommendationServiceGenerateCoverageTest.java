@@ -2,14 +2,14 @@ package com.internpilot.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.dto.recommendation.JobRecommendationGenerateRequest;
-import com.internpilot.entity.AnalysisReport;
+import com.internpilot.analysis.entity.AnalysisReport;
 import com.internpilot.job.entity.JobDescription;
 import com.internpilot.entity.JobRecommendationBatch;
 import com.internpilot.entity.JobRecommendationItem;
 import com.internpilot.resume.entity.Resume;
 import com.internpilot.resume.entity.ResumeVersion;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.AnalysisReportMapper;
+import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.JobRecommendationBatchMapper;

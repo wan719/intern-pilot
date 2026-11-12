@@ -1,12 +1,12 @@
 package com.internpilot.application.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.internpilot.entity.AnalysisReport;
+import com.internpilot.analysis.entity.AnalysisReport;
 import com.internpilot.application.entity.ApplicationRecord;
 import com.internpilot.job.entity.JobDescription;
 import com.internpilot.resume.entity.Resume;
 import com.internpilot.application.dto.ApplicationFromReportRequest;
-import com.internpilot.mapper.AnalysisReportMapper;
+import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;

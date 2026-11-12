@@ -7,7 +7,7 @@ import com.internpilot.dto.admin.AdminUserRoleUpdateRequest;
 import com.internpilot.entity.Role;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.AnalysisReportMapper;
+import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;

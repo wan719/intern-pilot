@@ -238,6 +238,7 @@ intern-pilot
 │     │  ├─ feedback/         # 用户反馈与后台处理
 │     │  ├─ job/              # 岗位描述管理
 │     │  ├─ resume/           # 简历、版本、文件保存与解析
+│     │  ├─ analysis/         # 匹配分析、报告、异步任务与进度推送
 │     │  ├─ controller/       # 其他业务的 REST 接口
 │     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper

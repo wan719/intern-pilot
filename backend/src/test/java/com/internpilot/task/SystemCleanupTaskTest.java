@@ -2,9 +2,9 @@ package com.internpilot.task;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.internpilot.config.SystemCleanupProperties;
-import com.internpilot.entity.AnalysisTask;
+import com.internpilot.analysis.entity.AnalysisTask;
 import com.internpilot.entity.SystemOperationLog;
-import com.internpilot.mapper.AnalysisTaskMapper;
+import com.internpilot.analysis.mapper.AnalysisTaskMapper;
 import com.internpilot.mapper.SystemOperationLogMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
