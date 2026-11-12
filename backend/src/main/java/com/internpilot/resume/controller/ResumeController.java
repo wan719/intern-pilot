@@ -1,10 +1,10 @@
 package com.internpilot.resume.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.resume.service.ResumeService;
 import com.internpilot.resume.vo.ResumeDetailResponse;
 import com.internpilot.resume.vo.ResumeListResponse;

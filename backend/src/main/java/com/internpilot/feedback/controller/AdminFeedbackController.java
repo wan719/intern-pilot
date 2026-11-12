@@ -1,10 +1,10 @@
 package com.internpilot.feedback.controller;
 
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.feedback.dto.FeedbackReplyRequest;
 import com.internpilot.feedback.dto.FeedbackStatusUpdateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.feedback.service.FeedbackService;
 import com.internpilot.feedback.vo.FeedbackResponse;
 import io.swagger.v3.oas.annotations.Operation;

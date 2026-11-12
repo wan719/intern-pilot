@@ -244,12 +244,10 @@ intern-pilot
 │     │  ├─ auth/             # Login, registration, verification codes, and JWT
 │     │  ├─ user/             # User accounts and profiles
 │     │  ├─ rbac/             # Roles, permissions, and assignments
-│     │  ├─ controller/       # REST APIs for other domains
-│     │  ├─ service/          # Services for other domains
-│     │  ├─ mapper/           # MyBatis-Plus mappers
-│     │  ├─ entity/           # Database entities
-│     │  ├─ dto/              # Request objects
-│     │  ├─ vo/               # Response objects
+│     │  ├─ admin/            # Admin endpoints, user management, and dashboard
+│     │  ├─ audit/            # Operation logs, audit annotation, and aspect
+│     │  ├─ controller/       # Global health check
+│     │  ├─ config/           # Global infrastructure configuration
 │     │  └─ util/             # Prompt, text chunking, vector, and JSON utilities
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

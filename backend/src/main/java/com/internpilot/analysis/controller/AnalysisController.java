@@ -1,11 +1,11 @@
 package com.internpilot.analysis.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.analysis.dto.AnalysisMatchRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.analysis.service.AnalysisService;
 import com.internpilot.analysis.vo.AnalysisReportDetailResponse;
 import com.internpilot.analysis.vo.AnalysisReportListResponse;

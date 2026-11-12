@@ -1,13 +1,13 @@
 package com.internpilot.rag.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.rag.dto.RagKnowledgeCreateRequest;
 import com.internpilot.rag.dto.RagKnowledgeUpdateRequest;
 import com.internpilot.rag.dto.RagSearchRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.rag.service.RagKnowledgeService;
 import com.internpilot.rag.vo.RagKnowledgeDetailResponse;
 import com.internpilot.rag.vo.RagKnowledgeListResponse;

@@ -1,11 +1,11 @@
 package com.internpilot.auth.controller;
 
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.auth.dto.CaptchaSendRequest;
 import com.internpilot.auth.dto.LoginRequest;
 import com.internpilot.auth.dto.RegisterRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.auth.service.AuthService;
 import com.internpilot.auth.vo.AuthUserResponse;
 import com.internpilot.auth.vo.LoginResponse;

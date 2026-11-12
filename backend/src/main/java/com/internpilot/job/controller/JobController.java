@@ -1,11 +1,11 @@
 package com.internpilot.job.controller;
 
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.job.dto.JobCreateRequest;
 import com.internpilot.job.dto.JobUpdateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.job.service.JobService;
 import com.internpilot.job.vo.JobCreateResponse;
 import com.internpilot.job.vo.JobDetailResponse;

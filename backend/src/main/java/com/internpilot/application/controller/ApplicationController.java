@@ -1,13 +1,13 @@
 package com.internpilot.application.controller;
 
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.application.dto.ApplicationCreateRequest;
 import com.internpilot.application.dto.ApplicationNoteUpdateRequest;
 import com.internpilot.application.dto.ApplicationStatusUpdateRequest;
 import com.internpilot.application.dto.ApplicationPriorityUpdateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.application.service.ApplicationService;
 import com.internpilot.application.vo.ApplicationCreateResponse;
 import com.internpilot.application.vo.ApplicationDetailResponse;

@@ -1,11 +1,11 @@
 package com.internpilot.recommendation.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.recommendation.dto.JobRecommendationGenerateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.recommendation.service.JobRecommendationService;
 import com.internpilot.recommendation.vo.JobRecommendationBatchDetailResponse;
 import com.internpilot.recommendation.vo.JobRecommendationBatchListResponse;

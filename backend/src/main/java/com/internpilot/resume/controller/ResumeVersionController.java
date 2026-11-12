@@ -1,12 +1,12 @@
 package com.internpilot.resume.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.resume.dto.ResumeVersionCreateRequest;
 import com.internpilot.resume.dto.ResumeVersionOptimizeRequest;
 import com.internpilot.resume.dto.ResumeVersionUpdateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.resume.service.ResumeVersionService;
 import com.internpilot.resume.vo.ResumeVersionCompareResponse;
 import com.internpilot.resume.vo.ResumeVersionCreateResponse;

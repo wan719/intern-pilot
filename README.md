@@ -245,12 +245,10 @@ intern-pilot
 │     │  ├─ auth/             # 登录、注册、验证码与 JWT
 │     │  ├─ user/             # 用户账户与个人资料
 │     │  ├─ rbac/             # 角色、权限及关联
-│     │  ├─ controller/       # 其他业务的 REST 接口
-│     │  ├─ service/          # 其他业务的服务
-│     │  ├─ mapper/           # MyBatis-Plus Mapper
-│     │  ├─ entity/           # 数据库实体
-│     │  ├─ dto/              # 请求对象
-│     │  ├─ vo/               # 响应对象
+│     │  ├─ admin/            # 后台组合入口、用户管理与仪表盘
+│     │  ├─ audit/            # 操作日志、审计注解与切面
+│     │  ├─ controller/       # 全局健康检查
+│     │  ├─ config/           # 全局基础设施配置
 │     │  └─ util/             # Prompt、文本切片、向量、JSON 工具
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

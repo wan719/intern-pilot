@@ -53,9 +53,9 @@ backend/
     │   │   ├── auth/            # 登录、注册、验证码与 JWT
     │   │   ├── user/            # 用户账户与个人资料
     │   │   ├── rbac/            # 角色、权限及关联
-    │   │   ├── controller/、service/  # 其他业务的接口与服务
-    │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
-    │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
+    │   │   ├── admin/           # 后台组合入口、用户管理与仪表盘
+    │   │   ├── audit/           # 操作日志、审计注解与切面
+    │   │   ├── controller/      # 全局健康检查
     │   │   ├── common/、exception/   # 共享响应、错误码及异常处理
     │   │   ├── config/          # 安全、分页、异步、Redis、WebSocket 等配置
     │   │   └── ai/、task/ 等    # AI 客户端、任务及补偿逻辑
@@ -79,9 +79,11 @@ backend/
 
 RAG 模块管理知识文档、分块和向量检索。后台接口位于 `/api/admin/rag/knowledge`，读写操作分别使用 `rag:read` 和 `rag:manage` 权限。启动时，`rag/runner/` 为启用且尚无有效分块的文档生成分块。向量客户端由 `ai/client/` 提供，分块和向量计算工具位于 `util/`。
 
-认证模块负责 `/api/auth`、验证码发送、JWT 过滤和身份加载。用户模块负责 `/api/user`、账户和个人资料。角色权限模块负责角色、权限与关联数据，以及后台角色权限服务。后台组合入口、用户管理服务及操作审计沿用按层分包。Spring Security 的全局装配位于 `config/`，当前登录用户的读取由 `util/SecurityUtils` 提供。
+认证模块负责 `/api/auth`、验证码发送、JWT 过滤和身份加载。用户模块负责 `/api/user`、账户和个人资料。角色权限模块负责角色、权限与关联数据，以及后台角色权限服务。Spring Security 的全局装配位于 `config/`，当前登录用户的读取由 `util/SecurityUtils` 提供。
 
-MyBatis 扫描原有 Mapper 包以及已按业务分包的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
+后台模块通过 `/api/admin` 提供组合入口、用户管理、角色权限操作和仪表盘汇总。操作审计模块提供 `/api/admin/operation-logs`，并通过 `@OperationLog` 和切面记录各模块标记的操作。全局健康检查、执行耗时切面和定期清理任务由公共基础设施提供。
+
+MyBatis 扫描各业务模块的 Mapper 包，并注册对应实体包的类型别名。[启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) · [application.yml](../backend/src/main/resources/application.yml)
 
 | 层或组件 | 主要职责 | 修改时核对 |
 | --- | --- | --- |

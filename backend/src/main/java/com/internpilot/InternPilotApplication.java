@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @MapperScan({
-        "com.internpilot.mapper",
         "com.internpilot.application.mapper",
         "com.internpilot.feedback.mapper",
         "com.internpilot.job.mapper",
@@ -16,7 +15,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.internpilot.recommendation.mapper",
         "com.internpilot.rag.mapper",
         "com.internpilot.user.mapper",
-        "com.internpilot.rbac.mapper"
+        "com.internpilot.rbac.mapper",
+        "com.internpilot.audit.mapper"
 })
 @EnableScheduling
 @SpringBootApplication

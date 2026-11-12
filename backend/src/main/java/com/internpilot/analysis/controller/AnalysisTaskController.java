@@ -1,10 +1,10 @@
 package com.internpilot.analysis.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
-import com.internpilot.annotation.OperationLog;
+import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.Result;
 import com.internpilot.analysis.dto.AnalysisTaskCreateRequest;
-import com.internpilot.enums.OperationTypeEnum;
+import com.internpilot.audit.enums.OperationTypeEnum;
 import com.internpilot.analysis.service.AnalysisTaskService;
 import com.internpilot.analysis.vo.AnalysisTaskCreateResponse;
 import com.internpilot.analysis.vo.AnalysisTaskDetailResponse;
