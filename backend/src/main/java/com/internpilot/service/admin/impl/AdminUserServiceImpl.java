@@ -13,7 +13,7 @@ import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.PermissionMapper;
-import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.mapper.RoleMapper;
 import com.internpilot.mapper.SystemOperationLogMapper;
 import com.internpilot.mapper.UserMapper;
@@ -120,9 +120,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         detail.setRoles(permissionMapper.selectRoleCodesByUserId(user.getId()));
         detail.setPermissions(permissionMapper.selectPermissionCodesByUserId(user.getId()));
 
-        detail.setResumeCount(toInt(resumeMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.Resume>()
-                .eq(com.internpilot.entity.Resume::getUserId, userId)
-                .eq(com.internpilot.entity.Resume::getDeleted, 0))));
+        detail.setResumeCount(toInt(resumeMapper.selectCount(new LambdaQueryWrapper<com.internpilot.resume.entity.Resume>()
+                .eq(com.internpilot.resume.entity.Resume::getUserId, userId)
+                .eq(com.internpilot.resume.entity.Resume::getDeleted, 0))));
         detail.setJobCount(toInt(jobDescriptionMapper.selectCount(new LambdaQueryWrapper<com.internpilot.job.entity.JobDescription>()
                 .eq(com.internpilot.job.entity.JobDescription::getUserId, userId)
                 .eq(com.internpilot.job.entity.JobDescription::getDeleted, 0))));
@@ -219,7 +219,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         data.setTodayNewUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .eq(User::getDeleted, 0)
                 .ge(User::getCreatedAt, todayStart)));
-        data.setResumeCount(resumeMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.Resume>().eq(com.internpilot.entity.Resume::getDeleted, 0)));
+        data.setResumeCount(resumeMapper.selectCount(new LambdaQueryWrapper<com.internpilot.resume.entity.Resume>().eq(com.internpilot.resume.entity.Resume::getDeleted, 0)));
         data.setJobCount(jobDescriptionMapper.selectCount(new LambdaQueryWrapper<com.internpilot.job.entity.JobDescription>().eq(com.internpilot.job.entity.JobDescription::getDeleted, 0)));
         data.setAnalysisReportCount(analysisReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.AnalysisReport>().eq(com.internpilot.entity.AnalysisReport::getDeleted, 0)));
         data.setInterviewQuestionReportCount(interviewQuestionReportMapper.selectCount(new LambdaQueryWrapper<com.internpilot.entity.InterviewQuestionReport>().eq(com.internpilot.entity.InterviewQuestionReport::getDeleted, 0)));

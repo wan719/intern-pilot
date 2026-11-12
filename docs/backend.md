@@ -45,6 +45,7 @@ backend/
     │   │   │   └── enums/
     │   │   ├── feedback/        # 用户反馈与后台处理，目录层次同投递模块
     │   │   ├── job/             # 岗位描述管理，包含接口、服务、Mapper、实体和请求响应模型
+    │   │   ├── resume/          # 简历、版本、上传配置、文件保存与解析
     │   │   ├── controller/、service/  # 其他业务的接口与服务
     │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
     │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
@@ -58,13 +59,15 @@ backend/
     │       ├── application-prod.yml
     │       └── sql/            # 初始化与人工审查的迁移脚本
     └── test/
-        ├── java/com/internpilot/  # 投递、反馈和岗位测试分别位于 application/、feedback/、job/
+        ├── java/com/internpilot/  # 已按业务分包的测试与生产包对应
         └── resources/          # test profile 与隔离测试 SQL
 ```
 
-投递、反馈和岗位已按业务分包。投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。其他业务沿用按层分包。
+投递、反馈、岗位和简历已按业务分包。投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。
 
-MyBatis 扫描原有 Mapper 包以及投递、反馈和岗位模块的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
+简历模块负责 PDF 和 DOCX 文件保存与解析，以及简历版本的创建、比较和优化。接口位于 `/api/resumes` 和 `/api/resumes/{resumeId}/versions`。简历上传配置和文件解析异常归入简历包，头像处理由用户资料服务负责。其他业务沿用按层分包。
+
+MyBatis 扫描原有 Mapper 包以及投递、反馈、岗位和简历模块的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
 
 | 层或组件 | 主要职责 | 修改时核对 |
 | --- | --- | --- |

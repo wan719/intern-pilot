@@ -12,7 +12,7 @@ import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.PermissionMapper;
-import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.mapper.RoleMapper;
 import com.internpilot.mapper.SystemOperationLogMapper;
 import com.internpilot.mapper.UserMapper;

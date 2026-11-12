@@ -236,6 +236,7 @@ intern-pilot
 │     │  ├─ application/      # Job applications: API, services, persistence, and models
 │     │  ├─ feedback/         # User feedback and administrative handling
 │     │  ├─ job/              # Job description management
+│     │  ├─ resume/           # Resumes, versions, file storage, and parsing
 │     │  ├─ controller/       # REST APIs for other domains
 │     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers

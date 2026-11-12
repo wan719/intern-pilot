@@ -5,7 +5,7 @@ import com.internpilot.dto.user.UpdateProfileRequest;
 import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.mapper.PermissionMapper;
-import com.internpilot.mapper.ResumeMapper;
+import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.mapper.UserMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.vo.user.UserProfileVO;
