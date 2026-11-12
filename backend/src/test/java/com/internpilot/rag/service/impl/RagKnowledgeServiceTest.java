@@ -1,23 +1,23 @@
-package com.internpilot.service.impl;
+package com.internpilot.rag.service.impl;
 
-import com.internpilot.service.rag.impl.RagKnowledgeServiceImpl;
+import com.internpilot.rag.service.impl.RagKnowledgeServiceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
-import com.internpilot.dto.rag.RagKnowledgeCreateRequest;
-import com.internpilot.dto.rag.RagKnowledgeUpdateRequest;
-import com.internpilot.dto.rag.RagSearchRequest;
-import com.internpilot.entity.RagKnowledgeChunk;
-import com.internpilot.entity.RagKnowledgeDocument;
+import com.internpilot.rag.dto.RagKnowledgeCreateRequest;
+import com.internpilot.rag.dto.RagKnowledgeUpdateRequest;
+import com.internpilot.rag.dto.RagSearchRequest;
+import com.internpilot.rag.entity.RagKnowledgeChunk;
+import com.internpilot.rag.entity.RagKnowledgeDocument;
 import com.internpilot.exception.BusinessException;
-import com.internpilot.mapper.RagKnowledgeChunkMapper;
-import com.internpilot.mapper.RagKnowledgeDocumentMapper;
+import com.internpilot.rag.mapper.RagKnowledgeChunkMapper;
+import com.internpilot.rag.mapper.RagKnowledgeDocumentMapper;
 import com.internpilot.security.CustomUserDetails;
 import com.internpilot.ai.client.EmbeddingClient;
-import com.internpilot.vo.rag.RagKnowledgeDetailResponse;
-import com.internpilot.vo.rag.RagKnowledgeListResponse;
-import com.internpilot.vo.rag.RagSearchResultResponse;
+import com.internpilot.rag.vo.RagKnowledgeDetailResponse;
+import com.internpilot.rag.vo.RagKnowledgeListResponse;
+import com.internpilot.rag.vo.RagSearchResultResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

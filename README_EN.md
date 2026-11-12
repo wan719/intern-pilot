@@ -240,6 +240,7 @@ intern-pilot
 │     │  ├─ analysis/         # Match analysis, reports, async tasks, and progress updates
 │     │  ├─ interview/        # Interview question generation and reports
 │     │  ├─ recommendation/   # Job recommendations, scoring, and batches
+│     │  ├─ rag/              # Knowledge base, vector search, and startup backfill
 │     │  ├─ controller/       # REST APIs for other domains
 │     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers
@@ -247,7 +248,6 @@ intern-pilot
 │     │  ├─ dto/              # Request objects
 │     │  ├─ vo/               # Response objects
 │     │  ├─ security/         # JWT and permission control
-│     │  ├─ runner/           # Startup compensation tasks
 │     │  └─ util/             # Prompt, text chunking, vector, and JSON utilities
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

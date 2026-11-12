@@ -49,6 +49,7 @@ backend/
     │   │   ├── analysis/        # 匹配分析、报告、异步任务与进度推送
     │   │   ├── interview/       # 面试题生成与报告
     │   │   ├── recommendation/  # 岗位推荐、评分与推荐批次
+    │   │   ├── rag/             # 知识库管理、向量检索与启动补齐
     │   │   ├── controller/、service/  # 其他业务的接口与服务
     │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
     │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
@@ -72,7 +73,9 @@ backend/
 
 匹配分析模块负责简历与岗位的匹配、报告管理、异步任务和进度发布，接口位于 `/api/analysis` 和 `/api/analysis/tasks`。任务进度通过 `/ws/analysis` 连接订阅 `/topic/analysis/{taskNo}`。WebSocket 和线程池装配由 `config/` 负责，AI 客户端和缓存键工具位于 `ai/`，统一清理任务仍负责清理分析任务、操作日志和 Redis 通知。
 
-面试题模块负责题目生成、重新生成和报告管理，接口位于 `/api/interview-questions`。岗位推荐模块负责推荐评分和批次管理，接口位于 `/api/job-recommendations`。两个模块使用 `ai/` 中的提示词模板和 AI 支撑代码。其余尚未迁移的业务沿用按层分包。
+面试题模块负责题目生成、重新生成和报告管理，接口位于 `/api/interview-questions`。岗位推荐模块负责推荐评分和批次管理，接口位于 `/api/job-recommendations`。两个模块使用 `ai/` 中的提示词模板和 AI 支撑代码。
+
+RAG 模块管理知识文档、分块和向量检索。后台接口位于 `/api/admin/rag/knowledge`，读写操作分别使用 `rag:read` 和 `rag:manage` 权限。启动时，`rag/runner/` 为启用且尚无有效分块的文档生成分块。向量客户端仍由 `ai/client/` 提供，分块和向量计算工具位于 `util/`。其余尚未迁移的业务沿用按层分包。
 
 MyBatis 扫描原有 Mapper 包以及已按业务分包的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
 
@@ -82,7 +85,7 @@ MyBatis 扫描原有 Mapper 包以及已按业务分包的 Mapper 包，并注�
 | Service | 业务规则、事务、资源所属关系和状态转换 | 重复提交、并发、跨用户访问、失败回滚 |
 | Mapper 与 Entity | 查询、更新及表映射 | 过滤条件、软删除、分页、数据库约束 |
 | `security/` 与 `config/` | 认证、授权、外部依赖和基础设施配置 | 401/403、公开路径、环境差异和秘密注入 |
-| `ai/`、`task/`、`runner/` | AI 调用、异步状态及恢复 | 超时、重试、幂等、缓存键和进度通知 |
+| `ai/`、`task/`、`rag/runner/` | AI 支撑、定期清理和知识分块补齐 | 超时、重试、幂等、缓存键和任务状态 |
 
 模块内按 Controller → Service → Mapper 的方向调用，根据实际职责建包。`common/` 收纳跨模块共享的通用组件，`config/` 用于全局配置。新增跨模块调用优先使用所属模块对外提供的接口。投递、简历版本、分析、面试、推荐和后台用户管理仍直接使用岗位 Mapper。后台用户管理和岗位推荐也使用投递 Mapper，反馈通过用户 Mapper 读取用户信息。新接口需同步核对前端调用方、参数校验、后端授权、错误响应和测试断言。
 

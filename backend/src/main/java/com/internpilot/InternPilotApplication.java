@@ -13,7 +13,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.internpilot.resume.mapper",
         "com.internpilot.analysis.mapper",
         "com.internpilot.interview.mapper",
-        "com.internpilot.recommendation.mapper"
+        "com.internpilot.recommendation.mapper",
+        "com.internpilot.rag.mapper"
 })
 @EnableScheduling
 @SpringBootApplication

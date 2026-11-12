@@ -1,7 +1,7 @@
-package com.internpilot.mapper;
+package com.internpilot.rag.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.internpilot.entity.RagKnowledgeChunk;
+import com.internpilot.rag.entity.RagKnowledgeChunk;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

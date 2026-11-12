@@ -1,4 +1,4 @@
-package com.internpilot.vo.rag;
+package com.internpilot.rag.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

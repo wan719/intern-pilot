@@ -1,17 +1,17 @@
-package com.internpilot.controller.admin;
+package com.internpilot.rag.controller;
 
 import com.internpilot.annotation.LogExecutionTime;
 import com.internpilot.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
-import com.internpilot.dto.rag.RagKnowledgeCreateRequest;
-import com.internpilot.dto.rag.RagKnowledgeUpdateRequest;
-import com.internpilot.dto.rag.RagSearchRequest;
+import com.internpilot.rag.dto.RagKnowledgeCreateRequest;
+import com.internpilot.rag.dto.RagKnowledgeUpdateRequest;
+import com.internpilot.rag.dto.RagSearchRequest;
 import com.internpilot.enums.OperationTypeEnum;
-import com.internpilot.service.rag.RagKnowledgeService;
-import com.internpilot.vo.rag.RagKnowledgeDetailResponse;
-import com.internpilot.vo.rag.RagKnowledgeListResponse;
-import com.internpilot.vo.rag.RagSearchResultResponse;
+import com.internpilot.rag.service.RagKnowledgeService;
+import com.internpilot.rag.vo.RagKnowledgeDetailResponse;
+import com.internpilot.rag.vo.RagKnowledgeListResponse;
+import com.internpilot.rag.vo.RagSearchResultResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

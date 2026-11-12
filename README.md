@@ -241,6 +241,7 @@ intern-pilot
 │     │  ├─ analysis/         # 匹配分析、报告、异步任务与进度推送
 │     │  ├─ interview/        # 面试题生成与报告
 │     │  ├─ recommendation/   # 岗位推荐、评分与推荐批次
+│     │  ├─ rag/              # 知识库、向量检索与启动补齐
 │     │  ├─ controller/       # 其他业务的 REST 接口
 │     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper
@@ -248,7 +249,6 @@ intern-pilot
 │     │  ├─ dto/              # 请求对象
 │     │  ├─ vo/               # 响应对象
 │     │  ├─ security/         # JWT 与权限控制
-│     │  ├─ runner/           # 启动补偿任务
 │     │  └─ util/             # Prompt、文本切片、向量、JSON 工具
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

@@ -1,11 +1,11 @@
-package com.internpilot.runner;
+package com.internpilot.rag.runner;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.internpilot.ai.client.EmbeddingClient;
-import com.internpilot.entity.RagKnowledgeChunk;
-import com.internpilot.entity.RagKnowledgeDocument;
-import com.internpilot.mapper.RagKnowledgeChunkMapper;
-import com.internpilot.mapper.RagKnowledgeDocumentMapper;
+import com.internpilot.rag.entity.RagKnowledgeChunk;
+import com.internpilot.rag.entity.RagKnowledgeDocument;
+import com.internpilot.rag.mapper.RagKnowledgeChunkMapper;
+import com.internpilot.rag.mapper.RagKnowledgeDocumentMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;

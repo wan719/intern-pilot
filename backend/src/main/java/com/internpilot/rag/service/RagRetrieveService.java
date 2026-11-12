@@ -1,6 +1,6 @@
-package com.internpilot.service.rag;
+package com.internpilot.rag.service;
 
-import com.internpilot.vo.rag.RagSearchResultResponse;
+import com.internpilot.rag.vo.RagSearchResultResponse;
 
 import java.util.List;
 

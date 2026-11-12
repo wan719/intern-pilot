@@ -1,4 +1,4 @@
-package com.internpilot.entity;
+package com.internpilot.rag.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 

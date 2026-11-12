@@ -1,4 +1,4 @@
-package com.internpilot.vo.rag;
+package com.internpilot.rag.vo;
 
 import lombok.Data;
 

@@ -1,12 +1,12 @@
-package com.internpilot.service.rag;
+package com.internpilot.rag.service;
 
 import com.internpilot.common.PageResult;
-import com.internpilot.dto.rag.RagKnowledgeCreateRequest;
-import com.internpilot.dto.rag.RagKnowledgeUpdateRequest;
-import com.internpilot.dto.rag.RagSearchRequest;
-import com.internpilot.vo.rag.RagKnowledgeDetailResponse;
-import com.internpilot.vo.rag.RagKnowledgeListResponse;
-import com.internpilot.vo.rag.RagSearchResultResponse;
+import com.internpilot.rag.dto.RagKnowledgeCreateRequest;
+import com.internpilot.rag.dto.RagKnowledgeUpdateRequest;
+import com.internpilot.rag.dto.RagSearchRequest;
+import com.internpilot.rag.vo.RagKnowledgeDetailResponse;
+import com.internpilot.rag.vo.RagKnowledgeListResponse;
+import com.internpilot.rag.vo.RagSearchResultResponse;
 
 import java.util.List;
 
