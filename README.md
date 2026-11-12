@@ -5,7 +5,7 @@
 
 [中文简体 README](README.md) | [English README](README_EN.md)
 
-- v1.4.0：[发布说明](docs/releases/v1.4.0.md) · [部署指南](docs/deployment.md) · [技术文档](docs/README.md)
+- v1.4.0：[GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) · [部署说明](#部署说明) · [后端约定](docs/backend.md) · [前端约定](docs/frontend.md) · [测试规范](docs/test.md)
 - 历史演示视频：[InternPilot v1.3.1 功能演示](https://github.com/wan719/intern-pilot/releases/tag/v1.3.1)（旧版界面）
 
 
@@ -16,7 +16,7 @@ InternPilot 是一个前后端分离的 AI 实习投递与简历优化平台。�
 
 项目采用前后端分离架构，后端基于 Spring Boot、Spring Security、MyBatis-Plus、MySQL、Redis、WebSocket 和 DeepSeek API，前端基于 Vue 3、Vite、TypeScript、Element Plus、Vue Router、Pinia、Axios、ECharts 和 Sass。
 
-当前代码版本：`v1.4.0`（Tag → `e278add`，2026-08-26）。功能变更与已知限制见[发布说明](docs/releases/v1.4.0.md)。源码标签不代表站点当前运行版本；生产可用性未在本轮文档整理中验证。管理员凭据不在文档或示例配置中公开。
+当前代码版本：`v1.4.0`（Tag → `e278add`，2026-08-26）。功能变更与已知限制见 [GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0)。源码标签不代表站点当前运行版本；生产可用性未在本轮文档整理中验证。管理员凭据不在文档或示例配置中公开。
 
 ## 在线体验
 
@@ -68,7 +68,7 @@ InternPilot 希望通过 AI 技术帮助学生更高效地完成实习准备，�
 
 | 版本 | 日期 | 更新内容 |
 | --- | --- | --- |
-| [v1.4.0](docs/releases/v1.4.0.md) | 2026-08-26（Tag） | 产品级 UI 重塑：求职旅程导航、工作台、移动端、统一后台与异步状态修复；新增前端测试。运行状态需在部署环境单独验证 |
+| [v1.4.0](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0) | 2026-08-26（Tag） | 产品级 UI 重塑：求职旅程导航、工作台、移动端、统一后台与异步状态修复；新增前端测试。运行状态需在部署环境单独验证 |
 | v1.3.1 | 2026-05-22 | 根据 `44-ai-report-pdf-export-and-frontend-performance-design.md` 完成 AI 报告 PDF 导出、打印页、前端路由懒加载、Vite 拆包、Logo 资源优化和 Nginx gzip / 缓存配置 |
 | v1.3.0 | 2026-05-22 | 根据 `43-spring-boot-engineering-enhancement-design.md` 完成 Actuator、参数校验、全局异常处理、AOP 耗时日志、操作日志脱敏、Redis key 规范、定时清理和 Docker healthcheck |
 | v1.2.0 | 2026-05-21 | 根据 `42-ai-model-router-and-prompt-optimization-design.md` 完成 AI 场景枚举、模型路由、Prompt 模板版本管理、AI JSON 清洗、缓存 key 优化、重试与 fallback |
@@ -232,7 +232,7 @@ intern-pilot
 │     ├─ ci.yml
 │     └─ docker-build.yml
 ├─ backend/
-│  └─ intern-pilot-backend/
+│  └─ build.gradle, gradlew, src/
 │     ├─ src/main/java/com/internpilot/
 │     │  ├─ controller/       # REST 接口
 │     │  ├─ service/          # 业务服务
@@ -251,7 +251,7 @@ intern-pilot
 │     ├─ src/test/java/       # JUnit / Mockito / MockMvc 测试
 │     └─ src/test/resources/  # application-test.yml 与测试 SQL
 ├─ frontend/
-│  └─ intern-pilot-frontend/
+│  └─ package.json, src/
 │     ├─ public/              # favicon 等静态资源
 │     ├─ src/api/             # Axios 接口封装
 │     ├─ src/assets/          # 品牌图标资源
@@ -265,11 +265,10 @@ intern-pilot
 │  ├─ docker-compose.yml
 │  └─ .env.example
 ├─ docs/
-│  ├─ README.md              # 技术文档导航
-│  ├─ architecture/ui-design.md
-│  ├─ deployment.md
-│  ├─ releases/v1.4.0.md
-│  └─ 09-api-design.md
+│  ├─ backend.md             # 后端约定
+│  ├─ frontend.md            # 前端约定
+│  ├─ git.md                 # Git 协作
+│  └─ test.md                # 测试规范
 └─ README.md
 ```
 
@@ -334,7 +333,7 @@ CREATE DATABASE intern_pilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 4. 启动后端：
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat bootRun
 ```
 
@@ -347,7 +346,7 @@ Invoke-WebRequest http://localhost:8080/api/health
 ### 前端启动
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -362,7 +361,7 @@ http://localhost:5173
 
 线上系统不公开默认账号和管理员密码。管理员账号与初始密码由部署人员在安全渠道中维护，README、截图、提交记录和示例配置中不记录明文密码。
 
-本阶段不再初始化公开演示账号或旧默认管理员账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/intern-pilot-backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
+本阶段不再初始化公开演示账号或旧默认管理员账号。已有服务器数据如需清理，请先备份数据库，再执行 `backend/src/main/resources/sql/prod-single-admin-reset.sql` 或重建 Docker 数据卷。
 
 系统启动时会执行 `src/main/resources/sql/init.sql`，包含：
 
@@ -545,7 +544,7 @@ erDiagram
 
 ### 测试证据与覆盖率
 
-2026-10-08 在 `v1.4.0` 代码基线上重新验证：前端 36 个测试文件、296 项测试全部通过，`npm run build`（含类型检查）通过。测试范围与限制见[发布说明](docs/releases/v1.4.0.md)。
+2026-10-08 在 `v1.4.0` 代码基线上重新验证：前端 36 个测试文件、296 项测试全部通过，`npm run build`（含类型检查）通过。测试范围与限制见 [GitHub Release](https://github.com/wan719/intern-pilot/releases/tag/v1.4.0)。
 
 2026-10-08 执行 `test jacocoTestReport --no-daemon --max-workers=1` 成功。以下结果取自本轮后端测试 XML 和 JaCoCo 报告；后端 296 项与前端 296 项属于不同测试集合：
 
@@ -560,14 +559,14 @@ erDiagram
 | Branch Coverage | 70.48% |
 | Class Coverage | 97.37% |
 
-JaCoCo HTML 报告生成后可在 `backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html` 查看。
+JaCoCo HTML 报告生成后可在 `backend/build/reports/jacoco/test/html/index.html` 查看。
 
 ### 本地验收命令
 
 后端完整测试：
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat test --no-daemon --max-workers=1
 ```
 
@@ -580,8 +579,8 @@ cd backend/intern-pilot-backend
 报告路径：
 
 ```text
-backend/intern-pilot-backend/build/reports/jacoco/test/html/index.html
-backend/intern-pilot-backend/build/reports/jacoco/test/jacocoTestReport.xml
+backend/build/reports/jacoco/test/html/index.html
+backend/build/reports/jacoco/test/jacocoTestReport.xml
 ```
 
 单独运行某个测试类：
@@ -593,7 +592,7 @@ backend/intern-pilot-backend/build/reports/jacoco/test/jacocoTestReport.xml
 前端测试、类型检查与构建：
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm ci
 npm run test:run
 npm run build
@@ -629,7 +628,7 @@ CI 执行内容：
 
 项目已提供完整的 Docker Compose 编排，包含 MySQL、Redis、后端和前端 Nginx 四个服务，可一键启动。
 
-部署目标代码基线为 `v1.4.0`。指定版本升级、健康检查及回滚见[部署指南](docs/deployment.md)。部署前核实当前版本、有效配置和可恢复备份；生产环境 `.env` 不提交到版本库。
+以下是首次安装示例，**不是存量生产环境的升级或回滚脚本**。更新现有部署前须核实当前提交与镜像、Compose 项目名和数据卷，完成数据库及上传文件备份并验证恢复方式；数据库迁移需单独评估兼容性。保留可用旧镜像，更新后检查后端健康接口和核心业务流程。应用回滚不会自动撤销数据库变更，不能使用 `docker compose down -v` 作为普通更新步骤。生产环境 `.env` 不提交到版本库。
 
 **前置要求：**
 
@@ -677,7 +676,7 @@ docker compose --env-file .env -f docker-compose.yml down
 ### 后端打包运行
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat clean bootJar
 java -jar build\libs\intern-pilot-backend-0.0.1-SNAPSHOT.jar
 ```
@@ -685,15 +684,15 @@ java -jar build\libs\intern-pilot-backend-0.0.1-SNAPSHOT.jar
 ### 前端构建
 
 ```powershell
-cd frontend/intern-pilot-frontend
+cd frontend
 npm install
 npm run build
-# 构建产物位于 frontend/intern-pilot-frontend/dist
+# 构建产物位于 frontend/dist
 ```
 
 ### Nginx 配置示例
 
-项目 Docker 前端镜像使用 `frontend/intern-pilot-frontend/nginx.conf`。核心代理规则如下：
+项目 Docker 前端镜像使用 `frontend/nginx.conf`。核心代理规则如下：
 
 ```nginx
 server {
@@ -767,7 +766,7 @@ server {
 - `.env` 只保留在服务器，不要提交到仓库
 - MySQL 建议使用 `utf8mb4`
 - Docker MySQL volume 只会在首次初始化时执行 `init.sql`
-- 如果线上库已经存在，请先备份数据库，再手动执行 `backend/intern-pilot-backend/src/main/resources/sql/migration/V40__final_release_update.sql`，用于补齐 `user_feedback` 表和 `feedback:*` 权限
+- 如果线上库已经存在，请先备份数据库，再手动执行 `backend/src/main/resources/sql/migration/V40__final_release_update.sql`，用于补齐 `user_feedback` 表和 `feedback:*` 权限
 - Redis 未设置密码时只建议用于本地开发
 - 当前 RAG 使用 MySQL JSON 存储向量和内存相似度计算，适合课程项目和小规模演示；生产大规模知识库建议替换为 Qdrant、Milvus、pgvector 或 Elasticsearch 向量检索
 
@@ -908,7 +907,7 @@ curl http://localhost:8080/actuator/health
 本地开发时可用以下命令查看后端启动和业务日志：
 
 ```powershell
-cd backend/intern-pilot-backend
+cd backend
 .\gradlew.bat bootRun --no-daemon
 ```
 
