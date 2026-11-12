@@ -47,6 +47,8 @@ backend/
     │   │   ├── job/             # 岗位描述管理，包含接口、服务、Mapper、实体和请求响应模型
     │   │   ├── resume/          # 简历、版本、上传配置、文件保存与解析
     │   │   ├── analysis/        # 匹配分析、报告、异步任务与进度推送
+    │   │   ├── interview/       # 面试题生成与报告
+    │   │   ├── recommendation/  # 岗位推荐、评分与推荐批次
     │   │   ├── controller/、service/  # 其他业务的接口与服务
     │   │   ├── mapper/、entity/       # 其他业务的 Mapper 与实体
     │   │   ├── dto/、vo/、enums/       # 其他业务的请求、响应与枚举
@@ -64,11 +66,13 @@ backend/
         └── resources/          # test profile 与隔离测试 SQL
 ```
 
-投递、反馈、岗位、简历和匹配分析已按业务分包。投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。
+投递负责记录创建与查询、状态和优先级更新、备注、删除，以及从分析报告生成投递计划或记录，接口位于 `/api/applications`。反馈负责用户提交与查看个人反馈，以及后台查询、回复、状态更新和删除。用户接口位于 `/api/feedback`，后台接口位于 `/api/admin/feedback`，两个 Controller 共用反馈服务。岗位模块负责用户岗位描述的创建、分页筛选、详情、更新和删除，接口位于 `/api/jobs`。
 
 简历模块负责 PDF 和 DOCX 文件保存与解析，以及简历版本的创建、比较和优化。接口位于 `/api/resumes` 和 `/api/resumes/{resumeId}/versions`。简历上传配置和文件解析异常归入简历包，头像处理由用户资料服务负责。
 
-匹配分析模块负责简历与岗位的匹配、报告管理、异步任务和进度发布，接口位于 `/api/analysis` 和 `/api/analysis/tasks`。任务进度通过 `/ws/analysis` 连接订阅 `/topic/analysis/{taskNo}`。WebSocket 和线程池装配由 `config/` 负责，AI 客户端和缓存键工具位于 `ai/`，统一清理任务仍负责清理分析任务、操作日志和 Redis 通知。其余尚未迁移的业务沿用按层分包。
+匹配分析模块负责简历与岗位的匹配、报告管理、异步任务和进度发布，接口位于 `/api/analysis` 和 `/api/analysis/tasks`。任务进度通过 `/ws/analysis` 连接订阅 `/topic/analysis/{taskNo}`。WebSocket 和线程池装配由 `config/` 负责，AI 客户端和缓存键工具位于 `ai/`，统一清理任务仍负责清理分析任务、操作日志和 Redis 通知。
+
+面试题模块负责题目生成、重新生成和报告管理，接口位于 `/api/interview-questions`。岗位推荐模块负责推荐评分和批次管理，接口位于 `/api/job-recommendations`。两个模块使用 `ai/` 中的提示词模板和 AI 支撑代码。其余尚未迁移的业务沿用按层分包。
 
 MyBatis 扫描原有 Mapper 包以及已按业务分包的 Mapper 包，并注册对应实体包的类型别名。扫描配置见 [启动类](../backend/src/main/java/com/internpilot/InternPilotApplication.java) 和 [application.yml](../backend/src/main/resources/application.yml)。
 

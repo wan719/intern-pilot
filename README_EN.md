@@ -238,6 +238,8 @@ intern-pilot
 │     │  ├─ job/              # Job description management
 │     │  ├─ resume/           # Resumes, versions, file storage, and parsing
 │     │  ├─ analysis/         # Match analysis, reports, async tasks, and progress updates
+│     │  ├─ interview/        # Interview question generation and reports
+│     │  ├─ recommendation/   # Job recommendations, scoring, and batches
 │     │  ├─ controller/       # REST APIs for other domains
 │     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers

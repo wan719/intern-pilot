@@ -1,6 +1,6 @@
 package com.internpilot.ai.prompt;
 
-import com.internpilot.dto.interview.InterviewQuestionGenerateRequest;
+import com.internpilot.interview.dto.InterviewQuestionGenerateRequest;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

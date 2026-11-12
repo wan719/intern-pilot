@@ -239,6 +239,8 @@ intern-pilot
 │     │  ├─ job/              # 岗位描述管理
 │     │  ├─ resume/           # 简历、版本、文件保存与解析
 │     │  ├─ analysis/         # 匹配分析、报告、异步任务与进度推送
+│     │  ├─ interview/        # 面试题生成与报告
+│     │  ├─ recommendation/   # 岗位推荐、评分与推荐批次
 │     │  ├─ controller/       # 其他业务的 REST 接口
 │     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper

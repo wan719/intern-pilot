@@ -9,7 +9,7 @@ import com.internpilot.entity.User;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
-import com.internpilot.mapper.InterviewQuestionReportMapper;
+import com.internpilot.interview.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.mapper.PermissionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;

@@ -1,7 +1,7 @@
 package com.internpilot.util;
 
 import com.internpilot.analysis.enums.MatchLevelEnum;
-import com.internpilot.enums.RecommendationLevelEnum;
+import com.internpilot.recommendation.enums.RecommendationLevelEnum;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
