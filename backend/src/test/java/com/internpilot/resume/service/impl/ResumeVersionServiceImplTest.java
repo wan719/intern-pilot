@@ -22,7 +22,7 @@ import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.resume.vo.ResumeVersionCompareResponse;
 import com.internpilot.resume.vo.ResumeVersionCreateResponse;
 import com.internpilot.resume.vo.ResumeVersionDetailResponse;

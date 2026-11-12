@@ -8,7 +8,7 @@ import com.internpilot.job.dto.JobCreateRequest;
 import com.internpilot.job.dto.JobUpdateRequest;
 import com.internpilot.job.entity.JobDescription;
 import com.internpilot.job.mapper.JobDescriptionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.job.vo.JobCreateResponse;
 import com.internpilot.job.vo.JobDetailResponse;
 import com.internpilot.job.vo.JobListResponse;

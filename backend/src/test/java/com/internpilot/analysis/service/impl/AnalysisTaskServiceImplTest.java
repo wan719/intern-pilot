@@ -8,7 +8,7 @@ import com.internpilot.analysis.entity.AnalysisTask;
 import com.internpilot.analysis.enums.AnalysisTaskStatusEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.analysis.mapper.AnalysisTaskMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.analysis.service.AnalysisProgressPublisher;
 import com.internpilot.analysis.service.AnalysisService;
 import com.internpilot.analysis.vo.AnalysisResultResponse;

@@ -19,7 +19,7 @@ import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.application.vo.ApplicationCreateResponse;
 import com.internpilot.application.vo.ApplicationDetailResponse;
 import com.internpilot.application.vo.ApplicationListResponse;

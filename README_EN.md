@@ -241,13 +241,15 @@ intern-pilot
 │     │  ├─ interview/        # Interview question generation and reports
 │     │  ├─ recommendation/   # Job recommendations, scoring, and batches
 │     │  ├─ rag/              # Knowledge base, vector search, and startup backfill
+│     │  ├─ auth/             # Login, registration, verification codes, and JWT
+│     │  ├─ user/             # User accounts and profiles
+│     │  ├─ rbac/             # Roles, permissions, and assignments
 │     │  ├─ controller/       # REST APIs for other domains
 │     │  ├─ service/          # Services for other domains
 │     │  ├─ mapper/           # MyBatis-Plus mappers
 │     │  ├─ entity/           # Database entities
 │     │  ├─ dto/              # Request objects
 │     │  ├─ vo/               # Response objects
-│     │  ├─ security/         # JWT and permission control
 │     │  └─ util/             # Prompt, text chunking, vector, and JSON utilities
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

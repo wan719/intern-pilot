@@ -16,7 +16,7 @@ import com.internpilot.recommendation.mapper.JobRecommendationBatchMapper;
 import com.internpilot.recommendation.mapper.JobRecommendationItemMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.recommendation.service.impl.JobRecommendationServiceImpl;
 import com.internpilot.recommendation.vo.JobRecommendationGenerateResponse;
 import org.junit.jupiter.api.AfterEach;

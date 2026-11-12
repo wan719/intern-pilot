@@ -12,7 +12,7 @@ import com.internpilot.exception.BusinessException;
 import com.internpilot.interview.mapper.InterviewQuestionMapper;
 import com.internpilot.interview.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.interview.vo.InterviewQuestionDetailResponse;
 import com.internpilot.interview.vo.InterviewQuestionListResponse;
 import org.junit.jupiter.api.AfterEach;

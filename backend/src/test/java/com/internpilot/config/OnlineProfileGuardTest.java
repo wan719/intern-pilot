@@ -1,7 +1,9 @@
 package com.internpilot.config;
 
+import com.internpilot.auth.config.CaptchaProperties;
+import com.internpilot.auth.config.JwtProperties;
 import com.internpilot.ai.client.MockAiClient;
-import com.internpilot.captcha.MockCaptchaSender;
+import com.internpilot.auth.captcha.MockCaptchaSender;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Profile;
 import org.springframework.mock.env.MockEnvironment;

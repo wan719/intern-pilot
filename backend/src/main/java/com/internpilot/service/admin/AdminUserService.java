@@ -1,7 +1,7 @@
 package com.internpilot.service.admin;
 
 import com.internpilot.common.PageResult;
-import com.internpilot.dto.admin.AdminUserRoleUpdateRequest;
+import com.internpilot.rbac.dto.AdminUserRoleUpdateRequest;
 import com.internpilot.vo.admin.AdminDashboardSummaryResponse;
 import com.internpilot.vo.admin.AdminUserDetailResponse;
 import com.internpilot.vo.admin.AdminUserListResponse;

@@ -4,7 +4,7 @@ import com.internpilot.annotation.OperationLog;
 import com.internpilot.entity.SystemOperationLog;
 import com.internpilot.enums.OperationTypeEnum;
 import com.internpilot.mapper.SystemOperationLogMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

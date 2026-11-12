@@ -242,13 +242,15 @@ intern-pilot
 │     │  ├─ interview/        # 面试题生成与报告
 │     │  ├─ recommendation/   # 岗位推荐、评分与推荐批次
 │     │  ├─ rag/              # 知识库、向量检索与启动补齐
+│     │  ├─ auth/             # 登录、注册、验证码与 JWT
+│     │  ├─ user/             # 用户账户与个人资料
+│     │  ├─ rbac/             # 角色、权限及关联
 │     │  ├─ controller/       # 其他业务的 REST 接口
 │     │  ├─ service/          # 其他业务的服务
 │     │  ├─ mapper/           # MyBatis-Plus Mapper
 │     │  ├─ entity/           # 数据库实体
 │     │  ├─ dto/              # 请求对象
 │     │  ├─ vo/               # 响应对象
-│     │  ├─ security/         # JWT 与权限控制
 │     │  └─ util/             # Prompt、文本切片、向量、JSON 工具
 │     ├─ src/main/resources/sql/
 │     │  ├─ init.sql

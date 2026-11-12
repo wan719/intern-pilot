@@ -1,7 +1,7 @@
 package com.internpilot.application.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

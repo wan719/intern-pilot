@@ -12,7 +12,7 @@ import com.internpilot.exception.BusinessException;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.recommendation.mapper.JobRecommendationBatchMapper;
 import com.internpilot.recommendation.mapper.JobRecommendationItemMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.recommendation.vo.JobRecommendationBatchDetailResponse;
 import com.internpilot.recommendation.vo.JobRecommendationBatchListResponse;
 import org.junit.jupiter.api.AfterEach;

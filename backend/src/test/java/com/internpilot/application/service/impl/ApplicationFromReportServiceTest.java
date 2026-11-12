@@ -10,7 +10,7 @@ import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.application.mapper.ApplicationRecordMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.application.service.impl.ApplicationServiceImpl;
 import com.internpilot.application.service.impl.ApplicationFromReportWriter;
 import com.internpilot.application.vo.ApplicationFromReportResponse;

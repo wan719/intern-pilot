@@ -6,7 +6,7 @@ import com.internpilot.resume.entity.Resume;
 import com.internpilot.resume.entity.ResumeVersion;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.resume.service.FileStorageService;
 import com.internpilot.resume.service.ResumeParseService;
 import com.internpilot.resume.service.StoredFileInfo;

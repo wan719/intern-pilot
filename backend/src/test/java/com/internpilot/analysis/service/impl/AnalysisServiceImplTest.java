@@ -21,7 +21,7 @@ import com.internpilot.analysis.mapper.AnalysisReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.ai.client.AiClient;
 import com.internpilot.rag.service.RagKnowledgeService;
 import com.internpilot.analysis.vo.AnalysisReportDetailResponse;

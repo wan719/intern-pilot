@@ -24,7 +24,7 @@ import com.internpilot.interview.mapper.InterviewQuestionReportMapper;
 import com.internpilot.job.mapper.JobDescriptionMapper;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.interview.service.impl.InterviewQuestionServiceImpl;
 import com.internpilot.rag.service.RagKnowledgeService;
 import com.internpilot.interview.vo.InterviewQuestionGenerateResponse;

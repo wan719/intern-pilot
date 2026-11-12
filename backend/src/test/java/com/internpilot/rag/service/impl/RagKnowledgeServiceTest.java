@@ -13,7 +13,7 @@ import com.internpilot.rag.entity.RagKnowledgeDocument;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.rag.mapper.RagKnowledgeChunkMapper;
 import com.internpilot.rag.mapper.RagKnowledgeDocumentMapper;
-import com.internpilot.security.CustomUserDetails;
+import com.internpilot.auth.security.CustomUserDetails;
 import com.internpilot.ai.client.EmbeddingClient;
 import com.internpilot.rag.vo.RagKnowledgeDetailResponse;
 import com.internpilot.rag.vo.RagKnowledgeListResponse;

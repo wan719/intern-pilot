@@ -2,13 +2,13 @@ package com.internpilot.controller;
 
 import com.internpilot.common.PageResult;
 import com.internpilot.mapper.SystemOperationLogMapper;
-import com.internpilot.security.CustomUserDetailsService;
-import com.internpilot.service.admin.AdminPermissionService;
+import com.internpilot.auth.security.CustomUserDetailsService;
+import com.internpilot.rbac.service.AdminPermissionService;
 import com.internpilot.service.admin.AdminUserService;
-import com.internpilot.security.JwtTokenProvider;
+import com.internpilot.auth.security.JwtTokenProvider;
 import com.internpilot.vo.admin.AdminDashboardSummaryResponse;
-import com.internpilot.vo.admin.PermissionResponse;
-import com.internpilot.vo.admin.RoleResponse;
+import com.internpilot.rbac.vo.PermissionResponse;
+import com.internpilot.rbac.vo.RoleResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
