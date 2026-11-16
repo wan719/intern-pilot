@@ -1,5 +1,7 @@
 # 前端技术框架与开发约定
 
+> **UI 重设计规划（尚未实施）**：C 端参考 Reactive Resume、后台参考 Art Design Pro 的方案与逐批验收边界见 [前端 UI 重设计 V1.0](frontend-ui-redesign-v1.md)。本文描述当前已实现技术，规划不等于已经引入 Tailwind CSS 或 shadcn-vue。
+
 `frontend/` 是 InternPilot 的单个 Vue 3 应用，使用同一套源码呈现桌面用户页面、移动端布局和管理后台。本文记录当前已实现的技术与开发约定；界面设计资料可用于理解历史意图，但实际行为以路由、组件、接口封装和实际验证结果为准。案例中的独立 H5/Web 工程、NFC、JetLinks、Nuxt UI、Tailwind CSS 与 pnpm 均不属于本项目现状。
 
 ## 技术选型
