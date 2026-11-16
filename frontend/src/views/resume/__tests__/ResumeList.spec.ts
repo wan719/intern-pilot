@@ -76,7 +76,13 @@ async function mountPage(records?: any[]) {
   const wrapper = mount(ResumeList, {
     global: {
       plugins: [router],
-      stubs: { teleport: true }
+      stubs: {
+        teleport: true,
+        ElDialog: {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
+        }
+      }
     }
   })
   await flushPromises()
@@ -108,7 +114,7 @@ describe('resume list legacy behavior', () => {
     await button(wrapper, '版本管理', 1).trigger('click')
     expect(push).toHaveBeenCalledWith('/resumes/22/versions')
 
-    await button(wrapper, '设为默认').trigger('click')
+    wrapper.findAllComponents({ name: 'ElDropdown' })[1].vm.$emit('command', 'default')
     await flushPromises()
     expect(mockedSetDefault).toHaveBeenCalledWith(22)
     expect(mockedList).toHaveBeenCalledTimes(2)
@@ -133,19 +139,26 @@ describe('resume list legacy behavior', () => {
     mockedUpload.mockRejectedValueOnce(new Error('upload failed'))
     const file = new File(['resume'], 'candidate.pdf', { type: 'application/pdf' })
     ;(wrapper.vm as any).selectedFile = file
-    ;(wrapper.vm as any).uploadVisible = true
+    await button(wrapper, '上传简历').trigger('click')
+    await flushPromises()
 
-    await expect((wrapper.vm as any).submitUpload()).rejects.toThrow('upload failed')
+    await (wrapper.vm as any).submitUpload()
+    await flushPromises()
 
     expect((wrapper.vm as any).uploadVisible).toBe(true)
     expect((wrapper.vm as any).uploading).toBe(false)
+    expect(wrapper.get('[data-resume-upload-error]').text()).toContain('请重试')
     expect(mockedList).toHaveBeenCalledTimes(1)
+
+    await (wrapper.vm as any).submitUpload()
+    expect(mockedUpload.mock.calls[1][0].get('file')).toBe(file)
+    expect(mockedList).toHaveBeenCalledTimes(2)
   })
 
   it('keeps deletion behind confirmation and deletes only the selected id', async () => {
     const wrapper = await mountPage()
 
-    await button(wrapper, '删除', 1).trigger('click')
+    wrapper.findAllComponents({ name: 'ElDropdown' })[1].vm.$emit('command', 'delete')
     await flushPromises()
 
     expect(ElMessageBox.confirm).toHaveBeenCalledWith('确认删除这份简历吗？', '删除简历', { type: 'warning' })
@@ -165,7 +178,7 @@ describe('resume list legacy behavior', () => {
 })
 
 describe('resume center redesign', () => {
-  it('renders one goal-led heading with separate desktop and mobile list semantics', async () => {
+  it('uses one responsive list and preserves readable metadata and row actions', async () => {
     const longName = '2026-超长文件名-前端工程师-包含项目经历与技能关键词-用于验证安全换行和可访问完整名称.pdf'
     const wrapper = await mountPage([{
       ...resumes[1],
@@ -174,22 +187,41 @@ describe('resume center redesign', () => {
     }])
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.get('.page-hero').text()).toContain('简历中心')
-    expect(wrapper.get('.resume-desktop').attributes('aria-label')).toBe('简历列表')
-    expect(wrapper.get('.resume-mobile').attributes('aria-label')).toBe('移动端简历列表')
-    expect(wrapper.get('.resume-mobile article').text()).toContain('默认状态')
-    expect(wrapper.get('.resume-mobile article').text()).toContain('上传时间')
-    expect(wrapper.findAll(`[title="${longName}"]`).length).toBeGreaterThanOrEqual(2)
-    expect(wrapper.get('.resume-mobile [role="group"]').attributes('aria-label')).toContain(longName)
+    expect(wrapper.get('h1').text()).toBe('简历中心')
+    expect(wrapper.get('[data-resume-default]').text()).toContain('尚未设置')
+    const list = wrapper.get('ul[aria-labelledby="resume-library-heading"]')
+    expect(list.findAll('li')).toHaveLength(1)
+    expect(list.get('h3').text()).toBe(longName)
+    expect(list.text()).toContain('DOCX')
+    expect(list.text()).toContain('4.0 KB')
+    expect(list.text()).toContain('解析失败')
+    expect(list.get('time').attributes('datetime')).toBe(resumes[1].createdAt)
+    for (const label of ['详情', '版本管理', '更多']) {
+      expect(button(wrapper, label).exists()).toBe(true)
+    }
   })
+
+  it('identifies the server-selected default and distinguishes all known parse states', async () => {
+    const wrapper = await mountPage([
+      ...resumes,
+      { ...resumes[1], resumeId: 33, parseStatus: 'PENDING' },
+      { ...resumes[1], resumeId: 44, parseStatus: 'PROCESSING' }
+    ])
+
+    expect(wrapper.get('[data-resume-default]').text()).toContain(resumes[0].resumeName)
+    const list = wrapper.get('ul[aria-labelledby="resume-library-heading"]')
+    for (const label of ['已解析', '解析失败', '待解析', '解析中']) {
+      expect(list.text()).toContain(label)
+    }
+  })
+
 
   it('shows an actionable empty state without rendering empty list shells', async () => {
     const wrapper = await mountPage([])
 
     expect(wrapper.get('.app-empty').text()).toContain('上传简历后即可开始 AI 匹配分析')
     expect(wrapper.get('[data-resume-empty-action]').text()).toContain('上传简历')
-    expect(wrapper.find('.resume-desktop').exists()).toBe(false)
-    expect(wrapper.find('.resume-mobile').exists()).toBe(false)
+    expect(wrapper.find('ul[aria-labelledby="resume-library-heading"]').exists()).toBe(false)
   })
 
   it('keeps loading and failed reads honest with an accessible retry', async () => {
