@@ -1,6 +1,6 @@
 ---
-type: frontend-ui-redesign-plan
-status: design-baseline
+type: frontend-ui-design-plan
+status: design-proposal
 version: 1.0.0
 created: 2026-11-16
 updated: 2026-11-16
@@ -12,15 +12,13 @@ verification: STATIC_REVIEW_ONLY
 production_authorization: NONE
 ---
 
-# InternPilot 前端 UI 重设计 V1.0｜C 端 × 管理后台
+# InternPilot 前端 UI 重设计｜设计与实施方案 V1.0
 
-> **本文件是设计与迁移准入基线，不是重构完成报告。** 本次只读取源码与公开参考，尚未执行依赖安装、前端测试、浏览器截图验证、PR 合并或生产部署。进入实现前必须刷新仓库 HEAD、检查实际工作区与锁文件。参照项目只供产品交互和设计语言借鉴，不表示 InternPilot 要迁移到 React 或复制对方代码、Logo、品牌和模板。
+> **本文件是设计与迁移方案，不是需求事实源或重构完成报告。** 需求、业务保持边界及验收编号统一参见[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md)。 本次只读取源码与公开参考，尚未执行依赖安装、前端测试、浏览器截图验证、PR 合并或生产部署。进入实现前必须刷新仓库 HEAD、检查实际工作区与锁文件。参照项目只供产品交互和设计语言借鉴，不表示 InternPilot 要迁移到 React 或复制对方代码、Logo、品牌和模板。
 
 ## 00. 决策摘要
 
-**目标**：在保留现有用户行为、API 契约、鉴权与响应式支持的基础上，把普通用户页面改造为安静、清晰、以简历和求职行动为中心的 SaaS 工作区；把管理后台改造为信息层级清楚、操作高效、适应权限差异的运营控制台。
-
-**分类**：这是 `UI Redesign + 渐进式组件重构`，不是“重构后外观、交互完全不变”的纯 Refactor，也不是完整重做业务系统。视觉/交互变更必须逐条写验收条件。涉及新增业务能力时另建 Feature。
+**设计输入**：以[需求文档](../requirements/frontend-ui-redesign-requirements.md)的 REQ-C01～C05、REQ-A01～A02、REQ-X01、REQ-N01～N05 为交付边界。本文件负责技术方案、具体页面布局与实施顺序；新增需求必须先更新需求文档。
 
 **推荐但尚待兼容性验证的技术方案：**
 - 继续使用 **Vue 3 + TypeScript + Vite** 的单一 `frontend/` 工程，保持现有 Vue Router、Pinia、Axios、ECharts、SockJS/STOMP。
@@ -137,7 +135,9 @@ frontend/src/
 └── ...
 ```
 
-## 05. 页面范围与改造优先级
+## 05. 页面改造顺序与需求追踪
+
+此处是技术实施的批次顺序，产品范围与验收状态以[需求文档](../requirements/frontend-ui-redesign-requirements.md)为准。
 
 | 批次 | 路由/模块 | 主要体验目标 | 保留的关键行为 |
 |---|---|---|---|
@@ -206,25 +206,23 @@ frontend/src/
 
 **停止/回退**：任何构建/类型/业务回归失败，先停止扩大组件替换；优先 revert 本批 UI 提交或切换保守的现有组件方案。禁止在生产实例上以热修方式验证 Tailwind 基础样式影响，不强推共享分支。
 
-## 09. 验收矩阵（P1 初始）
+## 09. 验收映射与测试计划
 
-| 编号 | 需保持或实现的可观察行为 | 验证方式 | 状态 |
-|---|---|---|---|
-| UI-01 | C 端简历中心可在桌面/375px 移动端找到“上传简历”，无功能性溢出 | 浏览器响应式检查 | NOT_RUN |
-| UI-02 | 页面包含成功/失败/加载/空数据/解析状态且易于区分，错误可重试 | 模拟状态 + 手工检查 | NOT_RUN |
-| FUN-01 | 简历列表、详情、默认操作与版本跳转行为不变 | `ResumeList.spec.ts` 及必要新测试 | NOT_RUN |
-| FUN-02 | 上传 FormData 字段正确，失败可重试，删除仅在确认后发生 | 现有回归测试 + 边界用例 | NOT_RUN |
-| UX-01 | 键盘可完成主要操作；弹窗焦点/ESC/返回焦点正确 | 浏览器键盘验收 | NOT_RUN |
-| UX-02 | C 端/后台的 Token 与全局样式不使打印页、后台表格、移动导航失效 | 交叉页面检查 | NOT_RUN |
-| SEC-01 | 路由守卫、RBAC、401/403 语义和后台按钮授权保持 | 现有路由与后台权限测试 | NOT_RUN |
-| ENG-01 | `npm run test:run`、`npm run type-check`、`npm run build` 在目标 SHA 通过（如不运行则明确） | 终端/CI 记录 | NOT_RUN |
-| ADM-01 | `/admin/users` 的筛选、分页、详情、角色、禁启操作无回归（后台批次） | `AdminCrudPages.spec.ts` + 手工检查 | NOT_RUN |
+**唯一的需求与验收状态表**在[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md#四验收矩阵保留旧设计稿中的编号)。原有 `UI-01`、`UI-02`、`FUN-01`、`FUN-02`、`UX-01`、`UX-02`、`SEC-01`、`ENG-01`、`ADM-01` 编号保持不变，不应在此处复制另一份 PASS/FAIL 状态表。
 
-## 10. 未裁决项与下一合法动作
+- `frontend/src/views/resume/__tests__/ResumeList.spec.ts`、`ResumeVersionList.spec.ts`：针对 REQ-C02/C03/C04，验收 FUN-01、FUN-02。
+- `frontend/src/views/admin/__tests__/AdminCrudPages.spec.ts`、`AdminHandlerPermissions.spec.ts` 及后台守卫测试：针对 REQ-A01/A02，验收 SEC-01、ADM-01。
+- `frontend/src/components/layout/__tests__/`、`frontend/src/config/__tests__/navigation.spec.ts`、`frontend/src/views/analysis/__tests__/AnalysisReportPrint.spec.ts`：针对 REQ-X01/N01/N04，验收 UX-02。
+- 在 `frontend/` 内运行 `npm run test:run`、`npm run type-check`、`npm run build` 并留存 SHA、命令、环境及退出码，对应 ENG-01。
+- 浏览器验证桌面/375px 手机、键盘与焦点、Dialog、加载/空/错误、RBAC、删除确认和打印隔离，对应 UI-01/UI-02/UX-01/SEC-01。
 
-- **产品边界**：未来是否需要从“上传/解析/版本”升级到所见即所得简历编辑 + PDF 实时预览？当前答案为 **NOT_IN_SCOPE**。该项需要独立的编辑数据模型、保存冲突、导出/排版、预览与数据兼容设计，不能借 UI 改造私自加入。
+上述检查**当前均为 NOT_RUN**；已有测试文件并不证明本轮兼容性、构建或交互已经 PASS。
+
+## 10. 待验证的技术方案与下一合法动作
+
+产品范围、简历实时编辑和信息架构的决策以[需求文档](../requirements/frontend-ui-redesign-requirements.md#五变更管理与待确认问题)为准；此处只列尚未验证的技术事项。
+
 - **组件方案**：shadcn-vue + Tailwind v4 是**候选架构**，只有隔离试点证明兼容后才升级为全站规范；失败优先回退已有 Element Plus/Sass。
-- **用户体验**：是否将现有“求职旅程”六项导航按参考改为文档/岗位/投递的更精简入口？首批不变更路由语义，可先在原型比较导航信息架构。
 - **生产边界**：现有生产服务版本、备份和上线策略不由本设计文档声明；此处完全没有发布/生产执行授权。
 
 **下一步**：先执行 `G0` 的基线采集和 `G1` 的 `/resumes` 桌面 + 375px 移动设计原型，再小范围试验 Tailwind v4 与 shadcn-vue。不要先批量安装 UI 库或重做所有页面。
