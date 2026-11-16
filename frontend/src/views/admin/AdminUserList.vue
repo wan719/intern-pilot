@@ -1,13 +1,6 @@
 <template>
   <PageContainer width="wide" title="用户管理" description="查询用户、查看账号状态，并维护用户角色。后台默认展示昵称，账号唯一性以 ID 为准。">
-    <div class="stat-grid compact-stats">
-      <StatCard label="筛选结果" :value="total" :icon="User" :loading="loading" />
-      <StatCard label="本页启用" :value="enabledCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="本页禁用" :value="disabledCount" :icon="Warning" :loading="loading" />
-      <StatCard label="角色数量" :value="roles.length" :icon="Files" />
-    </div>
-
-    <FilterBar @reset="resetQuery">
+    <FilterBar class="user-filters" @reset="resetQuery">
       <template #filters>
         <el-input v-model="query.keyword" aria-label="用户关键词" placeholder="昵称 / 用户名 / 邮箱" clearable @keyup.enter="search" />
         <el-input v-model="query.roleCode" aria-label="角色编码" placeholder="角色编码，例如 ADMIN" clearable @keyup.enter="search" />
@@ -26,13 +19,28 @@
       <el-button @click="loadRoles">重试角色选项</el-button>
     </div>
 
+    <div v-if="listError" class="auxiliary-error" role="alert">
+      <el-alert title="用户列表加载失败" :description="listError" type="error" :closable="false" show-icon />
+      <el-button @click="loadList">重试用户列表</el-button>
+    </div>
+
     <TableShell
+      v-else
       :loading="loading"
       :empty="users.length === 0"
       empty-title="暂无用户"
       empty-hint="当前筛选条件下没有用户记录；可以重置筛选条件，或确认当前账号是否拥有用户读取权限。"
     >
-      <el-table class="admin-data-table" style="min-width: 1420px" size="small" :data="users">
+      <template #toolbar>
+        <dl class="compact-stats" aria-label="用户筛选结果">
+          <div><dt>筛选结果</dt><dd>{{ loading ? '—' : total }}</dd></div>
+          <div><dt>本页启用</dt><dd>{{ loading ? '—' : enabledCount }}</dd></div>
+          <div><dt>本页禁用</dt><dd>{{ loading ? '—' : disabledCount }}</dd></div>
+          <div><dt>角色数量</dt><dd>{{ roleOptionsState === 'success' ? roles.length : '—' }}</dd></div>
+        </dl>
+      </template>
+      <p class="table-scroll-hint">横向滚动查看全部字段和操作。</p>
+      <el-table class="admin-data-table" aria-label="用户列表" size="small" :data="users" :scrollbar-tabindex="0" scrollbar-always-on>
         <el-table-column prop="userId" label="ID" width="80" />
         <el-table-column label="用户" min-width="210">
           <template #default="{ row }">
@@ -64,7 +72,7 @@
         <el-table-column label="注册时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="214">
           <template #default="{ row }">
             <el-button link type="primary" @click="showDetail(row.userId)">详情</el-button>
             <el-button v-if="canAssignRoles" link type="warning" @click="openRoleDialog(row)">分配角色</el-button>
@@ -86,18 +94,21 @@
         </el-table-column>
       </el-table>
 
-      <el-pagination
-        v-if="total > 0"
-        class="pager"
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :current-page="query.pageNum"
-        :page-size="query.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
+      <el-config-provider :locale="zhCn">
+        <el-pagination
+          v-if="total > 0"
+          class="pager"
+          background
+          layout="total, sizes, prev, pager, next"
+          :pager-count="5"
+          :total="total"
+          :current-page="query.pageNum"
+          :page-size="query.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </el-config-provider>
     </TableShell>
 
     <el-drawer v-model="detailVisible" title="用户详情" :size="detailDrawerSize" @closed="invalidateDetail">
@@ -119,7 +130,7 @@
             <h2>账号信息</h2>
             <span>登录用户名保留为内部账号字段</span>
           </div>
-          <el-descriptions :column="2" border>
+          <el-descriptions :column="isMobile ? 1 : 2" border>
             <el-descriptions-item label="昵称">{{ detail.nickname || '-' }}</el-descriptions-item>
             <el-descriptions-item label="登录用户名">{{ detail.username || '-' }}</el-descriptions-item>
             <el-descriptions-item label="邮箱">{{ detail.email || '-' }}</el-descriptions-item>
@@ -172,10 +183,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CircleCheck, Files, User, Warning } from '@element-plus/icons-vue'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
-import StatCard from '@/components/common/StatCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import TableShell from '@/components/common/TableShell.vue'
 import { formatDateTime } from '@/utils/format'
@@ -186,6 +196,7 @@ import { getAdminRoleListApi } from '@/api/adminRole'
 
 const auth = useAuthStore()
 const loading = ref(false)
+const listError = ref('')
 const detailLoading = ref(false)
 const savingRoles = ref(false)
 const users = ref<any[]>([])
@@ -193,7 +204,7 @@ const total = ref(0)
 const detailVisible = ref(false)
 const detail = ref<any>(null)
 const roleDialogVisible = ref(false)
-const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const { isMobile, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
 const detailDrawerSize = responsiveDrawerSize('48%')
 const roleDialogWidth = responsiveDialogWidth('440px')
 const selectedRoleIds = ref<number[]>([])
@@ -220,6 +231,7 @@ watch([canUpdateUsers, canReadRoles], ([canUpdate, canRead]) => {
 async function loadList() {
   const requestId = ++listRequestId
   loading.value = true
+  listError.value = ''
   try {
     const res: any = await getAdminUserListApi({ ...query })
     if (!active || requestId !== listRequestId) return
@@ -229,7 +241,7 @@ async function loadList() {
     if (!active || requestId !== listRequestId) return
     users.value = []
     total.value = 0
-    ElMessage.error(error?.message || '用户列表加载失败，请稍后重试')
+    listError.value = error?.response?.data?.message || error?.message || '请稍后重试'
   } finally {
     if (active && requestId === listRequestId) loading.value = false
   }
@@ -375,7 +387,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.compact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.compact-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+.compact-stats div { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.compact-stats dt, .table-scroll-hint { color: var(--color-text-muted); font-size: 12px; }
+.compact-stats dd { margin: 0; color: var(--color-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.table-scroll-hint { margin: var(--space-2) var(--space-3); }
+.user-filters { margin-bottom: var(--space-3); }
+:deep(.admin-data-table .el-scrollbar__wrap:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: min(230px, 100%); }
 .user-cell { display: grid; min-width: 0; gap: 4px; }
 .user-cell strong, .user-cell span { overflow-wrap: anywhere; }
@@ -385,7 +403,7 @@ onBeforeUnmount(() => {
 .pager { justify-content: flex-end; padding: var(--space-3); border-top: 1px solid var(--color-border-soft); }
 .profile-head { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; }
 .profile-head h2, .panel-header h2 { margin: 0; font-size: 16px; }
-.profile-head span { color: var(--color-text-muted); }
+.profile-head span { color: var(--color-text-muted); overflow-wrap: anywhere; }
 .avatar { display: grid; width: 48px; height: 48px; place-items: center; border-radius: var(--radius-md); background: var(--color-primary-soft); color: var(--color-primary); font-size: 20px; font-weight: 800; }
 .asset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .asset-grid div { padding: var(--space-3); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); background: var(--color-surface); }
@@ -398,12 +416,16 @@ onBeforeUnmount(() => {
 .auxiliary-error .el-alert { flex: 1; }
 
 @media (max-width: 900px) {
-  .compact-stats, .asset-grid, .profile-head { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compact-stats, .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .user-filters :deep(.filter-bar__filters) { flex-basis: auto; }
 }
 
 @media (max-width: 520px) {
-  .compact-stats, .asset-grid, .profile-head { grid-template-columns: 1fr; }
+  :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: 100%; }
+  .profile-head { grid-template-columns: 48px minmax(0, 1fr); }
+  .profile-head .status-tag { grid-column: 2; justify-self: start; }
   .auxiliary-error { align-items: stretch; flex-direction: column; }
-  .pager { justify-content: flex-start; overflow-x: auto; }
+  .pager { flex-wrap: wrap; justify-content: flex-start; }
+  .pager :deep(.el-pagination__sizes) { width: 115px; }
 }
 </style>

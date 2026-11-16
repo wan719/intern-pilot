@@ -105,6 +105,21 @@ beforeEach(() => {
 })
 
 describe('admin user behavior characterization', () => {
+  it('shows an inline error and retries the same list query', async () => {
+    vi.mocked(getAdminUserListApi).mockRejectedValueOnce(new Error('读取失败'))
+    const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('用户列表加载失败')
+    expect(wrapper.text()).not.toContain('暂无用户')
+    await buttonByText(wrapper, '重试用户列表').trigger('click')
+    await flushPromises()
+
+    expect(getAdminUserListApi).toHaveBeenCalledTimes(2)
+    expect(getAdminUserListApi).toHaveBeenLastCalledWith({ keyword: '', roleCode: '', enabled: undefined, pageNum: 1, pageSize: 10 })
+    expect(wrapper.get('dl[aria-label="用户筛选结果"]').text()).toContain('本页启用')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
   it('keeps list, role and detail reads exact', async () => {
     const wrapper = await mountAdminPage(AdminUserList, '/admin/users')
 

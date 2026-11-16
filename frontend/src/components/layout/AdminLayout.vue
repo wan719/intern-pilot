@@ -4,8 +4,8 @@
       <div class="admin-brand">
         <img class="brand-logo" :src="brandLogo" alt="InternPilot logo">
         <div>
-          <strong>管理后台</strong>
-          <span>系统配置与运营管理</span>
+          <strong>InternPilot</strong>
+          <span>管理后台</span>
         </div>
       </div>
       <AdminSidebar :groups="adminNavGroups" :can="auth.hasPermission" />
@@ -21,10 +21,7 @@
             aria-label="打开后台导航"
             @click="navigationDrawerVisible = true"
           />
-          <div>
-            <span class="eyebrow">Admin Console</span>
-            <h2>管理后台</h2>
-          </div>
+          <span class="admin-section-label">管理后台</span>
         </div>
         <div class="admin-header-actions">
           <el-button :icon="Refresh" circle aria-label="刷新当前页面" @click="refreshPage" />
@@ -100,10 +97,11 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   display: grid;
-  height: 100vh;
+  height: 100dvh;
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-6);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-5) var(--space-3);
   background: var(--color-nav);
 }
@@ -170,10 +168,9 @@ onMounted(async () => {
   gap: var(--space-2);
 }
 
-.admin-header h2 {
-  margin: 2px 0 0;
+.admin-section-label {
   color: var(--color-text);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -188,6 +185,10 @@ onMounted(async () => {
 
 .admin-workbench-button {
   gap: var(--space-2);
+}
+
+.admin-header-actions .el-button + .el-button {
+  margin-left: 0;
 }
 
 .admin-action-logo {
@@ -232,6 +233,12 @@ onMounted(async () => {
     display: inline-flex;
   }
 
+  .admin-menu-trigger,
+  .admin-header-actions .el-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .admin-header {
     min-height: 60px;
     padding: 0 var(--space-4);
@@ -242,10 +249,6 @@ onMounted(async () => {
   .admin-header {
     gap: var(--space-2);
     padding: 0 var(--space-3);
-  }
-
-  .admin-header h2 {
-    font-size: 18px;
   }
 
   .admin-workbench-button {

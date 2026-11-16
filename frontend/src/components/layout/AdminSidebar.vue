@@ -11,7 +11,10 @@
           :class="{ 'is-active': route.path === item.path }"
           :aria-current="route.path === item.path ? 'page' : undefined"
         >
-          {{ item.label }}
+          <el-icon v-if="navIcons[item.path]" aria-hidden="true">
+            <component :is="navIcons[item.path]" />
+          </el-icon>
+          <span>{{ item.label }}</span>
         </RouterLink>
       </div>
     </section>
@@ -19,8 +22,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type Component } from 'vue'
 import { useRoute } from 'vue-router'
+import { ChatLineSquare, DataBoard, Document, Key, List, Lock, User } from '@element-plus/icons-vue'
 import type { AdminNavGroup } from '@/config/navigation'
 
 const props = defineProps<{
@@ -29,6 +33,15 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const navIcons: Record<string, Component> = {
+  '/admin/dashboard': DataBoard,
+  '/admin/users': User,
+  '/admin/roles': Key,
+  '/admin/permissions': Lock,
+  '/admin/rag-knowledge': Document,
+  '/admin/operation-logs': List,
+  '/admin/feedback': ChatLineSquare
+}
 
 const visibleGroups = computed(() =>
   props.groups
@@ -43,7 +56,8 @@ const visibleGroups = computed(() =>
 <style scoped>
 .admin-sidebar-nav {
   display: grid;
-  gap: var(--space-5);
+  align-content: start;
+  gap: var(--space-4);
 }
 
 .admin-nav-group {
@@ -66,13 +80,16 @@ const visibleGroups = computed(() =>
 }
 
 .admin-nav-item {
-  display: block;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
   border-radius: var(--radius-sm);
   color: color-mix(in srgb, var(--color-surface) 90%, transparent);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  padding: 10px var(--space-3);
+  padding: var(--space-2) var(--space-3);
   text-decoration: none;
   transition: background-color var(--motion-fast), color var(--motion-fast);
 }
