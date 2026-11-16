@@ -8,7 +8,7 @@ source_repo: wan719/intern-pilot
 source_branch: main
 source_commit: 1aabf181f2d4707272512694a56ce968e807da14
 implementation: RESUMES_G2_IMPLEMENTED
-verification: RESUMES_G2_LOCAL
+verification: RESUMES_G2_LOCAL_AND_REAL_BACKEND
 production_authorization: NONE
 ---
 
@@ -199,7 +199,7 @@ frontend/src/
 - 桌面（例如 1440/1280）与移动（例如 375/768）在真实浏览器检查键盘、Tab 顺序、焦点返回、空/加载/错误、上传和取消。
 - 对受影响范围做视觉对比；检查前端 bundle 变化、主要交互响应与页面横向溢出（保留检查方法和版本，**不设无证据的收益数字**）。
 
-**G3｜PR 评审及 CI 交付待执行**
+**G3｜PR 评审及 CI 检查**
 - 重点 Review：REST/FormData 未变、登录/角色权限没回归、移动导航仍可用、AI 任务与 PDF 打印未被全局 CSS 破坏、敏感用户简历内容未流入样例或截图。
 - 逐批 PR、检查 CI 与当前提交 SHA，按 `docs/git.md` 完成 Review；只有验证和决策都充分才可合并。
 - 生产镜像、部署与回滚 **不在本计划的自动授权范围**；发布需要另行制定变更与回滚方案。
@@ -225,7 +225,7 @@ frontend/src/
 - **组件方案**：shadcn-vue + Tailwind v4 是**候选架构**，只有隔离试点证明兼容后才升级为全站规范；失败优先回退已有 Element Plus/Sass。
 - **生产边界**：现有生产服务版本、备份和上线策略不由本设计文档声明；此处完全没有发布/生产执行授权。
 
-简历 G2 交付后，在隔离测试环境核对真实后端权限、写操作与跨浏览器响应式表现，再决定后续页面范围。
+简历 G2 的真实后端联调和 Firefox 冒烟已完成。进入 G3 时用第 12 节的证据评审试点改动及剩余验收范围。
 
 ## 11. /resumes G2 接入与验收
 
@@ -241,4 +241,25 @@ frontend/src/
 - Windows / Node `20.20.2` / npm `11.12.1` / Edge `157.0.4341.60`。在本分支的 `frontend/` 使用 `npm ci --offline --no-audit --no-fund`、`npm run test:run -- --reporter=dot`、`npm run type-check`、`npm run build`。命令均退出 `0`。Vitest 共 36 个文件、318 例通过，无跳过。生产构建只有 `dist/index.html` 一个 HTML 入口。Element Plus 分包仍有 Vite 的 500 kB 告警。
 - 在 `frontend/` 执行 `npm run preview -- --host 127.0.0.1 --port 5184 --strictPort`。另开 PowerShell，将 `INTERNPILOT_PLAYWRIGHT` 设为临时安装的 `playwright-core@1.65.1` 模块绝对路径，并保证 `pdfinfo`、`pdftoppm` 在 PATH 中。用 Node 20 执行 [浏览器脚本](../../frontend/scripts/check-resume-g2.cjs)，退出 `0`，结果写入 `frontend/dist/resume-g2-evidence/`。
 - 两种视口覆盖加载、空列表、读取失败重试、四种解析状态、长名称、上传失败保留文件并成功重试、菜单键盘操作、删除取消、弹窗焦点与滚动锁、无会话及 401/403。额外核对 940px/941px 的卡片和列表切换。后台和打印各对比直接访问与加载简历 CSS 后的同会话 SPA 导航。后台抽样样式一致，打印项目符号保留且两页 A4 的逐页像素一致。
-- 当前浏览器证据来自模拟接口，真实服务端的权限与写操作、其他浏览器及生产验收待执行。若本批需要回退，仅回退 G2 接入改动和试点依赖，数据及部署配置无迁移步骤。
+- 第 11 节的浏览器证据来自模拟接口。真实服务端联调和 Firefox 结果见第 12 节。若本批需要回退，仅回退 G2 接入改动和试点依赖，数据及部署配置无迁移步骤。
+
+## 12. G2 真实后端联调与 Firefox 冒烟
+
+2026-11-16 在 `codex/frontend-ui-resumes` 的 `94ecffbb6a6dc5813ecd2c06fc1a84bcad389ee6` 上完成。本轮为本地 Windows 联调，使用独立的 MySQL 8.0.43、Redis 5.0.14.1、Temurin JDK 17.0.18、Node 20.20.2、Playwright Core 1.65.1。后端用真实 Spring Boot、权限校验、解析器、数据库和文件存储。验证码与 AI 使用 test profile 的 mock，实现浏览器测试所需的合成注册与报告数据。
+
+| 场景 | 实际证据 |
+| --- | --- |
+| Edge 157.0.4341.60，1440×960 | PDF 和 DOCX 的上传均返回 HTTP 200 / 业务 200，详情展示合成解析文本。首份简历自动默认，第二份设为默认后刷新仍生效，并能从页面进入原始版本。 |
+| 解析失败与恢复 | 不可解析 PDF 返回 HTTP 200 / 业务 700，页面保留文件并显示重试提示，列表未产生失败记录。移除错误文件并选择合成 DOCX 后上传成功。 |
+| 删除 | 取消后浏览器未发 DELETE，刷新后保留记录。确认返回 HTTP 200 / 业务 200，删除后详情返回 HTTP 200 / 业务 400，另一份简历仍保留并为默认。 |
+| 会话与角色权限 | 无会话访问简历页面跳转登录，直接读取 API 返回 HTTP 401 / 业务 401。普通账号访问管理列表 API 返回 HTTP 403 / 业务 403。隔离测试库的合成管理员读取该列表成功。 |
+| 账号归属 | B 的列表没有 A 的两份简历；B 请求 A 的简历详情、设默认和删除均返回 HTTP 200 / 业务 400，响应没有业务数据。A 的列表和默认状态与操作前一致。 |
+| Firefox 159.0，375×812 | 简历卡片、底部导航、更多菜单键盘操作、上传弹窗焦点返回及滚动释放通过。加载简历 CSS 后经同一 SPA 会话进入后台，抽样表格布局与直接访问一致。用 mock AI 产出的真实持久化报告检查打印媒体，保留列表圆点，隐藏操作栏，内容为黑色。 |
+
+### 执行记录
+
+- 在新临时目录运行 `mysqld --defaults-file=<临时目录>/mysql.ini --initialize-insecure`，随后用同一配置启动 MySQL；Redis 用 `redis-server <临时目录>/redis.conf` 启动。MySQL 客户端通过 `--protocol=TCP --host=127.0.0.1 --port=13316` 执行 `source backend/src/main/resources/sql/init.sql`，初始化退出 `0`，确认初始简历数为零。
+- 在 `backend/` 执行 `.gradlew.bat bootJar --no-daemon`，退出 `0`。以 `java -jar <bootJar> --spring.profiles.active=dev,test --spring.config.additional-location=file:<临时目录>/application-real.properties` 启动，显式配置本轮 MySQL、Redis、独立上传目录及临时 JWT 密钥。MySQL、Redis、后端、前端监听 `127.0.0.1:13316/16389/18080/15173`。后端 `/actuator/health` 返回 `UP`，数据库与 Redis 组件均为 `UP`。
+- 在 `frontend/` 设置 `VITE_API_BASE_URL=http://127.0.0.1:15173` 后使用 Node 20 执行 `npm run build`，退出 `0`。以 `vite preview --config <临时目录>/preview.config.mjs` 启动，`/api`、`/uploads`、`/ws` 代理到本轮后端。
+- Playwright Core CLI 的 `install firefox` 退出 `0`。在本轮临时目录执行 `npm exec --yes --package=node@20.20.2 -- node check-real.cjs`，退出 `0`。本机 `$env:TEMP/internpilot-g2-real-94ecffb/evidence/` 保留脱敏的 `real-results.json`，以及 `edge-resumes-real.png`、`firefox-resumes-real-375.png`、`firefox-print-media-375.png` 和 `firefox-admin-after-resumes-375.png`。回执仅包含测试名称、HTTP／业务码及浏览器版本；截图使用合成数据。
+- 已停止四个本轮监听。后台分页和写操作、Firefox 实体打印或 PDF 输出、Redis 7 兼容及生产验收仍待验证。前端全量测试、CI 和 PR 状态沿用各自的独立证据，本次执行范围是构建与联调。

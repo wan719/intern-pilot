@@ -7,7 +7,7 @@ updated: 2026-11-16
 source_repo: wan719/intern-pilot
 source_branch: main
 source_commit: 1aabf181f2d4707272512694a56ce968e807da14
-verification: RESUMES_G2_LOCAL
+verification: RESUMES_G2_LOCAL_AND_REAL_BACKEND
 prototype_review: APPROVED_FOR_G2
 product_approval: NOT_RECORDED
 production_authorization: NONE
@@ -71,7 +71,7 @@ P0 为每批交付适用的硬要求；P1 可在相应后续阶段验证，不�
 | FUN-02 | REQ-C03 | 上传 FormData 保持 `file` / `resumeName`，失败可重试，取消删除不会调用删除 API；回归测试 | PASS_LOCAL |
 | UX-01 | REQ-N02 | 主要交互可用键盘完成，弹窗 ESC/焦点返回可用；浏览器检查 | PASS_LOCAL |
 | UX-02 | REQ-X01, REQ-N04 | 样式改动不破坏独立打印页、后台表格、移动导航；跨页面检查 | PASS_LOCAL |
-| SEC-01 | REQ-A01, REQ-A02, REQ-X01 | 登录/401/403、路由守卫、RBAC 和后台按钮授权保持；权限测试及必要联调 | PARTIAL |
+| SEC-01 | REQ-A01, REQ-A02, REQ-X01 | 登录/401/403、路由守卫、RBAC 和后台按钮授权保持；权限测试及必要联调 | PARTIAL（简历与后台读取已联调） |
 | ENG-01 | REQ-N04 | 在目标提交执行 `npm run test:run`、`npm run type-check`、`npm run build`，记录退出码/跳过项 | PASS_LOCAL |
 | ADM-01 | REQ-A01, REQ-A02 | `/admin/users` 筛选、分页、详情、角色与启禁用无回归；`AdminCrudPages.spec.ts` 和人工检查 | PARTIAL |
 
@@ -83,7 +83,15 @@ P0 为每批交付适用的硬要求；P1 可在相应后续阶段验证，不�
 
 - UI-01、UI-02、UX-01 由两种 Edge 视口的简历页交互验证覆盖。FUN-01、FUN-02 由简历组件测试和模拟 API 的浏览器交互覆盖。
 - UX-02 覆盖移动导航以及加载简历 CSS 后的后台样式和打印产物。ENG-01 覆盖锁文件复装、36 个文件和 318 个测试、类型检查以及单入口构建。
-- SEC-01 已检查无会话与模拟 401/403，后台权限的真实服务端联调待执行。ADM-01 已检查后台抽样布局及现有组件测试，浏览器分页和写操作联调待执行。
+- SEC-01 在本地模拟阶段检查了无会话与 401/403，真实服务端结果见下一节。ADM-01 的组件测试和后台抽样布局已有证据，分页和写操作联调待执行。
+
+### 2026-11-16 G2 真实后端补充证据
+
+目标提交 `94ecffbb6a6dc5813ecd2c06fc1a84bcad389ee6`。本轮使用隔离 MySQL、Redis、实际 Spring Boot 和生产前端构建，浏览器脚本访问真实 API。环境、命令、退出码及浏览器证据见[真实后端联调与 Firefox 冒烟](../design/frontend-ui-redesign-v1.md#12-g2-真实后端联调与-firefox-冒烟)。
+
+- FUN-01、FUN-02 实测上传、解析、默认切换和刷新、详情与版本入口、解析失败后重试及删除。删除取消时无 DELETE，确认后原记录无法读取。
+- SEC-01 实测未登录 401、普通账号访问管理接口 403、两个账号之间的简历读写隔离，以及合成管理员读取管理列表。跨用户详情、设默认和删除均为 HTTP 200 / 业务 400，原账号数据一致。后台其他授权场景待后续按范围验证。
+- UX-01、UX-02 补充 Firefox 375px 的菜单和弹窗焦点、后台样式及打印媒体回归。ADM-01 维持部分验证，后台分页和写操作待执行。
 
 ## 五、变更管理与待确认问题
 
@@ -98,4 +106,4 @@ P0 为每批交付适用的硬要求；P1 可在相应后续阶段验证，不�
 - **本文件：需求、范围与验收状态的单一维护点**。
 - [UI 重设计设计与实施方案](../design/frontend-ui-redesign-v1.md)：参考项目取舍、组件、Token、页面优先级、实施 Gate 与回退。
 - [前端现状与开发约定](../frontend.md)、[测试规范](../test.md)、[Git 规范](../git.md)：实施时的约束与操作入口。
-- 在隔离测试环境完成真实权限、上传和删除验证，并复核浏览器兼容性。
+- 将真实后端联调与 Firefox 冒烟证据纳入 G3 评审。后台分页和写操作按后续后台验收范围执行。
