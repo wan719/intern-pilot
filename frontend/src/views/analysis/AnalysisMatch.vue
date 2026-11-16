@@ -41,12 +41,16 @@
       </PageHero>
     </template>
 
-    <section v-if="task.taskNo || restoringTask || submissionPending" class="panel progress-panel" aria-labelledby="analysis-progress-title">
+    <section
+      v-if="task.taskNo || restoringTask || submissionPending || (submittedFromProgress && submissionError)"
+      class="panel progress-panel"
+      aria-labelledby="analysis-progress-title"
+    >
       <div class="panel-header">
         <div>
           <span class="section-eyebrow">异步任务</span>
-          <h2 id="analysis-progress-title">分析进度</h2>
-          <p>{{ task.taskNo ? `任务编号：${task.taskNo}` : '正在同步这次分析任务。' }}</p>
+          <h2 id="analysis-progress-title" ref="progressHeading" tabindex="-1">分析进度</h2>
+          <p v-if="task.taskNo">任务编号：{{ task.taskNo }}</p>
         </div>
         <StatusTag v-if="task.taskNo" :status="task.status" />
       </div>
@@ -108,7 +112,7 @@
             <strong>本次分析未完成</strong>
             <p>{{ task.errorMessage || 'AI 分析失败，请检查输入后重试。' }}</p>
           </div>
-          <el-button type="primary" :icon="Refresh" @click="startTask">重试分析</el-button>
+          <el-button type="primary" :icon="Refresh" data-task-retry @click="startTask('progress')">重试分析</el-button>
         </div>
 
         <div v-if="task.status === 'COMPLETED'" class="terminal-state terminal-state--success">
@@ -122,6 +126,21 @@
           </div>
         </div>
       </template>
+
+      <div
+        v-else-if="submissionError"
+        ref="submissionFailure"
+        class="terminal-state terminal-state--failed"
+        role="alert"
+        tabindex="-1"
+        data-submission-error
+      >
+        <div>
+          <strong>重试未提交</strong>
+          <p>{{ submissionError }}</p>
+        </div>
+        <el-button type="primary" :icon="Refresh" data-task-retry @click="startTask('progress')">重试分析</el-button>
+      </div>
 
       <div v-else-if="restoringTask" class="submitting-state" role="status" aria-live="polite" data-restore-state>
         <el-skeleton :rows="3" animated />
@@ -294,7 +313,14 @@
           <el-switch v-model="form.forceRefresh" :disabled="running || restoringTask" aria-label="强制重新分析" />
         </label>
 
-        <div v-if="submissionError" class="submission-error" role="alert" data-submission-error>
+        <div
+          v-if="submissionError && !submittedFromProgress"
+          ref="submissionFailure"
+          class="submission-error"
+          role="alert"
+          tabindex="-1"
+          data-submission-error
+        >
           {{ submissionError }}
         </div>
 
@@ -305,7 +331,7 @@
           :icon="MagicStick"
           :loading="submissionPending"
           :disabled="!canSubmit || optionsLoading || running || restoringTask"
-          @click="startTask"
+          @click="startTask()"
         >
           {{ primaryActionText }}
         </el-button>
@@ -318,7 +344,7 @@
 
 <script setup lang="ts">
 import '@/styles/analysis-workspace.css'
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, MagicStick, Refresh, Warning } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
@@ -348,6 +374,9 @@ const running = ref(false)
 const submissionPending = ref(false)
 const reconnectPending = ref(false)
 const submissionError = ref('')
+const submittedFromProgress = ref(false)
+const progressHeading = ref<HTMLHeadingElement | null>(null)
+const submissionFailure = ref<HTMLDivElement | null>(null)
 const connectionState = ref<ConnectionState>('idle')
 const route = useRoute()
 const TASK_STORAGE_KEY = 'internpilot:analysis:lastTaskNo'
@@ -552,7 +581,7 @@ async function loadSelectedJobDetail() {
   }
 }
 
-async function startTask() {
+async function startTask(source: 'setup' | 'progress' = 'setup') {
   if (restoringTask.value || submissionPending.value || running.value) return
   if (!form.resumeId || !form.jobId) {
     ElMessage.warning('请选择简历和岗位')
@@ -564,6 +593,7 @@ async function startTask() {
   currentLocalTaskId = ''
   running.value = true
   submissionPending.value = true
+  submittedFromProgress.value = source === 'progress'
   submissionError.value = ''
   connectionState.value = 'idle'
   Object.assign(task, {
@@ -574,6 +604,7 @@ async function startTask() {
     reportId: undefined,
     errorMessage: ''
   })
+  void nextTick(() => progressHeading.value?.focus())
 
   try {
     const res: any = await createAnalysisTaskApi(form)
@@ -597,10 +628,11 @@ async function startTask() {
   } catch (error: any) {
     if (session !== taskSession) return
     running.value = false
-    submissionError.value = error?.message || error?.response?.data?.message || '任务创建失败，请稍后重试。'
+    submissionError.value = error?.response?.data?.message || error?.message || '任务创建失败，请稍后重试。'
     task.status = 'FAILED'
     task.errorMessage = submissionError.value
     aiTaskCenter.updateTask(currentLocalTaskId, { status: 'FAILED', errorMessage: '任务创建失败' })
+    void nextTick(() => submissionFailure.value?.focus())
   } finally {
     if (session === taskSession) submissionPending.value = false
   }

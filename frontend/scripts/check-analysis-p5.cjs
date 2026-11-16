@@ -4,7 +4,7 @@ const { mkdir, readFile, writeFile } = require('node:fs/promises')
 const path = require('node:path')
 const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-core')
 
-const origin = 'http://127.0.0.1:15205'
+const origin = 'http://127.0.0.1:' + (process.env.INTERNPILOT_PREVIEW_PORT || '15205')
 const output = path.resolve('dist/ui-p5-evidence')
 const date = '2026-11-16T09:30:00'
 const resume = { resumeId: 3, resumeName: '合成前端简历', originalFileName: 'sample.pdf', parseStatus: 'SUCCESS', isDefault: true }
@@ -34,6 +34,7 @@ const fixtures = {
   '/api/analysis/tasks/running': [],
   '/api/analysis/tasks/recent': [],
   '/api/analysis/tasks/P5-SAMPLE': { taskNo: 'P5-SAMPLE', status: 'CALLING_AI', progress: 68, message: '正在生成匹配结论', resumeId: 3, jobId: 7 },
+  '/api/analysis/tasks/P5-FAILED': { taskNo: 'P5-FAILED', status: 'FAILED', progress: 42, errorMessage: '合成分析失败', resumeId: 3, jobId: 7 },
   '/api/interview-questions': { records: [interview], total: 1 },
   '/api/interview-questions/41': interview
 }
@@ -41,6 +42,8 @@ const fixtures = {
 async function openContext(browser, viewport) {
   const context = await browser.newContext({ viewport, locale: 'zh-CN', timezoneId: 'Asia/Shanghai', reducedMotion: 'reduce' })
   const unexpected = []
+  const retryPayloads = []
+  let completedSubmission = false
   await context.addInitScript(() => localStorage.setItem('internpilot_token', 'synthetic-p5'))
   await context.route('**/*', async (route) => {
     const request = route.request()
@@ -50,14 +53,23 @@ async function openContext(browser, viewport) {
     if (request.method() === 'GET' && Object.hasOwn(fixtures, parsed.pathname)) {
       return route.fulfill({ json: { code: 200, data: fixtures[parsed.pathname] } })
     }
+    if (request.method() === 'POST' && parsed.pathname === '/api/analysis/tasks') {
+      if (completedSubmission) {
+        return route.fulfill({ json: { code: 200, data: {
+          taskNo: 'P5-IMMEDIATE', status: 'COMPLETED', progress: 100, reportId: 91, resumeId: 3, jobId: 7
+        } } })
+      }
+      retryPayloads.push(request.postDataJSON())
+      return route.fulfill({ status: 503, json: { code: 503, message: '合成重试失败' } })
+    }
     unexpected.push(request.method() + ' ' + parsed.pathname)
     return route.fulfill({ status: 501, json: { code: 501 } })
   })
-  return { context, unexpected }
+  return { context, unexpected, retryPayloads, completeSubmissions: () => { completedSubmission = true } }
 }
 
 async function capture(browser, viewport) {
-  const { context, unexpected } = await openContext(browser, viewport)
+  const { context, unexpected, retryPayloads, completeSubmissions } = await openContext(browser, viewport)
   const page = await context.newPage()
   const screen = async (name) => {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), viewport.width)
@@ -73,6 +85,28 @@ async function capture(browser, viewport) {
     assert(await page.locator('.progress-panel').evaluate((panel) =>
       Boolean(panel.compareDocumentPosition(document.querySelector('.setup-grid')) & Node.DOCUMENT_POSITION_FOLLOWING)))
     await screen('analysis-progress')
+
+    await page.goto(origin + '/analysis/match?taskNo=P5-FAILED')
+    const retry = page.locator('.progress-panel [data-task-retry]')
+    await retry.click()
+    const error = page.locator('.progress-panel [data-submission-error]')
+    await error.getByText('合成重试失败').waitFor()
+    const errorBox = await error.boundingBox()
+    assert(errorBox.y >= 0 && errorBox.y + errorBox.height <= viewport.height)
+    await retry.click()
+    await error.getByText('合成重试失败').waitFor()
+    assert.equal(retryPayloads.length, 2)
+    assert.deepEqual(retryPayloads[0], retryPayloads[1])
+
+    completeSubmissions()
+    await page.evaluate(() => localStorage.removeItem('internpilot:analysis:lastTaskNo'))
+    await page.goto(origin + '/analysis/match?resumeId=3&jobId=7')
+    await page.locator('[data-analysis-submit]').click()
+    const result = page.getByRole('button', { name: '查看分析报告', exact: true })
+    await result.waitFor()
+    await page.waitForFunction(() => document.activeElement.id === 'analysis-progress-title')
+    const progressBox = await page.locator('#analysis-progress-title').boundingBox()
+    assert(progressBox.y >= 0 && progressBox.y < viewport.height)
 
     await page.goto(origin + '/analysis/reports')
     await page.locator('[data-report-card]').getByRole('heading', { name: job.jobTitle, exact: true }).waitFor()
@@ -129,7 +163,7 @@ async function capture(browser, viewport) {
       await directContext.context.close()
     }
     assert.deepEqual(unexpected, [])
-    return { viewport, printPages: after.length, routes: 5, result: 'PASS' }
+    return { viewport, printPages: after.length, routes: 5, retryFailuresInView: true, result: 'PASS' }
   } finally {
     await context.close()
   }
