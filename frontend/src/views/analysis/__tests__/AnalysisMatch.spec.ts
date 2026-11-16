@@ -167,7 +167,7 @@ describe('analysis match state and contract characterization', () => {
 
     expect((wrapper.vm as any).running).toBe(false)
     expect((wrapper.vm as any).task.taskNo).toBe('')
-    expect(wrapper.text()).toContain('等待发起 AI 匹配分析')
+    expect(wrapper.find('.progress-panel').exists()).toBe(false)
 
     await (wrapper.vm as any).startTask()
 
@@ -312,9 +312,15 @@ describe('analysis match state and contract characterization', () => {
     await vi.advanceTimersByTimeAsync(6000)
     expect(mockedTaskDetail).not.toHaveBeenCalled()
 
-    await (wrapper.vm as any).startTask()
+    mockedCreateTask.mockRejectedValueOnce(new Error('提交暂时失败'))
+    await wrapper.get('[data-task-retry]').trigger('click')
     await flushPromises()
-    expect(mockedCreateTask).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('.progress-panel [data-submission-error]').text()).toContain('提交暂时失败')
+
+    await wrapper.get('[data-task-retry]').trigger('click')
+    await flushPromises()
+    expect(mockedCreateTask).toHaveBeenCalledTimes(3)
+    expect(wrapper.find('[data-submission-error]').exists()).toBe(false)
   })
 
   it('keeps completed result bookkeeping and existing report/interview routes', async () => {

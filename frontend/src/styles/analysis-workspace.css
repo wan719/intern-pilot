@@ -1,0 +1,24 @@
+.analysis-workspace {
+  --analysis-paper: #f8f7f3;
+  max-width: 1184px;
+  margin-inline: auto;
+  background: var(--analysis-paper);
+}
+
+.analysis-workspace .page-hero {
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 var(--space-4);
+  background: transparent;
+  box-shadow: none;
+}
+
+.analysis-workspace .page-hero h1 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .analysis-workspace .page-hero .page-hero__actions > .el-button {
+    min-height: 44px;
+  }
+}

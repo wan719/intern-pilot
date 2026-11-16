@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="面试题深度练习" width="wide">
+  <PageContainer class="analysis-workspace" title="面试题深度练习" width="wide">
     <template #hero>
       <PageHero
         eyebrow="面试准备 · 深度练习"
@@ -66,7 +66,7 @@
           </button>
         </nav>
 
-        <main class="question-stage">
+        <section class="question-stage" aria-label="题目与参考答案">
           <AppEmpty
             v-if="questionTotal === 0"
             title="这份报告暂无题目"
@@ -180,13 +180,14 @@
               </template>
             </article>
           </template>
-        </main>
+        </section>
       </section>
     </template>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
+import '@/styles/analysis-workspace.css'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -458,8 +459,7 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .study-actions, .stage-header, .question-card-head { align-items: stretch; flex-direction: column; }
   .study-actions > div, .question-actions { display: grid; grid-template-columns: 1fr; }
-  .study-actions .el-button, .question-actions .el-button { width: 100%; margin-left: 0; }
-  .question-nav { grid-template-columns: 1fr; }
+  .study-actions .el-button, .question-actions .el-button { width: 100%; margin-left: 0; min-height: 44px; }
   .question-card { padding: var(--space-4); }
   .study-section { padding: var(--space-3); }
 }

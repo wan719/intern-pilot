@@ -156,7 +156,8 @@ describe('analysis report list redesign', () => {
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.get('h1').text()).toBe('把匹配结果变成下一步行动')
-    expect(wrapper.findAllComponents({ name: 'StatCard' })).toHaveLength(4)
+    const overview = wrapper.get('dl[aria-label="当前报告概览"]')
+    expect(overview.findAll('dt').map((label) => label.text())).toEqual(['报告总数', '平均匹配分', '高匹配岗位', '最近分析'])
     expect(wrapper.findComponent({ name: 'FilterBar' }).exists()).toBe(true)
     expect(wrapper.get('[aria-label="分析报告列表"]').attributes('aria-busy')).toBe('false')
   })
