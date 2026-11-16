@@ -164,7 +164,12 @@ describe('career action workspace', () => {
     const wrapper = await mountDashboard()
 
     expect(wrapper.get('[data-primary-action]').text()).toContain(expectedAction)
-    expect(wrapper.get('[data-interview-retry]').text()).toContain('重试面试阶段数据')
+    const inlineRetry = wrapper.find('[data-interview-retry]')
+    if (expectedAction === '重试面试阶段数据') {
+      expect(inlineRetry.exists()).toBe(false)
+    } else {
+      expect(inlineRetry.text()).toContain('重试面试阶段数据')
+    }
   })
 
   it('retries only the failed interview count and restores journey guidance after recovery', async () => {
@@ -175,7 +180,7 @@ describe('career action workspace', () => {
 
     const wrapper = await mountDashboard()
 
-    await wrapper.get('[data-interview-retry]').trigger('click')
+    await wrapper.get('[data-primary-action]').trigger('click')
     await flushPromises()
 
     expect(mockedInterviewReports).toHaveBeenCalledTimes(2)
@@ -219,19 +224,28 @@ describe('career action workspace', () => {
     expect(push).toHaveBeenCalledWith('/analysis/match')
   })
 
-  it('renders one page heading and keeps the required workspace section order', async () => {
+  it('puts the only primary action before the five stage destinations', async () => {
+    setResults({ resumes: 1, jobs: 1, applications: 1 })
+
     const wrapper = await mountDashboard()
-    const hero = wrapper.get('.page-hero').element
-    const journey = wrapper.get('.journey-progress').element
-    const stats = wrapper.get('.stat-grid').element
-    const actions = wrapper.get('.today-actions').element
-    const recent = wrapper.get('.recent-results').element
+    const primary = wrapper.get('[data-primary-action]')
+    const journey = wrapper.get('ol[aria-labelledby="journey-progress-title"]')
+    const current = journey.get('[aria-current="step"]')
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(hero.compareDocumentPosition(journey) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(journey.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(stats.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(actions.compareDocumentPosition(recent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(wrapper.findAll('button.el-button--primary:not(.is-link)')).toHaveLength(1)
+    expect(wrapper.get('.dashboard-focus').text()).toContain('当前阶段匹配分析')
+    expect(primary.element.compareDocumentPosition(journey.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(current.text()).toContain('匹配分析')
+    expect(current.text()).toContain('下一步')
+
+    const routes = ['/resumes', '/jobs', '/analysis/match', '/interview-questions', '/applications']
+    const entries = journey.findAll('button')
+    expect(entries).toHaveLength(routes.length)
+    for (const [index, entry] of entries.entries()) {
+      await entry.trigger('click')
+      expect(push).toHaveBeenLastCalledWith(routes[index])
+    }
   })
 
   it('shows fully complete recent results and offers a next step on existing routes', async () => {
