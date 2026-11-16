@@ -203,6 +203,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public PageResult<ApplicationListResponse> list(
             String status,
             String keyword,
+            String priority,
             Integer pageNum,
             Integer pageSize
     ) {
@@ -220,14 +221,33 @@ public class ApplicationServiceImpl implements ApplicationService {
             wrapper.eq(ApplicationRecord::getStatus, status);
         }
 
-        wrapper.orderByDesc(ApplicationRecord::getUpdatedAt);
+        if (StringUtils.hasText(priority)) {
+            if (!ApplicationPriorityEnum.isValid(priority)) {
+                throw new BusinessException("投递优先级不合法");
+            }
+            wrapper.eq(ApplicationRecord::getPriority, priority);
+        }
+        if (StringUtils.hasText(keyword)) {
+            // LOCATE treats % and _ literally. Compare lowered strings without accent folding.
+            wrapper.apply("""
+                    EXISTS (
+                        SELECT 1 FROM job_description j
+                        WHERE j.id = application_record.job_id
+                          AND j.user_id = application_record.user_id
+                          AND j.deleted = 0
+                          AND (LOCATE(CAST(LOWER({0}) AS BINARY), CAST(LOWER(j.company_name) AS BINARY)) > 0
+                            OR LOCATE(CAST(LOWER({0}) AS BINARY), CAST(LOWER(j.job_title) AS BINARY)) > 0)
+                    )
+                    """, keyword);
+        }
+
+        wrapper.orderByDesc(ApplicationRecord::getUpdatedAt, ApplicationRecord::getId);
 
         Page<ApplicationRecord> page = new Page<>(normalizePageNum(pageNum), normalizePageSize(pageSize));
         Page<ApplicationRecord> resultPage = applicationRecordMapper.selectPage(page, wrapper);
 
         List<ApplicationListResponse> records = resultPage.getRecords().stream()
                 .map(this::toListResponse)
-                .filter(item -> matchKeyword(item, keyword))
                 .toList();
 
         return new PageResult<>(
@@ -470,20 +490,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         return response;
-    }
-
-    private boolean matchKeyword(ApplicationListResponse item, String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return true;
-        }
-
-        String lowerKeyword = keyword.toLowerCase();
-        return containsIgnoreCase(item.getCompanyName(), lowerKeyword)
-                || containsIgnoreCase(item.getJobTitle(), lowerKeyword);
-    }
-
-    private boolean containsIgnoreCase(String source, String lowerKeyword) {
-        return source != null && source.toLowerCase().contains(lowerKeyword);
     }
 
     private long normalizePageNum(Integer pageNum) {

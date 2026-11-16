@@ -258,7 +258,7 @@ class ApplicationServiceTest {
         job.setJobTitle("Java后端开发实习生");
         when(jobDescriptionMapper.selectById(10L)).thenReturn(job);
 
-        PageResult<ApplicationListResponse> result = applicationService.list(null, null, 1, 10);
+        PageResult<ApplicationListResponse> result = applicationService.list(null, null, null, 1, 10);
 
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
@@ -267,41 +267,15 @@ class ApplicationServiceTest {
     }
 
     @Test
-    void listShouldFilterByKeywordAndNormalizePageArguments() {
+    void listShouldNormalizePageArguments() {
         mockLoginUser(1L);
+        when(applicationRecordMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
+                .thenAnswer(call -> call.getArgument(0));
 
-        ApplicationRecord javaRecord = new ApplicationRecord();
-        javaRecord.setId(1L);
-        javaRecord.setJobId(10L);
-        javaRecord.setStatus("APPLIED");
-        javaRecord.setPriority("HIGH");
+        PageResult<ApplicationListResponse> result = applicationService.list(null, null, null, 0, 0);
 
-        ApplicationRecord qaRecord = new ApplicationRecord();
-        qaRecord.setId(2L);
-        qaRecord.setJobId(11L);
-        qaRecord.setStatus("APPLIED");
-        qaRecord.setPriority("LOW");
-
-        Page<ApplicationRecord> page = new Page<>(1, 10);
-        page.setRecords(List.of(javaRecord, qaRecord));
-        page.setTotal(2L);
-        when(applicationRecordMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
-
-        JobDescription javaJob = new JobDescription();
-        javaJob.setId(10L);
-        javaJob.setCompanyName("Acme");
-        javaJob.setJobTitle("Java Backend");
-        JobDescription qaJob = new JobDescription();
-        qaJob.setId(11L);
-        qaJob.setCompanyName("Beta");
-        qaJob.setJobTitle("QA");
-        when(jobDescriptionMapper.selectById(10L)).thenReturn(javaJob);
-        when(jobDescriptionMapper.selectById(11L)).thenReturn(qaJob);
-
-        PageResult<ApplicationListResponse> result = applicationService.list("APPLIED", "java", 0, 0);
-
-        assertEquals(1, result.getRecords().size());
-        assertEquals("Java Backend", result.getRecords().get(0).getJobTitle());
+        assertEquals(1L, result.getPageNum());
+        assertEquals(10L, result.getPageSize());
     }
 
     @Test
@@ -309,7 +283,7 @@ class ApplicationServiceTest {
         mockLoginUser(1L);
 
         assertThrows(BusinessException.class, () -> {
-            applicationService.list("INVALID_STATUS", null, 1, 10);
+            applicationService.list("INVALID_STATUS", null, null, 1, 10);
         });
     }
 
