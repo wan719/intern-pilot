@@ -134,14 +134,14 @@ class AdminAndMiscControllerDirectCoverageTest {
         ApplicationService applicationService = mock(ApplicationService.class);
         ApplicationController applicationController = new ApplicationController(applicationService);
         when(applicationService.create(any())).thenReturn(new ApplicationCreateResponse());
-        when(applicationService.list("APPLIED", "java", 1, 10)).thenReturn(page(new ApplicationListResponse()));
+        when(applicationService.list("APPLIED", "java", null, 1, 10)).thenReturn(page(new ApplicationListResponse()));
         when(applicationService.getDetail(3L)).thenReturn(new ApplicationDetailResponse());
         when(applicationService.updateStatus(eq(3L), any(ApplicationStatusUpdateRequest.class))).thenReturn(true);
         when(applicationService.updateNote(eq(3L), any(ApplicationNoteUpdateRequest.class))).thenReturn(true);
         when(applicationService.delete(3L)).thenReturn(true);
 
         assertThat(applicationController.create(new ApplicationCreateRequest()).getData()).isNotNull();
-        assertThat(applicationController.list("APPLIED", "java", 1, 10).getData().getRecords()).hasSize(1);
+        assertThat(applicationController.list("APPLIED", "java", null, 1, 10).getData().getRecords()).hasSize(1);
         assertThat(applicationController.getDetail(3L).getData()).isNotNull();
         assertThat(applicationController.updateStatus(3L, new ApplicationStatusUpdateRequest()).getData()).isTrue();
         assertThat(applicationController.updateNote(3L, new ApplicationNoteUpdateRequest()).getData()).isTrue();

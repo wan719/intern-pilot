@@ -104,6 +104,95 @@ beforeEach(() => {
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
 })
 
+
+describe('application list paging', () => {
+  it('uses the server count and keeps applied filters across pages', async () => {
+    mockedList.mockResolvedValue({ records: [application], total: 42 } as any)
+    const wrapper = await mountPage()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ pageNum: 1, pageSize: 20 }))
+    expect(wrapper.text()).toContain('匹配投递总数')
+    expect(wrapper.text()).toContain('42')
+    expect(wrapper.text()).toContain('本页面试中')
+    const keyword = wrapper.get('input[aria-label="搜索公司或岗位"]')
+    await keyword.setValue('Java')
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+    await keyword.setValue('草稿')
+    await wrapper.get('button.btn-next').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: 'Java', pageNum: 2, pageSize: 20 }))
+    await button(wrapper, '重置').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: '', pageNum: 1 }))
+  })
+
+  it('returns to the last valid page when deletion empties the current page', async () => {
+    mockedList.mockResolvedValue({ records: [application], total: 21 } as any)
+    const wrapper = await mountPage()
+    await wrapper.get('button.btn-next').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ pageNum: 2 }))
+
+    mockedList.mockResolvedValueOnce({ records: [], total: 20 } as any)
+    mockedList.mockResolvedValueOnce({ records: [{ ...application, applicationId: 18 }], total: 20 } as any)
+    mockedDetail.mockResolvedValueOnce({ ...application, applicationId: 18 } as any)
+    await button(wrapper, '删除').trigger('click')
+    await flushPromises()
+
+    expect(mockedDelete).toHaveBeenCalledWith(application.applicationId)
+    const requests = mockedList.mock.calls.slice(-2).map(([params]) => params)
+    expect(requests).toEqual([
+      expect.objectContaining({ pageNum: 2 }),
+      expect.objectContaining({ pageNum: 1 })
+    ])
+    expect(wrapper.find('button.btn-next').exists()).toBe(false)
+    expect(wrapper.text()).toContain(application.companyName)
+  })
+
+  it('distinguishes an empty list from an applied filter with no matches', async () => {
+    mockedList.mockResolvedValue({ records: [], total: 0 } as any)
+    const wrapper = await mountPage()
+    expect(wrapper.text()).toContain('暂无投递记录')
+    await wrapper.get('input[aria-label="搜索公司或岗位"]').setValue('missing')
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('没有符合条件的投递记录')
+    await button(wrapper, '清除筛选').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith({ keyword: '', status: '', priority: '', pageNum: 1, pageSize: 20 })
+    expect(wrapper.text()).toContain('暂无投递记录')
+  })
+
+  it('preserves list priority and status when a newer detail no longer matches', async () => {
+    mockedDetail.mockResolvedValue({ ...application, status: 'OFFER', priority: 'LOW' } as any)
+    const wrapper = await mountPage()
+    Object.assign((wrapper.vm as any).query, { status: 'APPLIED', priority: 'HIGH' })
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.application-card').text()).toContain('高优先级')
+    expect(wrapper.find('.application-card').text()).not.toContain('低优先级')
+    expect(wrapper.find('.stage-panel').attributes('aria-label')).toContain('已投递')
+    expect(wrapper.find('.application-card').text()).toContain('前端简历')
+  })
+
+  it('hides the previous filter count while the new request fails and can retry', async () => {
+    mockedList.mockResolvedValue({ records: [application], total: 42 } as any)
+    const wrapper = await mountPage()
+    expect(wrapper.text()).toContain('42')
+    mockedList.mockRejectedValueOnce(new Error('temporary error'))
+    await wrapper.get('input[aria-label="搜索公司或岗位"]').setValue('Java')
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('加载投递记录失败')
+    expect(wrapper.text()).not.toContain('匹配投递总数')
+    expect(wrapper.text()).not.toContain('暂无投递记录')
+    await button(wrapper, '重试').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: 'Java' }))
+    expect(wrapper.text()).toContain(application.companyName)
+  })
+})
+
 describe('from-report plan flow', () => {
   it('shows fixed source summary and creates only after explicit confirmation', async () => {
     const wrapper = await mountPage('/applications?fromReportId=9')
@@ -317,18 +406,18 @@ describe('P5-B application priority editing contract', () => {
 })
 
 describe('application tracking contract characterization', () => {
-  it('keeps status and keyword filters in the list request while priority remains local', async () => {
+  it('sends all applied filters to the server together', async () => {
     const wrapper = await mountPage()
 
-    expect(mockedList).toHaveBeenCalledWith({ keyword: '', status: '', pageNum: 1, pageSize: 100 })
+    expect(mockedList).toHaveBeenCalledWith({ keyword: '', status: '', priority: '', pageNum: 1, pageSize: 20 })
     expect(mockedDetail).toHaveBeenCalledWith(17)
 
-    Object.assign((wrapper.vm as any).query, { keyword: '远航', status: 'APPLIED' })
-    ;(wrapper.vm as any).priorityFilter = 'HIGH'
-    await (wrapper.vm as any).loadApplications()
+    Object.assign((wrapper.vm as any).query, { keyword: '远航', status: 'APPLIED', priority: 'HIGH' })
+    await button(wrapper, '应用筛选').trigger('click')
+    await flushPromises()
 
-    expect(mockedList).toHaveBeenLastCalledWith({ keyword: '远航', status: 'APPLIED', pageNum: 1, pageSize: 100 })
-    expect((wrapper.vm as any).filteredApplications).toHaveLength(1)
+    expect(mockedList).toHaveBeenLastCalledWith({ keyword: '远航', status: 'APPLIED', priority: 'HIGH', pageNum: 1, pageSize: 20 })
+    expect(wrapper.text()).toContain(application.companyName)
   })
 
   it('keeps status and note writes single-flight until each save settles', async () => {
@@ -451,16 +540,17 @@ describe('application tracking redesign', () => {
     }) as any)
 
     ;(wrapper.vm as any).query.keyword = '筛选 A'
-    const firstLoad = (wrapper.vm as any).loadApplications()
+    const firstLoad = (wrapper.vm as any).applyFilters()
     ;(wrapper.vm as any).query.keyword = '筛选 B'
-    const secondLoad = (wrapper.vm as any).loadApplications()
+    const secondLoad = (wrapper.vm as any).applyFilters()
+    expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: '筛选 B' }))
 
-    secondRequest.resolve({ records: [{ ...application, applicationId: 22 }] })
+    secondRequest.resolve({ records: [{ ...application, applicationId: 22, companyName: '筛选 B 公司' }] })
     await secondLoad
     expect(wrapper.text()).toContain('筛选 B 公司')
     expect((wrapper.vm as any).loading).toBe(false)
 
-    firstRequest.resolve({ records: [{ ...application, applicationId: 21 }] })
+    firstRequest.resolve({ records: [{ ...application, applicationId: 21, companyName: '筛选 A 公司' }] })
     await firstLoad
     expect(wrapper.text()).toContain('筛选 B 公司')
     expect(wrapper.text()).not.toContain('筛选 A 公司')

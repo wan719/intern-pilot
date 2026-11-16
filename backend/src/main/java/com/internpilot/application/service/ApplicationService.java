@@ -23,6 +23,7 @@ public interface ApplicationService {
     PageResult<ApplicationListResponse> list(
             String status,
             String keyword,
+            String priority,
             Integer pageNum,
             Integer pageSize
     );

@@ -49,9 +49,10 @@ public class ApplicationController {
     public Result<PageResult<ApplicationListResponse>> list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String priority,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return Result.success(applicationService.list(status, keyword, pageNum, pageSize));
+        return Result.success(applicationService.list(status, keyword, priority, pageNum, pageSize));
     }
 
     @Operation(summary = "查询投递记录详", description = "查询当前用户某条投递记录详")

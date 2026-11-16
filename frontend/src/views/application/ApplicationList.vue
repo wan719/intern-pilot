@@ -4,11 +4,11 @@
       <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
     </template>
 
-    <div v-loading="loading" class="application-summary-grid">
-      <StatCard label="投递总数" :value="applicationStats.total" :icon="Briefcase" />
-      <StatCard label="面试中" :value="applicationStats.interviewing" :icon="Calendar" />
-      <StatCard label="Offer 数" :value="applicationStats.offer" :icon="CircleCheck" />
-      <StatCard label="待跟进" :value="applicationStats.followUp" :icon="Bell" />
+    <div v-if="!listError" v-loading="loading" class="application-summary-grid">
+      <StatCard label="匹配投递总数" :value="totalApplications" :icon="Briefcase" />
+      <StatCard label="本页面试中" :value="applicationStats.interviewing" :icon="Calendar" />
+      <StatCard label="本页 Offer 数" :value="applicationStats.offer" :icon="CircleCheck" />
+      <StatCard label="本页待跟进" :value="applicationStats.followUp" :icon="Bell" />
     </div>
 
     <section v-if="planState === 'LOADING'" class="panel flat" role="status">正在核对报告与已有投递计划…</section>
@@ -26,24 +26,35 @@
 
     <FilterBar @reset="resetQuery">
       <template #filters>
-        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="loadApplications" />
-        <el-select v-model="query.status" aria-label="按投递状态筛选" placeholder="投递状态" clearable>
+        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="applyFilters" @clear="applyFilters" />
+        <el-select v-model="query.status" aria-label="按投递状态筛选" placeholder="投递状态" clearable @clear="applyFilters">
           <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
-        <el-select v-model="priorityFilter" aria-label="按优先级筛选" placeholder="优先级" clearable>
+        <el-select v-model="query.priority" aria-label="按优先级筛选" placeholder="优先级" clearable @clear="applyFilters">
           <el-option label="高" value="HIGH" />
           <el-option label="中" value="MEDIUM" />
           <el-option label="低" value="LOW" />
         </el-select>
       </template>
       <template #actions>
-        <el-button type="primary" @click="loadApplications">应用筛选</el-button>
+        <el-button type="primary" @click="applyFilters">应用筛选</el-button>
       </template>
     </FilterBar>
 
     <section v-loading="loading" class="application-board application-track" aria-label="投递进度列表">
+      <section v-if="listError" class="panel flat" role="alert">
+        <p>加载投递记录失败，请重试。</p>
+        <el-button @click="loadApplications()">重试</el-button>
+      </section>
       <AppEmpty
-        v-if="!filteredApplications.length && !loading"
+        v-else-if="!applications.length && !loading && hasAppliedFilters"
+        title="没有符合条件的投递记录"
+        description="可以调整关键词、投递状态或优先级后重试。"
+      >
+        <el-button @click="resetQuery">清除筛选</el-button>
+      </AppEmpty>
+      <AppEmpty
+        v-else-if="!applications.length && !loading"
         title="暂无投递记录"
         description="记录投递状态、面试时间和复盘内容"
         hint="可以从岗位列表、岗位推荐或分析报告开始创建投递记录。"
@@ -52,7 +63,7 @@
       </AppEmpty>
 
       <article
-        v-for="item in filteredApplications"
+        v-for="item in applications"
         v-else
         :key="item.applicationId"
         class="application-card"
@@ -101,6 +112,19 @@
         </div>
       </article>
     </section>
+
+    <nav v-if="totalApplications > PAGE_SIZE && !listError" class="application-pagination" aria-label="投递记录分页">
+      <el-pagination
+        small
+        layout="prev, pager, next"
+        :pager-count="5"
+        :current-page="currentPage"
+        :page-size="PAGE_SIZE"
+        :total="totalApplications"
+        :disabled="loading"
+        @update:current-page="goToPage"
+      />
+    </nav>
 
     <section v-if="planState === 'READY' && planContext" data-plan-confirmation class="panel flat" aria-label="加入待投递计划">
         <h3>确认加入待投递计划</h3>
@@ -314,8 +338,13 @@ const statusVisible = ref(false)
 const noteVisible = ref(false)
 const detailVisible = ref(false)
 const currentId = ref<number>()
-const priorityFilter = ref('')
-const query = reactive({ keyword: '', status: '' })
+const PAGE_SIZE = 20
+const query = reactive({ keyword: '', status: '', priority: '' })
+const appliedFilters = ref({ ...query })
+const hasAppliedFilters = computed(() => Object.values(appliedFilters.value).some(Boolean))
+const currentPage = ref(1)
+const totalApplications = ref(0)
+const listError = ref(false)
 const createForm = reactive<any>({ jobId: undefined, resumeId: undefined, reportId: undefined, status: 'TO_APPLY', priority: 'MEDIUM', applyDate: '', note: '' })
 const statusForm = reactive({ status: 'TO_APPLY' })
 const noteForm = reactive({ note: '', review: '', interviewDate: '' })
@@ -445,32 +474,55 @@ async function confirmPlan() {
   }
 }
 
-const filteredApplications = computed(() => {
-  if (!priorityFilter.value) return applications.value
-  return applications.value.filter((item) => item.priority === priorityFilter.value)
-})
-
 const applicationStats = computed(() => ({
-  total: applications.value.length,
   interviewing: applications.value.filter((item) => ['WRITTEN_TEST', 'FIRST_INTERVIEW', 'SECOND_INTERVIEW', 'HR_INTERVIEW'].includes(item.status)).length,
   offer: applications.value.filter((item) => item.status === 'OFFER').length,
   followUp: applications.value.filter((item) => ['TO_APPLY', 'APPLIED', 'WRITTEN_TEST', 'FIRST_INTERVIEW'].includes(item.status)).length
 }))
 
-async function loadApplications() {
+function applyFilters() {
+  appliedFilters.value = { ...query }
+  return loadApplications(1)
+}
+
+function goToPage(page: number) {
+  if (page !== currentPage.value && !loading.value) {
+    void loadApplications(page)
+  }
+}
+
+async function loadApplications(page = currentPage.value) {
   const epoch = ++applicationLoadEpoch
-  const querySnapshot = { keyword: query.keyword, status: query.status, pageNum: 1, pageSize: 100 }
+  const filters = { ...appliedFilters.value }
+  const isCurrent = () => applicationPageActive && epoch === applicationLoadEpoch
+  currentPage.value = page
+  listError.value = false
   loading.value = true
   try {
-    const res: any = await getApplicationListApi(querySnapshot)
-    const hydrated = await hydrateApplications(res.records || [])
-    if (applicationPageActive && epoch === applicationLoadEpoch) {
-      applications.value = hydrated
+    while (isCurrent()) {
+      const result: any = await getApplicationListApi({ ...filters, pageNum: page, pageSize: PAGE_SIZE })
+      if (!isCurrent()) return
+
+      const records = result.records || []
+      const total = result.total ?? records.length
+      const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
+      if (page > lastPage) {
+        page = lastPage
+        currentPage.value = page
+        continue
+      }
+
+      const hydrated = await hydrateApplications(records)
+      if (isCurrent()) {
+        applications.value = hydrated
+        totalApplications.value = total
+      }
+      return
     }
+  } catch {
+    if (isCurrent()) listError.value = true
   } finally {
-    if (applicationPageActive && epoch === applicationLoadEpoch) {
-      loading.value = false
-    }
+    if (isCurrent()) loading.value = false
   }
 }
 
@@ -479,7 +531,8 @@ async function hydrateApplications(records: any[]) {
     records.map(async (item) => {
       try {
         const detailData = (await getApplicationDetailApi(item.applicationId)) as any
-        return { ...item, ...detailData }
+        // The paged list owns the fields used to filter and count these records.
+        return { ...detailData, ...item }
       } catch {
         return item
       }
@@ -501,8 +554,8 @@ async function loadOptions() {
 function resetQuery() {
   query.keyword = ''
   query.status = ''
-  priorityFilter.value = ''
-  loadApplications()
+  query.priority = ''
+  return applyFilters()
 }
 
 function openCreate() {
@@ -522,7 +575,7 @@ async function createApplication() {
     await createApplicationApi(createForm)
     ElMessage.success('创建成功')
     createVisible.value = false
-    loadApplications()
+    void loadApplications(1)
   } finally {
     saving.value = false
   }
@@ -696,6 +749,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
+.application-pagination {
+  display: flex;
+  justify-content: center;
+  margin-block: 16px;
+}
+
 .application-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

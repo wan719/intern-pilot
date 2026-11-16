@@ -75,6 +75,59 @@ class ApplicationPlanMysqlSmokeTest {
     }
 
     @Test
+    void listsMatchingApplicationsBeforePagingAndCountsOnlyVisibleRows() throws Exception {
+        // The two matching records rank below the first 100 unfiltered records.
+        jdbc.update("UPDATE job_description SET company_name = 'Acme%_Labs' WHERE id = 9301");
+        jdbc.update("UPDATE job_description SET company_name = 'Acme%_Labs' WHERE id = 9302");
+        for (int i = 0; i < 101; i++) {
+            long jobId = 9600 + i;
+            jdbc.update("INSERT INTO job_description (id, user_id, company_name, job_title, jd_content) VALUES (?, 9101, 'AcmeXXLabs', 'Other', 'synthetic')", jobId);
+            jdbc.update("INSERT INTO application_record (id, user_id, job_id, status, priority, updated_at) VALUES (?, 9101, ?, 'APPLIED', 'LOW', '2026-10-02 00:00:00')", 9900 + i, jobId);
+        }
+        jdbc.update("""
+                INSERT INTO job_description (id, user_id, company_name, job_title, jd_content, deleted) VALUES
+                  (9701, 9101, 'Other', 'acme%_labs', 'synthetic', 0),
+                  (9702, 9101, 'Acme%_Labs', 'Deleted job', 'synthetic', 1),
+                  (9703, 9101, 'Acme%_Labs', 'Wrong status', 'synthetic', 0),
+                  (9704, 9101, 'Acme%_Labs', 'Wrong priority', 'synthetic', 0),
+                  (9705, 9101, 'AcmeXXLabs', 'Wildcards are literal', 'synthetic', 0)
+                """);
+        jdbc.update("""
+                INSERT INTO application_record (id, user_id, job_id, status, priority, updated_at, deleted) VALUES
+                  (9801, 9101, 9301, 'APPLIED', 'HIGH', '2026-10-01 00:00:00', 0),
+                  (9802, 9101, 9701, 'APPLIED', 'HIGH', '2026-10-01 00:00:00', 0),
+                  (9803, 9102, 9302, 'APPLIED', 'HIGH', '2026-10-02 00:00:00', 0),
+                  (9804, 9101, 9301, 'APPLIED', 'HIGH', '2026-10-02 00:00:00', 1),
+                  (9805, 9101, 9702, 'APPLIED', 'HIGH', '2026-10-02 00:00:00', 0),
+                  (9806, 9101, 9703, 'TO_APPLY', 'HIGH', '2026-10-02 00:00:00', 0),
+                  (9807, 9101, 9704, 'APPLIED', 'LOW',  '2026-10-02 00:00:00', 0),
+                  (9808, 9101, 9705, 'APPLIED', 'HIGH', '2026-10-02 00:00:00', 0),
+                  (9809, 9101, 9302, 'APPLIED', 'HIGH', '2026-10-02 00:00:00', 0)
+                """);
+
+        for (int page = 1; page <= 2; page++) {
+            mockMvc.perform(get("/api/applications").with(syntheticUser(9101))
+                            .param("priority", "HIGH").param("status", "APPLIED").param("keyword", "ACME%_LABS")
+                            .param("pageSize", "1").param("pageNum", String.valueOf(page)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.total").value(2))
+                    .andExpect(jsonPath("$.data.pages").value(2))
+                    .andExpect(jsonPath("$.data.pageNum").value(page))
+                    .andExpect(jsonPath("$.data.records.length()").value(1))
+                    .andExpect(jsonPath("$.data.records[0].applicationId").value(9803 - page));
+        }
+
+        for (var listRequest : List.of(get("/api/applications"), get("/api/applications").param("priority", ""))) {
+            mockMvc.perform(listRequest.with(syntheticUser(9101)).param("keyword", "ACME%_LABS"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.total").value(4));
+        }
+        mockMvc.perform(get("/api/applications").with(syntheticUser(9101)).param("priority", "INVALID"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
     void confirmCreatesOnePendingRecordAndRetryOpensIt() throws Exception {
         mockMvc.perform(get("/api/applications/plan-context").param("reportId", "9401")
                         .with(syntheticUser(9101)))
@@ -308,7 +361,7 @@ class ApplicationPlanMysqlSmokeTest {
     private void clearSyntheticRows() {
         jdbc.update("DELETE FROM application_record WHERE user_id IN (9101, 9102)");
         jdbc.update("DELETE FROM analysis_report WHERE id IN (9401, 9402)");
-        jdbc.update("DELETE FROM job_description WHERE id IN (9301, 9302)");
+        jdbc.update("DELETE FROM job_description WHERE id IN (9301, 9302) OR id BETWEEN 9600 AND 9705");
         jdbc.update("DELETE FROM resume WHERE id IN (9201, 9202)");
         jdbc.update("DELETE FROM user WHERE id IN (9101, 9102)");
     }
