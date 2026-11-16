@@ -1,20 +1,35 @@
 <template>
-  <PageContainer title="">
+  <PageContainer class="version-workspace" title="简历版本" width="wide">
     <template #hero>
-      <PageHero
-        eyebrow="简历中心"
-        title="简历版本"
-        description="按时间查看原始、手动和 AI 优化版本，让当前投递版本始终清晰可见。"
-      >
+      <RouterLink class="version-back" to="/resumes">
+        <el-icon aria-hidden="true"><ArrowLeft /></el-icon>
+        返回简历
+      </RouterLink>
+      <PageHero class="version-heading" title="简历版本" description="管理当前简历版本，查看和对比历次修改。">
         <template #actions>
-          <el-button @click="router.push('/resumes')">返回简历</el-button>
-          <el-button type="primary" :icon="Plus" @click="openCreate">创建版本</el-button>
           <el-button :icon="MagicStick" @click="openOptimize" :disabled="versions.length === 0">AI 优化</el-button>
+          <el-button type="primary" :icon="Plus" @click="openCreate">创建版本</el-button>
         </template>
       </PageHero>
     </template>
 
-    <section class="version-content" :aria-busy="loading">
+    <section v-if="!loading && !loadError && versions.length" class="version-current" aria-labelledby="version-current-heading">
+      <span class="version-current__icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
+      <div>
+        <h2 id="version-current-heading">当前版本</h2>
+        <strong>{{ currentVersion ? displayVersionName(currentVersion) : '尚未设置' }}</strong>
+      </div>
+      <div v-if="currentVersion" class="version-current__meta">
+        <span>{{ versionTypeLabel(currentVersion.versionType) }} · 版本 #{{ currentVersion.versionId }}</span>
+        <time v-if="currentVersion.createdAt" :datetime="currentVersion.createdAt">{{ formatDateTime(currentVersion.createdAt) }}</time>
+      </div>
+    </section>
+
+    <section class="version-content" aria-labelledby="version-history-heading" :aria-busy="loading">
+      <header class="version-history-heading">
+        <h2 id="version-history-heading">版本历史</h2>
+        <span v-if="!loading && !loadError">{{ versions.length }} 个版本</span>
+      </header>
       <div v-if="loading" class="version-loading" aria-live="polite" aria-label="正在加载简历版本">
         <el-skeleton :rows="6" animated />
       </div>
@@ -22,7 +37,7 @@
       <div v-else-if="loadError" class="version-error" role="alert">
         <div>
           <strong>版本列表暂时无法加载</strong>
-          <span>请稍后重试，当前简历及已有版本不会受到影响。</span>
+          <span>请稍后重试。</span>
         </div>
         <el-button data-version-retry type="primary" plain @click="loadData">重新加载</el-button>
       </div>
@@ -36,7 +51,7 @@
         <el-button data-version-empty-action type="primary" @click="openCreate">创建第一个版本</el-button>
       </AppEmpty>
 
-      <ol v-else class="version-timeline" aria-label="简历版本时间线">
+      <ol v-else class="version-timeline" role="list" aria-label="简历版本时间线">
         <li
           v-for="row in sortedVersions"
           :key="row.versionId"
@@ -53,7 +68,7 @@
                   <el-tag v-if="row.isCurrent === 1" type="success">当前版本</el-tag>
                   <el-tag effect="plain">{{ versionTypeLabel(row.versionType) }}</el-tag>
                 </div>
-                <h2 :title="displayVersionName(row)">{{ displayVersionName(row) }}</h2>
+                <h3>{{ displayVersionName(row) }}</h3>
                 <div class="version-card__identity">
                   <span>版本 #{{ row.versionId }}</span>
                   <time :datetime="row.createdAt">{{ formatDateTime(row.createdAt) }}</time>
@@ -63,7 +78,7 @@
                 <el-button link type="primary" @click="openDetail(row)">详情</el-button>
                 <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
                 <el-button link type="primary" :disabled="row.isCurrent === 1" @click="setCurrent(row)">设当前</el-button>
-                <el-button link type="warning" @click="prepareCompare(row)">对比</el-button>
+                <el-button link type="primary" @click="prepareCompare(row)">对比</el-button>
                 <el-button
                   link
                   type="danger"
@@ -111,7 +126,7 @@
 
     <el-drawer v-model="detailVisible" title="版本详情" :size="detailDrawerSize">
       <div v-if="detail" class="detail-stack">
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="isMobile ? 1 : 2" border>
           <el-descriptions-item label="版本名称">{{ displayVersionName(detail) }}</el-descriptions-item>
           <el-descriptions-item label="类型">{{ versionTypeLabel(detail.versionType) }}</el-descriptions-item>
           <el-descriptions-item label="目标岗位">{{ detail.targetJobTitle || '-' }}</el-descriptions-item>
@@ -133,17 +148,32 @@
             <el-option v-for="item in versions" :key="item.versionId" :label="displayVersionName(item)" :value="item.versionId" />
           </el-select>
         </el-form-item>
-        <el-button type="primary" @click="loadCompare">开始对比</el-button>
+        <el-button type="primary" :loading="comparing" @click="loadCompare">开始对比</el-button>
       </el-form>
 
-      <div v-if="compareResult" class="diff-grid">
-        <section>
-          <h3>新增内容 {{ compareResult.addedCount }}</h3>
-          <el-tag v-for="line in compareResult.addedLines" :key="line" class="diff-line" type="success">{{ line }}</el-tag>
+      <p v-if="comparing" class="compare-status" role="status">正在对比版本…</p>
+      <div v-else-if="compareError" class="compare-status compare-status--error" role="alert">
+        <span>对比失败，请重试。</span>
+        <el-button @click="loadCompare">重新对比</el-button>
+      </div>
+      <div v-else-if="compareResult" class="diff-grid" aria-live="polite">
+        <section class="diff-panel diff-panel--added">
+          <h3>新增内容 <span>{{ compareResult.addedCount }} 行</span></h3>
+          <ul v-if="compareResult.addedLines.length" role="list">
+            <li v-for="(line, index) in compareResult.addedLines" :key="index" class="diff-line">
+              <span aria-hidden="true">+</span>{{ line }}
+            </li>
+          </ul>
+          <p v-else>没有新增内容</p>
         </section>
-        <section>
-          <h3>删除内容 {{ compareResult.removedCount }}</h3>
-          <el-tag v-for="line in compareResult.removedLines" :key="line" class="diff-line" type="danger">{{ line }}</el-tag>
+        <section class="diff-panel diff-panel--removed">
+          <h3>移除内容 <span>{{ compareResult.removedCount }} 行</span></h3>
+          <ul v-if="compareResult.removedLines.length" role="list">
+            <li v-for="(line, index) in compareResult.removedLines" :key="index" class="diff-line">
+              <span aria-hidden="true">−</span>{{ line }}
+            </li>
+          </ul>
+          <p v-else>没有移除内容</p>
         </section>
       </div>
     </el-dialog>
@@ -183,9 +213,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MagicStick, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, Document, MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
@@ -206,7 +236,6 @@ import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
 const route = useRoute()
-const router = useRouter()
 const resumeId = Number(route.params.resumeId)
 const aiTaskCenter = useAiTaskCenterStore()
 
@@ -221,13 +250,23 @@ const editVisible = ref(false)
 const detailVisible = ref(false)
 const compareVisible = ref(false)
 const optimizeVisible = ref(false)
-const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
-const editDialogWidth = responsiveDialogWidth('720px')
-const compareDialogWidth = responsiveDialogWidth('880px')
+const { isMobile, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const editDialogWidth = responsiveDialogWidth('min(720px, calc(100vw - 28px))')
+const compareDialogWidth = responsiveDialogWidth('min(880px, calc(100vw - 28px))')
 const optimizeDialogWidth = responsiveDialogWidth('620px')
 const detailDrawerSize = responsiveDrawerSize('52%')
 const detail = ref<any>(null)
-const compareResult = ref<any>(null)
+const comparing = ref(false)
+const compareError = ref(false)
+interface VersionComparison {
+  addedCount: number
+  removedCount: number
+  addedLines: string[]
+  removedLines: string[]
+}
+
+const compareResult = ref<VersionComparison | null>(null)
+let compareRequest = 0
 const editingVersionId = ref<number>()
 
 const editForm = reactive({ versionName: '', versionType: 'MANUAL', content: '' })
@@ -241,6 +280,8 @@ const filteredAnalysisReports = computed(() => {
     return sameResume && sameJob
   })
 })
+
+const currentVersion = computed(() => versions.value.find((item) => item.isCurrent === 1))
 
 const sortedVersions = computed(() => {
   return [...versions.value].sort((left, right) => {
@@ -346,7 +387,6 @@ async function removeVersion(row: any) {
 function prepareCompare(row: any) {
   compareForm.oldVersionId = versions.value.find((item) => item.versionId !== row.versionId)?.versionId
   compareForm.newVersionId = row.versionId
-  compareResult.value = null
   compareVisible.value = true
 }
 
@@ -355,8 +395,31 @@ async function loadCompare() {
     ElMessage.warning('请选择两个不同版本')
     return
   }
-  compareResult.value = await compareResumeVersionsApi(resumeId, compareForm.oldVersionId, compareForm.newVersionId)
+  const request = ++compareRequest
+  comparing.value = true
+  compareResult.value = null
+  compareError.value = false
+  try {
+    const result = await compareResumeVersionsApi(resumeId, compareForm.oldVersionId, compareForm.newVersionId)
+    if (request === compareRequest) compareResult.value = result as unknown as VersionComparison
+  } catch {
+    if (request === compareRequest) compareError.value = true
+  } finally {
+    if (request === compareRequest) comparing.value = false
+  }
 }
+
+watch(
+  [compareVisible, () => compareForm.oldVersionId, () => compareForm.newVersionId],
+  () => {
+    // A response only belongs to the selections and dialog that launched it.
+    compareRequest++
+    comparing.value = false
+    compareResult.value = null
+    compareError.value = false
+  },
+  { flush: 'sync' }
+)
 
 function openOptimize() {
   optimizeForm.sourceVersionId = versions.value.find((item) => item.isCurrent === 1)?.versionId || versions.value[0]?.versionId
@@ -441,6 +504,117 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.version-workspace {
+  --version-workspace-bg: #f8f7f3;
+  max-width: 1184px;
+  background: var(--version-workspace-bg);
+  color: var(--color-text);
+}
+
+.version-back {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  color: var(--color-primary-hover);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.version-back:hover {
+  text-decoration: underline;
+}
+
+.version-heading {
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.version-heading :deep(h1) {
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.2;
+}
+
+.version-heading :deep(.page-hero__actions) {
+  justify-content: flex-start;
+}
+
+.version-heading :deep(.el-button) {
+  min-height: 44px;
+  margin-left: 0;
+}
+
+.version-back:focus-visible,
+.version-heading :deep(.el-button:focus-visible),
+.version-actions :deep(.el-button:focus-visible) {
+  outline: 2px solid var(--color-primary-hover);
+  outline-offset: 2px;
+}
+
+.version-current {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary-soft) 40%, var(--color-surface));
+}
+
+.version-current__icon {
+  display: grid;
+  width: 36px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+}
+
+.version-current h2 {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.version-current strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.version-current__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.version-history-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.version-history-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.version-history-heading span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .version-content {
   min-height: 320px;
 }
@@ -560,10 +734,10 @@ onMounted(async () => {
   gap: var(--space-2);
 }
 
-.version-card__title h2 {
-  margin: var(--space-2) 0;
+.version-card__title h3 {
+  margin: var(--space-2) 0 var(--space-1);
   color: var(--color-text);
-  font-size: 18px;
+  font-size: 17px;
   overflow-wrap: anywhere;
 }
 
@@ -579,6 +753,13 @@ onMounted(async () => {
 .version-actions {
   flex: 0 0 auto;
   justify-content: flex-end;
+}
+
+.version-actions :deep(.el-button) {
+  min-width: 40px;
+  min-height: 40px;
+  margin-left: 0;
+  padding-inline: 4px;
 }
 
 .version-card__facts {
@@ -614,32 +795,105 @@ onMounted(async () => {
 
 .compare-picker {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   gap: var(--space-3);
   align-items: end;
 }
 
+.compare-picker :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.compare-status {
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.compare-status--error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+}
+
 .diff-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
   margin-top: var(--space-5);
 }
 
-.diff-line {
+.diff-panel {
+  --diff-accent: var(--color-primary-hover);
+  --diff-tint: var(--color-primary-soft);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+}
+
+.diff-panel--removed {
+  --diff-accent: var(--color-danger);
+  --diff-tint: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
+}
+
+.diff-panel h3 {
   display: flex;
-  width: fit-content;
-  max-width: 100%;
-  height: auto;
-  margin: 0 0 8px;
-  white-space: normal;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--diff-tint);
+  font-size: 14px;
+}
+
+.diff-panel h3 span,
+.diff-panel p {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.diff-panel ul,
+.diff-panel p {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diff-panel p,
+.diff-line {
+  padding: var(--space-2) var(--space-3);
+}
+
+.diff-line {
+  display: grid;
+  grid-template-columns: 1em minmax(0, 1fr);
+  gap: var(--space-1);
+  border-top: 1px solid var(--color-border);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.diff-line > span {
+  color: var(--diff-accent);
+  font-weight: 700;
 }
 
 .dialog-alert {
   margin-bottom: var(--space-3);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 940px) {
+  .version-heading,
   .version-card__header,
   .version-error {
     align-items: stretch;
@@ -649,15 +903,30 @@ onMounted(async () => {
   .version-actions {
     justify-content: flex-start;
   }
+}
+
+@media (max-width: 640px) {
+  .version-current {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding-inline: var(--space-3);
+  }
+
+  .version-current__meta {
+    grid-column: 2;
+  }
 
   .version-card__facts,
   .compare-picker,
   .diff-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-}
 
-@media (max-width: 767px) {
+  .version-back,
+  .version-actions :deep(.el-button),
+  .compare-picker :deep(.el-button) {
+    min-height: 44px;
+  }
+
   .version-timeline__item {
     grid-template-columns: 18px minmax(0, 1fr);
     gap: var(--space-2);

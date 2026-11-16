@@ -91,7 +91,13 @@ async function mountPage(query = '') {
   const wrapper = mount(ResumeVersionList, {
     global: {
       plugins: [router],
-      stubs: { teleport: true }
+      stubs: {
+        teleport: true,
+        ElDialog: {
+          props: ['modelValue'],
+          template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
+        }
+      }
     }
   })
   await flushPromises()
@@ -229,6 +235,35 @@ describe('resume version timeline redesign', () => {
     expect(timelineItems[0].text()).toContain('版本 #101')
     expect(timelineItems[0].text()).toContain('2026-08-20 08:00')
     expect(timelineItems[1].get('[role="group"]').attributes('aria-label')).toContain('岗位定制版')
+  })
+
+  it('summarizes the selected current version separately from the timeline', async () => {
+    const { wrapper } = await mountPage()
+
+    const summary = wrapper.get('[aria-labelledby="version-current-heading"]')
+    expect(summary.text()).toContain('当前版本')
+    expect(summary.text()).toContain('原始版本')
+    expect(summary.text()).toContain('版本 #101')
+  })
+
+  it('replaces earlier comparison results with an inline error and supports retry', async () => {
+    const { wrapper } = await mountPage()
+    await button(wrapper, '对比', 1).trigger('click')
+    await flushPromises()
+    await button(wrapper, '开始对比').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.diff-grid').text()).toContain('Vue')
+
+    mockedCompare.mockRejectedValueOnce(new Error('network unavailable'))
+    await button(wrapper, '开始对比').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('对比失败')
+    expect(wrapper.find('.diff-grid').exists()).toBe(false)
+
+    await button(wrapper, '重新对比').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.diff-grid').text()).toContain('Vue')
+    expect(mockedCompare).toHaveBeenNthCalledWith(3, 7, 101, 202)
   })
 
   it('shows an actionable empty state instead of an empty timeline', async () => {
