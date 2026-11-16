@@ -1,30 +1,24 @@
 <template>
   <PageContainer title="职业行动工作台" width="wide">
     <template #hero>
-      <PageHero
-        eyebrow="InternPilot 工作台"
-        :title="`${greeting}，${displayName}`"
-        description="把简历、目标岗位、AI 分析、面试准备和投递跟进连成一条清晰的求职路径。"
-      >
-        <p class="hero-next-step">{{ heroNextStep }}</p>
-        <template #actions>
+      <header class="dashboard-heading">
+        <h1>{{ greeting }}，{{ displayName }}</h1>
+        <div class="dashboard-focus">
+          <div class="dashboard-focus__copy" aria-live="polite">
+            <span v-if="!loading && !interviewLoading" class="dashboard-focus__label">
+              {{ primaryAction.key === 'complete' ? '求职进度' : '当前阶段' }}
+            </span>
+            <strong v-if="!loading && !interviewLoading">{{ primaryAction.stageTitle }}</strong>
+            <p>{{ heroNextStep }}</p>
+          </div>
           <el-button
-            v-if="loading"
+            v-if="loading || interviewLoading"
             data-primary-action
             type="primary"
             loading
             disabled
           >
-            正在确认下一步
-          </el-button>
-          <el-button
-            v-else-if="interviewLoading"
-            data-primary-action
-            type="primary"
-            loading
-            disabled
-          >
-            正在确认面试阶段
+            {{ loading ? '正在确认下一步' : '正在确认面试阶段' }}
           </el-button>
           <el-button
             v-else
@@ -35,8 +29,8 @@
           >
             {{ primaryAction.label }}
           </el-button>
-        </template>
-      </PageHero>
+        </div>
+      </header>
     </template>
 
     <section
@@ -53,28 +47,27 @@
       </div>
 
       <section class="journey-progress panel" aria-labelledby="journey-progress-title" :aria-busy="interviewLoading">
-        <div class="section-heading journey-heading">
-          <div>
-            <span class="section-kicker">求职旅程</span>
-            <h2 id="journey-progress-title">五阶段准备进度</h2>
-            <p>每完成一个阶段，你的求职材料和后续行动就更完整一步。</p>
+        <div class="journey-heading">
+          <h2 id="journey-progress-title">求职旅程</h2>
+          <div v-if="!loading" class="journey-progress__summary">
+            <span>{{ interviewReportCount === null ? `${completedStageCount}/4 已知阶段已启动` : `${completedStageCount}/5 已启动` }}</span>
+            <progress
+              v-if="interviewReportCount !== null"
+              :value="completedStageCount"
+              :max="journeyStages.length"
+              aria-label="已启动阶段比例"
+            />
           </div>
-          <div v-if="!loading" class="journey-percent" aria-label="已完成阶段比例">
-            <strong>{{ interviewReportCount === null ? '--' : `${preparationPercent}%` }}</strong>
-            <span>{{ interviewReportCount === null ? `${completedStageCount}/4 已知阶段` : `${completedStageCount}/5 已启动` }}</span>
-          </div>
-          <el-skeleton v-else class="journey-percent journey-percent--loading" animated :rows="1" />
+          <el-skeleton v-else class="journey-progress__placeholder" animated :rows="0" />
         </div>
 
-        <ol v-if="!loading" class="journey-steps">
+        <ol v-if="!loading" class="journey-steps" role="list" aria-labelledby="journey-progress-title">
           <li
             v-for="(stage, index) in journeyStages"
             :key="stage.key"
             class="journey-step"
-            :class="{
-              'journey-step--complete': stage.done,
-              'journey-step--current': stage.key === primaryAction.key && !stage.done
-            }"
+            :class="{ 'journey-step--complete': stage.done }"
+            :aria-current="stage.key === currentStageKey ? 'step' : undefined"
           >
             <button type="button" @click="router.push(stage.path)">
               <span class="journey-step__marker" aria-hidden="true">
@@ -83,8 +76,15 @@
               </span>
               <span class="journey-step__copy">
                 <strong>{{ stage.title }}</strong>
-                <small>{{ stage.done === null ? '暂时未知' : stage.done ? '已启动' : '待开始' }}</small>
+                <small>{{ stage.hint }}</small>
               </span>
+              <span class="journey-step__status">
+                <span v-if="stage.done === null">{{ interviewLoading ? '确认中' : '暂时未知' }}</span>
+                <span v-else-if="stage.done">已启动</span>
+                <span v-else-if="stage.key === currentStageKey">下一步</span>
+                <span v-else>待开始</span>
+              </span>
+              <el-icon class="journey-step__arrow" aria-hidden="true"><ArrowRight /></el-icon>
             </button>
           </li>
         </ol>
@@ -93,7 +93,14 @@
         </div>
         <div v-if="!loading && interviewError" class="journey-inline-error" role="status" aria-live="polite">
           <span>{{ interviewError }}</span>
-          <el-button data-interview-retry link type="primary" :icon="Refresh" @click="loadInterviewReportCount">
+          <el-button
+            v-if="primaryAction.key !== 'interview-unknown'"
+            data-interview-retry
+            link
+            type="primary"
+            :icon="Refresh"
+            @click="loadInterviewReportCount"
+          >
             重试面试阶段数据
           </el-button>
         </div>
@@ -109,63 +116,8 @@
         <StatCard label="投递记录" :value="summary.applications" :icon="List" :loading="loading" hint="持续跟进进展" tone="warning" />
       </section>
 
-      <section class="today-actions panel" aria-labelledby="today-actions-title">
-        <div class="section-heading">
-          <div>
-            <span class="section-kicker">今日行动</span>
-            <h2 id="today-actions-title">把下一步变成可完成的动作</h2>
-            <p>优先完成最早缺失的阶段，也可以直接进入任一环节继续准备。</p>
-          </div>
-        </div>
-
-        <div v-if="loading" class="today-focus today-action-loading" aria-label="正在加载今日建议行动">
-          <el-skeleton animated :rows="2" />
-          <el-button type="primary" loading disabled>正在确认下一步</el-button>
-        </div>
-        <div v-else-if="interviewLoading" class="today-focus" role="status" aria-live="polite">
-          <div>
-            <span>数据确认中</span>
-            <strong>正在确认面试阶段</strong>
-            <p>其他工作台数据已就绪，稍后将给出准确的下一步建议。</p>
-          </div>
-          <el-button type="primary" loading disabled>正在确认</el-button>
-        </div>
-        <div v-else class="today-focus">
-          <div>
-            <span>建议先做</span>
-            <strong>{{ primaryAction.label }}</strong>
-            <p>{{ primaryAction.description }}</p>
-          </div>
-          <el-button type="primary" :icon="primaryAction.icon" @click="handlePrimaryAction">
-            {{ primaryAction.label }}
-          </el-button>
-        </div>
-
-        <div v-if="!loading" class="action-list">
-          <button
-            v-for="action in journeyStages"
-            :key="action.key"
-            class="action-card"
-            type="button"
-            @click="router.push(action.path)"
-          >
-            <el-icon aria-hidden="true"><component :is="action.icon" /></el-icon>
-            <span>
-              <strong>{{ action.actionLabel }}</strong>
-              <small>{{ action.hint }}</small>
-            </span>
-          </button>
-        </div>
-      </section>
-
       <section class="recent-results" aria-labelledby="recent-results-title">
-        <div class="section-heading recent-heading">
-          <div>
-            <span class="section-kicker">近期结果</span>
-            <h2 id="recent-results-title">看见进展，决定后续行动</h2>
-            <p>从最新分析和投递动态中快速找到值得继续跟进的事项。</p>
-          </div>
-        </div>
+        <h2 id="recent-results-title">近期结果</h2>
 
         <div class="dashboard-grid">
           <section class="panel">
@@ -194,7 +146,7 @@
               description="完成一次 AI 匹配后，这里会展示最近报告"
               hint="先选择简历与目标岗位，再生成一份有行动建议的报告。"
             >
-              <el-button type="primary" @click="router.push('/analysis/match')">开始 AI 匹配</el-button>
+              <el-button @click="router.push('/analysis/match')">开始 AI 匹配</el-button>
             </AppEmpty>
           </section>
 
@@ -275,6 +227,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { init, use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import {
+  ArrowRight,
   Briefcase,
   CircleCheckFilled,
   Document,
@@ -286,7 +239,6 @@ import {
   Upload
 } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
-import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
@@ -336,25 +288,25 @@ const journeyStages = computed(() => [
   },
   {
     key: 'job', title: '岗位机会', actionLabel: '添加目标岗位', hint: '保存岗位 JD 与要求',
-    description: '添加目标岗位和完整 JD，让分析围绕真实机会展开。', icon: Briefcase, path: '/jobs', done: journeyProgress.value.job
+    description: '保存完整 JD，让后续分析围绕这个岗位展开。', icon: Briefcase, path: '/jobs', done: journeyProgress.value.job
   },
   {
     key: 'analysis', title: '匹配分析', actionLabel: '开始 AI 匹配', hint: '找到优势与待补短板',
-    description: '开始 AI 匹配，获得针对目标岗位的优势、风险和下一步建议。', icon: MagicStick, path: '/analysis/match', done: journeyProgress.value.analysis
+    description: '对照目标岗位，查看匹配优势、风险和改进建议。', icon: MagicStick, path: '/analysis/match', done: journeyProgress.value.analysis
   },
   {
     key: 'interview', title: '面试准备', actionLabel: '准备下一场面试', hint: '生成岗位针对性问题',
-    description: '准备下一场面试，用岗位针对性问题检验自己的表达与知识盲点。', icon: QuestionFilled, path: '/interview-questions', done: journeyProgress.value.interview
+    description: '用针对目标岗位的问题检查表达与知识盲点。', icon: QuestionFilled, path: '/interview-questions', done: journeyProgress.value.interview
   },
   {
     key: 'application', title: '投递追踪', actionLabel: '记录投递进展', hint: '管理状态与跟进时间',
-    description: '记录投递进展和关键时间，持续跟进每一个目标机会。', icon: List, path: '/applications', done: journeyProgress.value.application
+    description: '记录投递状态和关键时间，方便后续跟进。', icon: List, path: '/applications', done: journeyProgress.value.application
   }
 ])
 
 const completeAction = {
-  key: 'complete', label: '查看最新分析结果',
-  description: '五个阶段都已启动。回看最新分析结果，选择今天最值得优化的一项。',
+  key: 'complete', stageTitle: '五个阶段都已启动', label: '查看最新分析结果',
+  description: '从分析报告中选一项改进建议继续推进。',
   icon: Tickets, path: '/analysis/reports'
 }
 const primaryAction = computed(() => {
@@ -363,6 +315,7 @@ const primaryAction = computed(() => {
   if (stage.done === null && interviewError.value) {
     return {
       key: 'interview-unknown',
+      stageTitle: stage.title,
       label: '重试面试阶段数据',
       description: '其他工作台数据已加载，面试阶段暂时未知。恢复数据后再确认最合适的下一步。',
       icon: Refresh,
@@ -370,15 +323,25 @@ const primaryAction = computed(() => {
       retry: true
     }
   }
-  return { key: stage.key, label: stage.actionLabel, description: stage.description, icon: stage.icon, path: stage.path }
+  return {
+    key: stage.key,
+    stageTitle: stage.title,
+    label: stage.actionLabel,
+    description: stage.description,
+    icon: stage.icon,
+    path: stage.path
+  }
 })
 const heroNextStep = computed(() => {
   if (loading.value) return '正在汇总你的求职资料与近期进展。'
   if (interviewLoading.value) return '基础工作台数据已就绪，正在确认面试准备阶段。'
   return primaryAction.value.description
 })
+const currentStageKey = computed(() => {
+  if (interviewLoading.value) return null
+  return primaryAction.value.key === 'interview-unknown' ? 'interview' : primaryAction.value.key
+})
 const completedStageCount = computed(() => journeyStages.value.filter((item) => item.done === true).length)
-const preparationPercent = computed(() => Math.round((completedStageCount.value / journeyStages.value.length) * 100))
 const recentReports = computed(() => reports.value.slice(0, 4))
 const recentApplications = computed(() => applications.value.slice(0, 5))
 const statusSummary = computed(() => {
@@ -481,50 +444,254 @@ onMounted(loadDashboard)
 </script>
 
 <style scoped>
+.dashboard-heading,
+.dashboard-workspace {
+  --dashboard-workspace-bg: #f8f7f3;
+}
+
+.dashboard-heading {
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--dashboard-workspace-bg);
+}
+
+.dashboard-heading h1 {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+  font-size: clamp(25px, 3vw, 36px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary-soft) 40%, var(--color-surface));
+}
+
+.dashboard-focus__label {
+  display: block;
+  color: var(--color-primary-hover);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dashboard-focus__copy strong {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text);
+  font-size: 20px;
+}
+
+.dashboard-focus__copy p {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.dashboard-focus > .el-button {
+  min-height: 44px;
+  flex: none;
+  --el-button-bg-color: var(--color-primary-hover);
+  --el-button-border-color: var(--color-primary-hover);
+}
+
 .dashboard-workspace,
-.recent-results { display: grid; min-width: 0; gap: var(--space-5); }
-.hero-next-step { margin: 0; color: var(--color-text-muted); line-height: 1.6; }
-.dashboard-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface)); }
-.dashboard-error strong, .dashboard-error span { display: block; }
-.dashboard-error span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 13px; }
-.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.section-heading h2 { margin: var(--space-1) 0 var(--space-2); color: var(--color-text); font-size: 20px; }
-.section-heading p { margin: 0; color: var(--color-text-muted); line-height: 1.6; }
-.section-kicker { color: var(--color-primary-hover); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-.journey-heading { align-items: center; }
-.journey-percent { flex: 0 0 auto; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-primary-border); border-radius: var(--radius-md); background: var(--color-primary-soft); text-align: right; }
-.journey-percent strong, .journey-percent span { display: block; }
-.journey-percent strong { color: var(--color-primary-hover); font-size: 24px; font-variant-numeric: tabular-nums; }
-.journey-percent span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 12px; }
-.journey-percent--loading { width: 116px; }
-.journey-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-5) 0 0; padding: 0; list-style: none; }
-.journey-loading { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin-top: var(--space-5); }
-.journey-loading .el-skeleton { min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }
-.journey-step button { display: flex; width: 100%; min-width: 0; align-items: center; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text); text-align: left; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast); }
-.journey-step button:hover, .journey-step button:focus-visible, .action-card:hover, .action-card:focus-visible { border-color: var(--color-primary); outline: none; }
-.journey-step--current button { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.journey-step__marker { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 50%; background: var(--color-border); color: var(--color-text-muted); font-size: 12px; font-weight: 700; }
-.journey-step--complete .journey-step__marker { background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface)); color: var(--color-success); }
-.journey-step__copy { min-width: 0; }
-.journey-step__copy strong, .journey-step__copy small { display: block; }
-.journey-step__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.journey-step__copy small { margin-top: var(--space-1); color: var(--color-text-muted); }
-.journey-inline-error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-3); border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface)); color: var(--color-text-muted); }
-.journey-inline-status { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text-muted); }
-.today-actions { display: grid; gap: var(--space-4); }
-.today-focus { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-primary-border); border-radius: var(--radius-lg); background: var(--color-primary-soft); }
-.today-focus span, .today-focus strong { display: block; }
-.today-focus span { color: var(--color-primary-hover); font-size: 12px; font-weight: 700; }
-.today-focus strong { margin-top: var(--space-1); color: var(--color-text); font-size: 18px; }
-.today-focus p { margin: var(--space-1) 0 0; color: var(--color-text-muted); }
-.action-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); }
-.action-card { display: flex; min-width: 0; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); text-align: left; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast); }
-.action-card:hover, .action-card:focus-visible { background: var(--color-surface-muted); }
-.action-card .el-icon { flex: 0 0 auto; color: var(--color-primary-hover); font-size: 22px; }
-.action-card span { min-width: 0; }
-.action-card strong, .action-card small { display: block; }
-.action-card small { margin-top: var(--space-1); color: var(--color-text-muted); line-height: 1.45; }
-.recent-heading { margin-top: var(--space-1); }
+.recent-results {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+
+.dashboard-workspace .stat-grid,
+.dashboard-workspace .panel {
+  margin-bottom: 0;
+}
+
+.dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface));
+}
+
+.dashboard-error strong,
+.dashboard-error span {
+  display: block;
+}
+
+.dashboard-error span {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.journey-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.journey-heading h2,
+.recent-results h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 20px;
+}
+
+.journey-progress__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.journey-progress__summary progress {
+  width: 88px;
+  height: 8px;
+  accent-color: var(--color-primary-hover);
+}
+
+.journey-progress__placeholder {
+  width: 100px;
+}
+
+.journey-steps,
+.journey-loading {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journey-loading .el-skeleton {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.journey-step button {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--dashboard-workspace-bg);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+
+.journey-step button:hover {
+  border-color: var(--color-primary-hover);
+}
+
+.journey-step button:focus-visible,
+.dashboard-focus button:focus-visible {
+  outline: 2px solid var(--color-primary-hover);
+  outline-offset: 2px;
+}
+
+.journey-step[aria-current="step"] button {
+  border-color: var(--color-primary-hover);
+  background: color-mix(in srgb, var(--color-primary-soft) 44%, var(--color-surface));
+}
+
+.journey-step__marker {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.journey-step--complete .journey-step__marker {
+  color: var(--color-success);
+  font-size: 18px;
+}
+
+.journey-step[aria-current="step"] .journey-step__marker {
+  background: var(--color-primary-hover);
+  color: var(--color-surface);
+}
+
+.journey-step__copy strong,
+.journey-step__copy small {
+  display: block;
+}
+
+.journey-step__copy small,
+.journey-step__status,
+.journey-step__arrow {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.journey-step__copy small {
+  margin-top: var(--space-1);
+}
+
+.journey-step__status {
+  grid-column: 2;
+}
+
+.journey-step[aria-current="step"] .journey-step__status {
+  color: var(--color-primary-hover);
+  font-weight: 700;
+}
+
+.journey-step__arrow {
+  grid-area: 1 / 3;
+}
+
+.journey-inline-error,
+.journey-inline-status {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.journey-inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
+}
+
 .application-list, .report-list { display: grid; gap: var(--space-3); }
 .application-card, .report-card { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .result-copy { min-width: 0; }
@@ -537,20 +704,71 @@ onMounted(loadDashboard)
 .status-list { display: grid; gap: var(--space-2); }
 .status-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 
+@media (max-width: 1100px) {
+  .journey-steps,
+  .journey-loading {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-step button {
+    grid-template-columns: 26px minmax(0, 1fr) auto auto;
+  }
+
+  .journey-step__status {
+    grid-column: auto;
+  }
+
+  .journey-step__arrow {
+    grid-area: auto;
+  }
+}
+
 @media (max-width: 900px) {
-  .journey-steps, .journey-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .status-overview { grid-template-columns: 1fr; }
+  .status-overview {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
-  .dashboard-error, .journey-heading, .journey-inline-error, .today-focus, .application-card, .report-card { align-items: stretch; flex-direction: column; }
-  .journey-percent { text-align: left; }
-  .journey-steps, .journey-loading, .action-list { grid-template-columns: 1fr; }
-  .today-focus .el-button, .dashboard-error .el-button { width: 100%; }
-  .report-score { width: 100%; flex-basis: auto; }
+  .dashboard-heading {
+    padding: var(--space-4);
+  }
+
+  .dashboard-focus {
+    padding: var(--space-3);
+  }
+
+  .dashboard-error,
+  .dashboard-focus,
+  .journey-inline-error,
+  .application-card,
+  .report-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .journey-step button {
+    padding-block: var(--space-2);
+  }
+
+  .dashboard-workspace .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .dashboard-workspace .stat-card {
+    padding: var(--space-3);
+  }
+
+  .report-score {
+    width: 100%;
+    flex-basis: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .journey-step button, .action-card { transition: none; }
+  .journey-step button {
+    transition: none;
+  }
 }
 </style>
