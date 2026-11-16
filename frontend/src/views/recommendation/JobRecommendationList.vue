@@ -1,18 +1,11 @@
 <template>
-  <PageContainer title="发现更值得投入的岗位" description="基于简历画像、求职偏好和 AI 匹配结果推荐适合投递的岗位。">
-    <div class="recommendation-summary-grid">
-      <StatCard label="推荐批次" :value="batchStats.total" :icon="Files" />
-      <StatCard label="推荐岗位" :value="batchStats.recommendedTotal" :icon="Briefcase" />
-      <StatCard label="高推荐岗位" :value="batchStats.highCount" :icon="CircleCheck" />
-      <StatCard label="最近推荐" :value="batchStats.latestText" :icon="Clock" />
-    </div>
-
+  <PageContainer title="发现更值得投入的岗位" description="根据简历和岗位库生成推荐，比较匹配理由与风险。">
     <div class="recommendation-grid">
       <section class="panel generator-panel" :aria-busy="optionsLoading">
         <div class="panel-header">
           <div>
-            <h3>生成推荐</h3>
-            <span>选择简历后，系统会结合岗位库与历史分析结果给出可解释推荐。</span>
+            <h2>生成推荐</h2>
+            <span>有历史分析时，推荐会参考匹配结果。</span>
           </div>
         </div>
 
@@ -54,6 +47,11 @@
             <el-button data-options-retry link type="primary" @click="loadOptions">重新加载简历</el-button>
           </div>
 
+          <p v-else-if="!resumes.length" class="generator-status">
+            暂无可用简历。<RouterLink to="/resumes">前往简历中心</RouterLink>
+          </p>
+          <p v-if="generating" class="generator-status" role="status">正在生成推荐，可在 AI 任务中心查看进度。</p>
+
           <el-button
             type="primary"
             :icon="MagicStick"
@@ -71,9 +69,15 @@
       </section>
 
       <section class="recommendation-library" aria-label="岗位推荐批次">
-        <FilterBar @reset="resetLevelFilter">
+        <div class="history-heading">
+          <h2>推荐历史</h2>
+          <span v-if="!loading && !historyErrorText" role="status">{{ filteredHistory.length }} 个批次</span>
+        </div>
+        <FilterBar class="history-filters" @reset="resetLevelFilter">
           <template #filters>
-            <el-segmented v-model="levelFilter" aria-label="按推荐等级筛选" :options="levelFilterOptions" />
+            <el-select v-model="levelFilter" aria-label="按推荐等级筛选">
+              <el-option v-for="item in levelFilterOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
           </template>
           <template #actions>
             <el-button type="primary" @click="loadHistory">刷新</el-button>
@@ -92,15 +96,17 @@
           v-else
           :loading="loading"
           :empty="!filteredHistory.length"
-          empty-title="还没有岗位推荐"
-          empty-hint="选择简历后生成推荐结果，快速判断哪些岗位更值得投递。建议先完善简历和岗位 JD。"
+          :empty-title="levelFilter === 'all' ? '还没有岗位推荐' : '没有符合等级的推荐批次'"
+          :empty-hint="levelFilter === 'all' ? '选择简历后生成首批推荐。' : '清除等级筛选可查看全部批次。'"
         >
           <template #empty-actions>
+            <el-button v-if="levelFilter !== 'all'" @click="resetLevelFilter">清除等级筛选</el-button>
             <el-button
+              v-else
               data-recommendation-empty-action
               type="primary"
               :icon="MagicStick"
-              :disabled="!resumes.length"
+              :disabled="optionsLoading || Boolean(optionsErrorText) || !resumes.length || generating"
               @click="generateRecommendation"
             >
               生成第一批推荐
@@ -112,7 +118,6 @@
               <div class="batch-card-main">
                 <div class="batch-heading">
                   <div>
-                    <span class="eyebrow">岗位推荐批次</span>
                     <h3>{{ batch.title || `推荐批次 #${batch.batchId}` }}</h3>
                   </div>
                   <el-tag :type="batchLevelType(batch)" effect="plain">{{ batchLevelText(batch) }}</el-tag>
@@ -161,10 +166,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Briefcase, CircleCheck, Clock, Files, MagicStick } from '@element-plus/icons-vue'
+import { MagicStick } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import StatCard from '@/components/common/StatCard.vue'
 import TableShell from '@/components/common/TableShell.vue'
 import router from '@/router'
 import {
@@ -212,17 +216,6 @@ const filteredHistory = computed(() => {
     if (levelFilter.value === 'medium') return top >= 70 && top < 85
     return top < 70
   })
-})
-
-const batchStats = computed(() => {
-  const allItems = history.value.flatMap((batch) => batch.items || [])
-  const latest = history.value[0]?.createdAt
-  return {
-    total: history.value.length,
-    recommendedTotal: history.value.reduce((sum, item) => sum + Number(item.recommendedCount || 0), 0),
-    highCount: allItems.filter((item) => Number(item.recommendationScore || 0) >= 85).length,
-    latestText: latest ? formatDateTime(latest).slice(0, 10) : '-'
-  }
 })
 
 async function loadOptions() {
@@ -283,6 +276,7 @@ async function hydrateBatches(records: any[]) {
 }
 
 async function generateRecommendation() {
+  if (generating.value || optionsLoading.value || optionsErrorText.value || !resumes.value.length) return
   if (!form.resumeId) {
     ElMessage.warning('请选择简历')
     return
@@ -396,16 +390,60 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.recommendation-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
+:deep(.app-page-header) {
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+:deep(.app-page-title) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:deep(.app-page-title h1) {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+:deep(.app-page-title p) {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  :deep(.app-page-header) {
+    align-items: stretch;
+  }
+}
+
+.generator-panel h2,
+.history-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.history-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.history-heading span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.history-filters :deep(.filter-bar__filters) {
+  flex: 1 1 auto;
+}
+
+.history-filters :deep(.el-select) {
+  width: min(100%, 180px);
 }
 
 .recommendation-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -425,20 +463,19 @@ onMounted(() => {
   gap: 14px;
 }
 
-.batch-card-list {
-  display: grid;
-  gap: 14px;
+.recommendation-library :deep(.table-shell__content) {
+  padding: 0;
 }
 
 .batch-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.batch-card + .batch-card {
+  border-top: 1px solid var(--color-border);
 }
 
 .batch-heading {
@@ -446,12 +483,6 @@ onMounted(() => {
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
-}
-
-.eyebrow {
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .batch-heading h3 {
@@ -475,12 +506,12 @@ onMounted(() => {
 
 .preview-job {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--el-color-info-light-7);
-  border-radius: 8px;
-  background: var(--el-color-info-light-9);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
 }
 
 .preview-job strong,
@@ -551,36 +582,33 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
-.responsive-actions {
+.batch-card .responsive-actions {
   display: flex;
-  width: 132px;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.responsive-actions .el-button {
-  width: 100%;
+.batch-card .responsive-actions .el-button {
   margin-left: 0;
 }
 
 @media (max-width: 900px) {
-  .recommendation-summary-grid,
-  .recommendation-grid,
-  .batch-card {
-    grid-template-columns: 1fr;
+  .recommendation-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .generator-panel {
     position: static;
   }
 
-  .responsive-actions {
+  .history-filters :deep(.el-select) {
     width: 100%;
   }
+}
 
-  .preview-job,
-  .preview-job--error {
-    grid-template-columns: 1fr;
+@media (max-width: 520px) {
+  .preview-job {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .preview-job__signals {
@@ -588,20 +616,22 @@ onMounted(() => {
     text-align: left;
   }
 
+  .inline-error,
   .state-panel {
-    align-items: stretch;
+    align-items: flex-start;
     flex-direction: column;
   }
 }
 
-@media (max-width: 520px) {
-  .recommendation-summary-grid {
+@media (max-width: 640px) {
+  .history-filters :deep(.filter-bar__actions),
+  .batch-card .responsive-actions,
+  .generator-panel .form-grid.two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
   }
 
-  .batch-card {
-    padding: 14px;
+  .generator-panel :deep(.el-input-number) {
+    width: 100%;
   }
 }
 </style>

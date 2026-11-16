@@ -1,5 +1,5 @@
 <template>
-  <PageContainer :title="detail?.title || '推荐详情'" description="查看推荐分、推荐等级、匹配技能、风险提醒和下一步行动建议。">
+  <PageContainer :title="detail ? detail.title || '推荐批次 #' + detail.batchId : '推荐详情'">
     <template #actions>
       <el-button @click="router.push('/job-recommendations')">返回列表</el-button>
     </template>
@@ -9,7 +9,7 @@
       <el-skeleton :rows="10" animated />
     </section>
 
-    <section v-else-if="errorText" class="panel state-panel">
+    <section v-else-if="errorText" class="panel state-panel" role="alert">
       <el-result icon="error" title="推荐详情加载失败" :sub-title="errorText">
         <template #extra>
           <el-button type="primary" @click="loadDetail">重试</el-button>
@@ -19,28 +19,19 @@
     </section>
 
     <template v-else-if="detail">
-      <section class="detail-hero">
-        <div>
-          <span class="eyebrow">推荐结果看板</span>
-          <h2>{{ detail.title || `推荐批次 #${detail.batchId}` }}</h2>
-          <div class="hero-meta">
-            <span>{{ detail.recommendedCount || 0 }} 个推荐岗位</span>
-            <span>{{ detail.jobCount || 0 }} 个候选岗位</span>
-            <span>{{ detail.strategy || '综合推荐' }}</span>
-            <span>{{ formatDateTime(detail.createdAt) }}</span>
-          </div>
+      <section class="result-summary" aria-label="推荐批次摘要">
+        <div class="hero-meta">
+          <span>{{ detail.recommendedCount || 0 }} / {{ detail.jobCount || 0 }} 个候选岗位获推荐</span>
+          <span>{{ detail.strategy || '综合推荐' }}</span>
+          <span>{{ formatDateTime(detail.createdAt) }}</span>
         </div>
-        <div class="hero-stat">
-          <strong>{{ averageScore }}</strong>
-          <span>平均推荐分</span>
-        </div>
-      </section>
-
-      <section class="summary-grid">
-        <StatCard label="高推荐" :value="scoreStats.high" :icon="CircleCheck" />
-        <StatCard label="可尝试" :value="scoreStats.medium" :icon="TrendCharts" />
-        <StatCard label="低优先级" :value="scoreStats.low" :icon="Warning" />
-        <StatCard label="已投递" :value="scoreStats.applied" :icon="Briefcase" />
+        <dl class="result-metrics">
+          <div><dt>平均推荐分</dt><dd>{{ averageScore }}</dd></div>
+          <div><dt>高推荐</dt><dd>{{ scoreStats.high }}</dd></div>
+          <div><dt>可尝试</dt><dd>{{ scoreStats.medium }}</dd></div>
+          <div><dt>低优先级</dt><dd>{{ scoreStats.low }}</dd></div>
+          <div><dt>已投递</dt><dd>{{ scoreStats.applied }}</dd></div>
+        </dl>
       </section>
 
       <section v-loading="loading" class="recommendation-list">
@@ -53,20 +44,16 @@
         </AppEmpty>
 
         <article v-for="item in items" v-else :key="item.itemId" class="recommendation-card">
-          <div class="score-panel" :class="scoreClass(item.recommendationScore)">
-            <strong>{{ normalizedScore(item.recommendationScore) }}</strong>
-            <span>{{ levelLabel(item.recommendationLevel) }}</span>
-          </div>
-
           <div class="recommendation-main">
             <div class="card-head">
               <div>
                 <span class="company-name" :title="item.companyName || '未知公司'">{{ item.companyName || '未知公司' }}</span>
                 <h3>{{ item.jobTitle || '未知岗位' }}</h3>
+                <el-tag class="delivery-advice" :type="scoreTagType(item.recommendationScore)" effect="plain">{{ deliveryAdvice(item.recommendationScore) }}</el-tag>
               </div>
-              <div class="head-tags">
-                <el-tag :type="scoreTagType(item.recommendationScore)" effect="plain">{{ deliveryAdvice(item.recommendationScore) }}</el-tag>
-                <el-tag v-if="item.isApplied === 1" type="info" effect="plain">已投递</el-tag>
+              <div class="score-panel" :class="scoreClass(item.recommendationScore)">
+                <strong>{{ normalizedScore(item.recommendationScore) }}</strong>
+                <span>{{ levelLabel(item.recommendationLevel) }}</span>
               </div>
             </div>
 
@@ -116,14 +103,14 @@
               </AiInsightPanel>
             </div>
 
-            <section class="action-advice">
-              <strong>行动建议</strong>
+            <details class="action-advice">
+              <summary>行动建议</summary>
               <ol>
                 <li>根据风险提醒补齐简历关键词和项目描述。</li>
                 <li>投递前确认地点、实习周期、薪资和岗位职责。</li>
                 <li>进入 AI 分析或面试题页面准备针对性表达。</li>
               </ol>
-            </section>
+            </details>
 
             <div
               v-if="applicationError(item)"
@@ -176,12 +163,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Briefcase, CircleCheck, MagicStick, Plus, TrendCharts, Warning } from '@element-plus/icons-vue'
+import { MagicStick, Plus } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import AiInsightPanel from '@/components/common/AiInsightPanel.vue'
-import StatCard from '@/components/common/StatCard.vue'
 import router from '@/router'
 import { createApplicationApi } from '@/api/application'
 import { getJobRecommendationDetailApi } from '@/api/jobRecommendation'
@@ -353,80 +339,93 @@ onMounted(loadDetail)
 </script>
 
 <style scoped>
-.state-panel {
-  min-height: 360px;
+:deep(.app-page-header) {
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+:deep(.app-page-title) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:deep(.app-page-title h1) {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+:deep(.app-page-title p) {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  :deep(.app-page-header) {
+    align-items: stretch;
+  }
 }
 
 .detail-loading__label {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   color: var(--color-text-muted);
-  font-size: 14px;
 }
 
-.detail-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
-  padding: 22px 24px;
+.result-summary {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-}
-
-.eyebrow,
-.company-name {
-  display: block;
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.detail-hero h2,
-.card-head h3 {
-  margin: 6px 0 0;
+  background: var(--color-surface-muted);
 }
 
 .hero-meta,
 .job-meta,
-.head-tags,
 .tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .hero-meta,
-.job-meta {
-  margin-top: 12px;
-  color: var(--color-text-soft);
+.job-meta,
+.result-metrics dt {
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
-.hero-stat {
-  display: grid;
-  min-width: 128px;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--el-color-info-light-9);
-  color: var(--el-color-info-dark-2);
-  text-align: right;
+.result-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0 0;
 }
 
-.hero-stat strong {
-  font-size: 24px;
+.result-metrics div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 18px;
+.result-metrics dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.company-name {
+  display: block;
+  color: var(--color-primary-hover);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.card-head h3 {
+  margin: var(--space-1) 0 0;
+}
+
+.job-meta,
+.delivery-advice {
+  margin-top: var(--space-2);
 }
 
 .recommendation-list {
@@ -436,47 +435,46 @@ onMounted(loadDetail)
 
 .recommendation-card {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 18px;
+  gap: var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  overflow-wrap: anywhere;
 }
 
 .score-panel {
   display: grid;
-  min-height: 116px;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   place-items: center;
-  align-content: center;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 
 .score-panel.high {
-  background: #ecfdf3;
-  color: #047857;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
 }
 
 .score-panel.medium {
-  background: #fffbeb;
-  color: #b45309;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
 }
 
 .score-panel.low {
-  background: #f8fafc;
-  color: #475467;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
 .score-panel strong {
-  font-size: 34px;
+  font-size: 26px;
   line-height: 1;
 }
 
 .score-panel span {
-  margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -509,19 +507,19 @@ onMounted(loadDetail)
 }
 
 .action-advice {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: 8px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
 }
 
-.action-advice {
-  border: 1px solid #fde68a;
-  background: #fffbeb;
+.action-advice summary {
+  cursor: pointer;
+  font-weight: 700;
 }
 
-.action-advice strong {
-  display: block;
-  margin-bottom: 10px;
+.action-advice[open] summary {
+  margin-bottom: var(--space-2);
 }
 
 .action-advice ol {
@@ -555,36 +553,26 @@ onMounted(loadDetail)
 
 .card-actions {
   display: flex;
-  width: 132px;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .card-actions .el-button {
-  width: 100%;
   margin-left: 0;
 }
 
-@media (max-width: 900px) {
-  .detail-hero,
-  .card-head {
-    flex-direction: column;
-  }
-
-  .hero-stat {
-    width: 100%;
-    text-align: left;
-  }
-
-  .summary-grid,
-  .recommendation-card,
+@media (max-width: 640px) {
   .score-parts,
   .insight-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .card-actions {
-    width: 100%;
+  .recommendation-card .card-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recommendation-card .primary-next-action {
+    grid-column: 1 / -1;
   }
 }
 </style>

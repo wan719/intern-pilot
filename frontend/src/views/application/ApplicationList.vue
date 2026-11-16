@@ -1,15 +1,8 @@
 <template>
-  <PageContainer title="投递追踪" description="跟踪岗位投递进度、面试安排和结果反馈，沉淀完整求职流程。">
+  <PageContainer title="投递追踪" description="查看投递状态、面试安排和下一步跟进事项。">
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
     </template>
-
-    <div v-if="!listError" v-loading="loading" class="application-summary-grid">
-      <StatCard label="匹配投递总数" :value="totalApplications" :icon="Briefcase" />
-      <StatCard label="本页面试中" :value="applicationStats.interviewing" :icon="Calendar" />
-      <StatCard label="本页 Offer 数" :value="applicationStats.offer" :icon="CircleCheck" />
-      <StatCard label="本页待跟进" :value="applicationStats.followUp" :icon="Bell" />
-    </div>
 
     <section v-if="planState === 'LOADING'" class="panel flat" role="status">正在核对报告与已有投递计划…</section>
     <section v-if="planState === 'ERROR'" data-plan-error class="panel flat" role="alert">
@@ -24,7 +17,32 @@
       <el-button @click="cancelPlan">取消</el-button>
     </section>
 
-    <FilterBar @reset="resetQuery">
+    <section v-if="planState === 'READY' && planContext" data-plan-confirmation class="panel flat plan-panel" aria-label="加入待投递计划">
+      <h3>确认加入待投递计划</h3>
+      <p>请确认这份报告对应的岗位与简历。创建后状态为待投递，尚未向招聘平台投递。</p>
+      <p>岗位：{{ planContext.job?.companyName }} · {{ planContext.job?.jobTitle }}</p>
+      <p>简历：{{ planContext.resume?.resumeName }}</p>
+      <p>报告 ID：{{ planContext.reportId }}</p>
+      <el-form label-position="top">
+        <el-form-item label="优先级">
+          <el-select v-model="planPriority">
+            <el-option label="高" value="HIGH" />
+            <el-option label="中" value="MEDIUM" />
+            <el-option label="低" value="LOW" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注（最多 2000 字符）">
+          <el-input v-model="planNote" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <p v-if="planError" role="alert">{{ planError }}</p>
+      <div class="plan-actions responsive-actions">
+        <el-button @click="cancelPlan">取消</el-button>
+        <el-button type="primary" :loading="planSaving" @click="confirmPlan">确认加入待投递计划</el-button>
+      </div>
+    </section>
+
+    <FilterBar class="application-filters" @reset="resetQuery">
       <template #filters>
         <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="applyFilters" @clear="applyFilters" />
         <el-select v-model="query.status" aria-label="按投递状态筛选" placeholder="投递状态" clearable @clear="applyFilters">
@@ -41,23 +59,34 @@
       </template>
     </FilterBar>
 
-    <section v-loading="loading" class="application-board application-track" aria-label="投递进度列表">
-      <section v-if="listError" class="panel flat" role="alert">
+    <div class="tracking-heading">
+      <h2>投递记录</h2>
+      <span v-if="!loading && !listError" role="status">匹配投递总数 {{ totalApplications }}</span>
+    </div>
+    <dl v-if="!loading && !listError && applications.length" class="tracking-summary" aria-label="本页投递摘要">
+      <div><dt>本页面试中</dt><dd>{{ applicationStats.interviewing }}</dd></div>
+      <div><dt>Offer</dt><dd>{{ applicationStats.offer }}</dd></div>
+      <div><dt>待跟进</dt><dd>{{ applicationStats.followUp }}</dd></div>
+    </dl>
+
+    <section class="application-board application-track" aria-label="投递进度列表" :aria-busy="loading">
+      <div v-if="loading" role="status" class="panel flat">正在加载投递记录…</div>
+      <section v-else-if="listError" class="panel flat" role="alert">
         <p>加载投递记录失败，请重试。</p>
         <el-button @click="loadApplications()">重试</el-button>
       </section>
       <AppEmpty
-        v-else-if="!applications.length && !loading && hasAppliedFilters"
+        v-else-if="!applications.length && hasAppliedFilters"
         title="没有符合条件的投递记录"
         description="可以调整关键词、投递状态或优先级后重试。"
       >
         <el-button @click="resetQuery">清除筛选</el-button>
       </AppEmpty>
       <AppEmpty
-        v-else-if="!applications.length && !loading"
+        v-else-if="!applications.length"
         title="暂无投递记录"
         description="记录投递状态、面试时间和复盘内容"
-        hint="可以从岗位列表、岗位推荐或分析报告开始创建投递记录。"
+        hint="也可以从岗位推荐或分析报告加入待投递计划。"
       >
         <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
       </AppEmpty>
@@ -70,12 +99,6 @@
         role="group"
         :aria-label="`${item.companyName || '未知公司'} ${item.jobTitle || '未知岗位'}投递记录`"
       >
-        <div class="stage-panel" :class="stageClass(item.status)" :aria-label="`投递状态：${statusLabels[item.status] || item.status}`">
-          <el-icon data-application-status-icon aria-hidden="true"><component :is="stageIcon(item.status)" /></el-icon>
-          <strong>{{ stageLabel(item.status) }}</strong>
-          <span>{{ priorityLabel(item.priority) }}</span>
-        </div>
-
         <div class="application-main">
           <div class="application-heading">
             <div>
@@ -83,7 +106,10 @@
               <h3>{{ item.jobTitle || '未知岗位' }}</h3>
             </div>
             <div class="status-tags">
-              <el-tag :type="statusTypes[item.status] || 'info'" effect="plain">{{ statusLabels[item.status] || item.status }}</el-tag>
+              <span class="stage-panel" :class="stageClass(item.status)" :aria-label="`投递状态：${statusLabels[item.status] || item.status}`">
+                <el-icon data-application-status-icon aria-hidden="true"><component :is="stageIcon(item.status)" /></el-icon>
+                {{ statusLabels[item.status] || item.status }}
+              </span>
               <el-tag :type="priorityTagType(item.priority)" effect="plain">{{ priorityLabel(item.priority) }}</el-tag>
             </div>
           </div>
@@ -103,7 +129,7 @@
           <p class="application-note">{{ item.note || '暂无备注，可补充投递渠道、沟通记录或复盘要点。' }}</p>
         </div>
 
-        <div class="responsive-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
+        <div class="application-actions responsive-actions" role="group" :aria-label="`${item.companyName || '未知公司'}投递操作`">
           <el-button type="primary" @click="openDetail(item.applicationId)">详情</el-button>
           <el-button @click="openStatus(item)">改状态</el-button>
           <el-button @click="openPriority(item)">改优先级</el-button>
@@ -125,31 +151,6 @@
         @update:current-page="goToPage"
       />
     </nav>
-
-    <section v-if="planState === 'READY' && planContext" data-plan-confirmation class="panel flat" aria-label="加入待投递计划">
-        <h3>确认加入待投递计划</h3>
-        <p>请确认这份报告对应的岗位与简历。创建后状态为待投递，尚未向招聘平台投递。</p>
-        <p>岗位：{{ planContext.job?.companyName }} · {{ planContext.job?.jobTitle }}</p>
-        <p>简历：{{ planContext.resume?.resumeName }}</p>
-        <p>报告 ID：{{ planContext.reportId }}</p>
-        <el-form label-position="top">
-          <el-form-item label="优先级">
-            <el-select v-model="planPriority">
-              <el-option label="高" value="HIGH" />
-              <el-option label="中" value="MEDIUM" />
-              <el-option label="低" value="LOW" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="备注（最多 2000 字符）">
-            <el-input v-model="planNote" type="textarea" :rows="3" />
-          </el-form-item>
-        </el-form>
-        <p v-if="planError" role="alert">{{ planError }}</p>
-      <div class="responsive-actions">
-        <el-button @click="cancelPlan">取消</el-button>
-        <el-button type="primary" :loading="planSaving" @click="confirmPlan">确认加入待投递计划</el-button>
-      </div>
-    </section>
 
     <el-dialog v-model="createVisible" title="创建投递记录" :width="createDialogWidth">
       <el-form :model="createForm" label-position="top">
@@ -297,7 +298,6 @@ import { Bell, Briefcase, Calendar, CircleCheck, CircleClose, Plus } from '@elem
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import StatCard from '@/components/common/StatCard.vue'
 import { createApplicationApi, createApplicationFromReportApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, getApplicationPlanContextApi, updateApplicationNoteApi, updateApplicationStatusApi, updateApplicationPriorityApi, type ApplicationPriority, type ApplicationPlanContext } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
@@ -688,16 +688,6 @@ function priorityTagType(priority?: string) {
   return 'warning'
 }
 
-function stageLabel(status?: string) {
-  if (status === 'OFFER') return 'Offer'
-  if (['FIRST_INTERVIEW', 'SECOND_INTERVIEW', 'HR_INTERVIEW'].includes(status || '')) return '面试中'
-  if (status === 'WRITTEN_TEST') return '笔试中'
-  if (status === 'APPLIED') return '已投递'
-  if (status === 'TO_APPLY') return '待投递'
-  if (['REJECTED', 'GIVEN_UP'].includes(status || '')) return '已结束'
-  return '跟进中'
-}
-
 function stageClass(status?: string) {
   if (status === 'OFFER') return 'success'
   if (['WRITTEN_TEST', 'FIRST_INTERVIEW', 'SECOND_INTERVIEW', 'HR_INTERVIEW'].includes(status || '')) return 'warning'
@@ -756,45 +746,100 @@ onBeforeUnmount(() => {
   margin-block: 16px;
 }
 
-.application-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
+:deep(.app-page-header) {
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+:deep(.app-page-title) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:deep(.app-page-title h1) {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+:deep(.app-page-title p) {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  :deep(.app-page-header) {
+    align-items: stretch;
+  }
+}
+
+.tracking-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.tracking-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.tracking-heading span,
+.tracking-summary dt {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tracking-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.tracking-summary div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.tracking-summary dd {
+  margin: 0;
+  font-weight: 700;
 }
 
 .application-board {
   display: grid;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
-:deep(.filter-bar__filters) {
-  grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(160px, 0.75fr));
+.application-filters :deep(.filter-bar__filters) {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
 }
 
 .application-card {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 18px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  overflow-wrap: anywhere;
 }
 
 .stage-panel {
-  display: grid;
-  min-height: 116px;
-  place-items: center;
-  align-content: center;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.stage-panel .el-icon {
-  margin-bottom: 8px;
-  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .stage-panel.success { background: var(--el-color-success-light-9); color: var(--color-success); }
@@ -802,16 +847,6 @@ onBeforeUnmount(() => {
 .stage-panel.danger { background: var(--el-color-danger-light-9); color: var(--color-danger); }
 .stage-panel.primary { background: var(--color-primary-soft); color: var(--color-primary-hover); }
 .stage-panel.info { background: var(--color-surface-muted); color: var(--color-text-muted); }
-
-.stage-panel strong {
-  font-size: 20px;
-}
-
-.stage-panel span {
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 700;
-}
 
 .application-heading,
 .detail-hero,
@@ -847,14 +882,14 @@ onBeforeUnmount(() => {
 }
 
 .next-step {
-  padding: 12px;
-  border: 1px solid var(--el-color-info-light-7);
-  border-radius: 8px;
-  background: var(--el-color-info-light-9);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--color-primary-border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-surface-muted);
 }
 
 .next-step strong {
-  color: var(--el-color-info-dark-2);
+  color: var(--color-primary-hover);
 }
 
 .next-step p,
@@ -865,15 +900,24 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
-.responsive-actions {
-  display: flex;
-  width: 132px;
-  flex-direction: column;
-  gap: 8px;
+.plan-panel {
+  margin-bottom: var(--space-4);
+  overflow-wrap: anywhere;
 }
 
-.responsive-actions .el-button {
-  width: 100%;
+.plan-panel h3 {
+  margin-top: 0;
+}
+
+.application-actions,
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.application-actions .el-button,
+.plan-actions .el-button {
   margin-left: 0;
 }
 
@@ -914,16 +958,19 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 900px) {
-  .application-summary-grid,
-  .application-card,
-  .two-column {
-    grid-template-columns: 1fr;
+  .application-filters :deep(.filter-bar__filters) {
+    flex-basis: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .responsive-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
+  .application-filters :deep(.filter-bar__filters > :first-child) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .two-column {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .application-heading,
@@ -932,8 +979,13 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 
-  :deep(.filter-bar__filters) {
-    grid-template-columns: 1fr;
+  .application-filters :deep(.filter-bar__actions),
+  .application-card .application-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .application-actions > :first-child {
+    grid-column: 1 / -1;
   }
 }
 </style>

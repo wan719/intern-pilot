@@ -71,7 +71,10 @@ function button(wrapper: VueWrapper, label: string, index = 0) {
 async function mountPage() {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/job-recommendations', component: { template: '<div />' }, meta: { title: '岗位推荐' } }]
+    routes: [
+      { path: '/job-recommendations', component: { template: '<div />' }, meta: { title: '岗位推荐' } },
+      { path: '/resumes', component: { template: '<div />' } }
+    ]
   })
   await router.push('/job-recommendations')
   await router.isReady()
@@ -259,6 +262,18 @@ describe('job recommendation list redesign', () => {
     expect(preview.text()).toContain('证据：Vue')
     expect(preview.text()).toContain('风险：数据可视化')
     expect(preview.text()).toContain('状态：已投递')
+  })
+
+  it('clears a level filter that excludes all existing batches', async () => {
+    const wrapper = await mountPage()
+    ;(wrapper.vm as any).levelFilter = 'low'
+    await flushPromises()
+
+    expect(wrapper.get('.app-empty').text()).toContain('没有符合等级的推荐批次')
+    expect(wrapper.find('[data-recommendation-empty-action]').exists()).toBe(false)
+
+    await button(wrapper, '清除等级筛选').trigger('click')
+    expect(wrapper.find('.batch-card').exists()).toBe(true)
   })
 
   it('shows actionable empty, list failure and batch-preview failure states with retry', async () => {

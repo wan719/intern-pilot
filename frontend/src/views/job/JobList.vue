@@ -1,27 +1,25 @@
 <template>
-  <PageContainer title="锁定目标岗位" description="维护目标岗位 JD，用于 AI 匹配分析和投递跟踪。">
+  <PageContainer title="锁定目标岗位" description="按公司、岗位类型或地点查找目标岗位。">
     <template #actions>
       <el-button v-if="auth.hasPermission('analysis:read')" @click="viewRecommendations">查看岗位推荐</el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
     </template>
 
-    <div v-loading="loading" class="job-summary-grid">
-      <StatCard label="岗位总数" :value="jobStats.total" :icon="Briefcase" />
-      <StatCard label="公司数量" :value="jobStats.companyCount" :icon="OfficeBuilding" />
-      <StatCard label="完整 JD" :value="jobStats.completeJd" :icon="DocumentChecked" />
-      <StatCard label="待完善" :value="jobStats.incomplete" :icon="WarningFilled" />
-    </div>
-
-    <FilterBar @reset="resetQuery">
+    <FilterBar class="job-filters" @reset="resetQuery">
       <template #filters>
-        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable />
-        <el-input v-model="query.jobType" aria-label="岗位类型" placeholder="岗位类型" clearable />
-        <el-input v-model="query.location" aria-label="地点" placeholder="地点" clearable />
+        <el-input v-model="query.keyword" aria-label="搜索公司或岗位" placeholder="搜索公司或岗位" clearable @keyup.enter="loadJobs" />
+        <el-input v-model="query.jobType" aria-label="岗位类型" placeholder="岗位类型" clearable @keyup.enter="loadJobs" />
+        <el-input v-model="query.location" aria-label="地点" placeholder="地点" clearable @keyup.enter="loadJobs" />
       </template>
       <template #actions>
         <el-button type="primary" @click="loadJobs">搜索</el-button>
       </template>
     </FilterBar>
+
+    <div class="list-heading">
+      <h2>岗位库</h2>
+      <span v-if="!loading && !errorText" role="status">{{ jobs.length }} 个岗位</span>
+    </div>
 
     <section v-if="errorText" class="panel state-panel" role="alert">
       <div>
@@ -36,11 +34,12 @@
       class="job-library"
       :loading="loading"
       :empty="!jobs.length"
-      empty-title="还没有目标岗位"
-      empty-hint="新增岗位后即可用于 AI 匹配分析。建议填写公司、岗位、地点、薪资和完整 JD 内容。"
+      :empty-title="hasAppliedFilters ? '没有符合条件的岗位' : '还没有目标岗位'"
+      :empty-hint="hasAppliedFilters ? '调整公司、岗位类型或地点后重试。' : '新增岗位后即可用于 AI 匹配分析。'"
     >
       <template #empty-actions>
-        <el-button data-job-empty-action type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
+        <el-button v-if="hasAppliedFilters" @click="resetQuery">清除筛选</el-button>
+        <el-button v-else data-job-empty-action type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
       </template>
 
       <div class="job-card-list" aria-label="目标岗位列表">
@@ -178,12 +177,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Briefcase, DocumentChecked, MagicStick, OfficeBuilding, Plus, WarningFilled } from '@element-plus/icons-vue'
+import { MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import StatCard from '@/components/common/StatCard.vue'
 import TableShell from '@/components/common/TableShell.vue'
 import router from '@/router'
 import { createJobApi, deleteJobApi, getJobDetailApi, getJobListApi, updateJobApi } from '@/api/job'
@@ -220,29 +218,27 @@ const emptyForm = () => ({
 })
 const form = reactive(emptyForm())
 
-const jobStats = computed(() => {
-  const companyNames = new Set(jobs.value.map((item) => item.companyName).filter(Boolean))
-  const completeJd = jobs.value.filter((item) => item.jdContent && item.skillRequirements).length
-  return {
-    total: jobs.value.length,
-    companyCount: companyNames.size,
-    completeJd,
-    incomplete: jobs.value.length - completeJd
-  }
-})
+const hasAppliedFilters = ref(false)
+let jobLoadId = 0
 
 async function loadJobs() {
+  const loadId = ++jobLoadId
+  const filters = { ...query }
+  hasAppliedFilters.value = Object.values(filters).some((value) => value.trim() !== '')
   loading.value = true
   errorText.value = ''
   try {
-    const res: any = await getJobListApi({ ...query, pageNum: 1, pageSize: 100 })
-    const records = res.records || []
-    jobs.value = await hydrateJobDetails(records)
+    const res: any = await getJobListApi({ ...filters, pageNum: 1, pageSize: 100 })
+    if (loadId !== jobLoadId) return
+    const records = await hydrateJobDetails(res.records || [])
+    if (loadId === jobLoadId) jobs.value = records
   } catch (e: any) {
-    jobs.value = []
-    errorText.value = e?.message || e?.response?.data?.message || '请检查网络连接后重试。'
+    if (loadId === jobLoadId) {
+      jobs.value = []
+      errorText.value = e?.response?.data?.message || e?.message || '请检查网络连接后重试。'
+    }
   } finally {
-    loading.value = false
+    if (loadId === jobLoadId) loading.value = false
   }
 }
 
@@ -361,34 +357,72 @@ function skillTags(value?: string) {
 }
 
 onMounted(loadJobs)
+onBeforeUnmount(() => { jobLoadId += 1 })
 </script>
 
 <style scoped>
-.job-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
+:deep(.app-page-header) {
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
-.job-library {
-  margin-top: 18px;
+:deep(.app-page-title) {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.job-card-list {
+:deep(.app-page-title h1) {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+}
+
+:deep(.app-page-title p) {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  :deep(.app-page-header) {
+    align-items: stretch;
+  }
+}
+
+.job-filters :deep(.filter-bar__filters) {
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+}
+
+.list-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.list-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.list-heading span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.job-library :deep(.table-shell__content) {
+  padding: 0;
 }
 
 .job-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.job-card + .job-card {
+  border-top: 1px solid var(--color-border);
 }
 
 .job-card-heading {
@@ -396,6 +430,14 @@ onMounted(loadJobs)
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+.job-card-heading .el-tag {
+  flex-shrink: 0;
+  height: auto;
+  max-width: 40%;
+  padding-block: var(--space-1);
+  white-space: normal;
 }
 
 .company-name {
@@ -465,31 +507,55 @@ onMounted(loadJobs)
   font-size: 13px;
 }
 
-.responsive-actions {
+.job-card .responsive-actions {
   display: flex;
-  width: 132px;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.responsive-actions .el-button {
-  width: 100%;
+.job-card .responsive-actions .el-button {
   margin-left: 0;
 }
 
-@media (max-width: 900px) {
-  .job-summary-grid,
+@media (min-width: 1100px) {
   .job-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
 
-  .responsive-actions {
-    width: 100%;
+  .job-card .responsive-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .job-filters :deep(.filter-bar__filters) {
+    flex-basis: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .job-filters :deep(.filter-bar__filters > :first-child) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
   .state-panel {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  :deep(.app-page-actions),
+  .job-filters :deep(.filter-bar__actions),
+  .job-card .responsive-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :deep(.app-page-actions > :only-child) {
+    grid-column: 1 / -1;
   }
 }
 </style>
