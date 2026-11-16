@@ -167,7 +167,7 @@ describe('analysis match state and contract characterization', () => {
 
     expect((wrapper.vm as any).running).toBe(false)
     expect((wrapper.vm as any).task.taskNo).toBe('')
-    expect(wrapper.text()).toContain('等待发起 AI 匹配分析')
+    expect(wrapper.find('.progress-panel').exists()).toBe(false)
 
     await (wrapper.vm as any).startTask()
 

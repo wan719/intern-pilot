@@ -1,10 +1,10 @@
 <template>
-  <PageContainer title="" width="wide">
+  <PageContainer class="analysis-workspace" title="" width="wide">
     <template #hero>
       <PageHero
         eyebrow="AI 匹配分析"
         title="确认这次 AI 匹配"
-        description="按顺序选好简历与目标岗位，再确认输入。任务提交后可离开页面，进度会继续同步到 AI 任务中心。"
+        description="选择简历与目标岗位。提交后可以离开本页，在 AI 任务中心继续查看进度。"
       >
         <ol class="setup-sequence" aria-label="AI 匹配设置步骤">
           <li
@@ -40,6 +40,99 @@
         </ol>
       </PageHero>
     </template>
+
+    <section v-if="task.taskNo || restoringTask || submissionPending" class="panel progress-panel" aria-labelledby="analysis-progress-title">
+      <div class="panel-header">
+        <div>
+          <span class="section-eyebrow">异步任务</span>
+          <h2 id="analysis-progress-title">分析进度</h2>
+          <p>{{ task.taskNo ? `任务编号：${task.taskNo}` : '正在同步这次分析任务。' }}</p>
+        </div>
+        <StatusTag v-if="task.taskNo" :status="task.status" />
+      </div>
+
+      <template v-if="task.taskNo">
+        <div class="progress-overview" aria-live="polite">
+          <div class="progress-number" data-progress-percentage>{{ task.progress }}%</div>
+          <div>
+            <strong data-progress-stage>{{ task.errorMessage || task.message || currentStageText }}</strong>
+            <p>{{ currentStageText }}</p>
+          </div>
+        </div>
+
+        <el-progress
+          class="task-progress"
+          :percentage="task.progress"
+          :status="progressStatus"
+          :stroke-width="12"
+          :show-text="false"
+        />
+
+        <ol class="progress-steps" aria-label="分析处理阶段">
+          <li
+            v-for="(step, index) in progressSteps"
+            :key="step.title"
+            :class="{ active: index === activeStep, complete: index < activeStep || task.status === 'COMPLETED' }"
+            :aria-current="index === activeStep ? 'step' : undefined"
+          >
+            <span>{{ index + 1 }}</span>
+            <div>
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.description }}</small>
+              <span class="sr-only">{{ progressStepState(index) }}</span>
+            </div>
+          </li>
+        </ol>
+
+        <div v-if="running" class="connection-row">
+          <span data-connection-state :class="`connection-state connection-state--${connectionState}`">
+            {{ connectionText }}
+          </span>
+          <div class="connection-actions">
+            <el-button
+              v-if="connectionState === 'fallback'"
+              data-reconnect-action
+              :icon="Refresh"
+              :loading="reconnectPending"
+              :disabled="reconnectPending"
+              @click="retryConnection"
+            >
+              {{ reconnectPending ? '正在重新连接' : '重新连接' }}
+            </el-button>
+            <el-button data-open-task-center @click="aiTaskCenter.openDrawer()">在任务中心查看</el-button>
+          </div>
+        </div>
+
+        <div v-if="task.status === 'FAILED'" class="terminal-state terminal-state--failed" role="alert">
+          <div>
+            <strong>本次分析未完成</strong>
+            <p>{{ task.errorMessage || 'AI 分析失败，请检查输入后重试。' }}</p>
+          </div>
+          <el-button type="primary" :icon="Refresh" @click="startTask">重试分析</el-button>
+        </div>
+
+        <div v-if="task.status === 'COMPLETED'" class="terminal-state terminal-state--success">
+          <div>
+            <strong>匹配报告已生成</strong>
+            <p>报告 ID：{{ task.reportId || '-' }}。现在可以查看结论，或继续准备面试题。</p>
+          </div>
+          <div class="responsive-actions">
+            <el-button type="primary" @click="goReports">查看分析报告</el-button>
+            <el-button @click="goInterviewQuestions">生成面试题</el-button>
+          </div>
+        </div>
+      </template>
+
+      <div v-else-if="restoringTask" class="submitting-state" role="status" aria-live="polite" data-restore-state>
+        <el-skeleton :rows="3" animated />
+        <span>正在恢复上次分析任务，请稍候…</span>
+      </div>
+
+      <div v-else class="submitting-state" role="status" aria-live="polite">
+        <el-skeleton :rows="3" animated />
+        <span>正在提交分析任务，请稍候…</span>
+      </div>
+    </section>
 
     <section v-if="optionsError" class="inline-state inline-state--error" role="alert" data-options-error>
       <div>
@@ -220,109 +313,11 @@
       </section>
     </div>
 
-    <section class="panel progress-panel" aria-labelledby="analysis-progress-title">
-      <div class="panel-header">
-        <div>
-          <span class="section-eyebrow">异步任务</span>
-          <h2 id="analysis-progress-title">分析进度</h2>
-          <p>{{ task.taskNo ? `任务编号：${task.taskNo}` : '提交任务后会在这里显示实时进度。' }}</p>
-        </div>
-        <StatusTag v-if="task.taskNo" :status="task.status" />
-      </div>
-
-      <template v-if="task.taskNo">
-        <div class="progress-overview" aria-live="polite">
-          <div class="progress-number" data-progress-percentage>{{ task.progress }}%</div>
-          <div>
-            <strong data-progress-stage>{{ task.errorMessage || task.message || currentStageText }}</strong>
-            <p>{{ currentStageText }}</p>
-          </div>
-        </div>
-
-        <el-progress
-          class="task-progress"
-          :percentage="task.progress"
-          :status="progressStatus"
-          :stroke-width="12"
-          :show-text="false"
-        />
-
-        <ol class="progress-steps" aria-label="分析处理阶段">
-          <li
-            v-for="(step, index) in progressSteps"
-            :key="step.title"
-            :class="{ active: index === activeStep, complete: index < activeStep || task.status === 'COMPLETED' }"
-            :aria-current="index === activeStep ? 'step' : undefined"
-          >
-            <span>{{ index + 1 }}</span>
-            <div>
-              <strong>{{ step.title }}</strong>
-              <small>{{ step.description }}</small>
-              <span class="sr-only">{{ progressStepState(index) }}</span>
-            </div>
-          </li>
-        </ol>
-
-        <div v-if="running" class="connection-row">
-          <span data-connection-state :class="`connection-state connection-state--${connectionState}`">
-            {{ connectionText }}
-          </span>
-          <div class="connection-actions">
-            <el-button
-              v-if="connectionState === 'fallback'"
-              data-reconnect-action
-              :icon="Refresh"
-              :loading="reconnectPending"
-              :disabled="reconnectPending"
-              @click="retryConnection"
-            >
-              {{ reconnectPending ? '正在重新连接' : '重新连接' }}
-            </el-button>
-            <el-button data-open-task-center @click="aiTaskCenter.openDrawer()">在任务中心查看</el-button>
-          </div>
-        </div>
-
-        <div v-if="task.status === 'FAILED'" class="terminal-state terminal-state--failed" role="alert">
-          <div>
-            <strong>本次分析未完成</strong>
-            <p>{{ task.errorMessage || 'AI 分析失败，请检查输入后重试。' }}</p>
-          </div>
-          <el-button type="primary" :icon="Refresh" @click="startTask">重试分析</el-button>
-        </div>
-
-        <div v-if="task.status === 'COMPLETED'" class="terminal-state terminal-state--success">
-          <div>
-            <strong>匹配报告已生成</strong>
-            <p>报告 ID：{{ task.reportId || '-' }}。现在可以查看结论，或继续准备面试题。</p>
-          </div>
-          <div class="responsive-actions">
-            <el-button type="primary" @click="goReports">查看分析报告</el-button>
-            <el-button @click="goInterviewQuestions">生成面试题</el-button>
-          </div>
-        </div>
-      </template>
-
-      <div v-else-if="restoringTask" class="submitting-state" role="status" aria-live="polite" data-restore-state>
-        <el-skeleton :rows="3" animated />
-        <span>正在恢复上次分析任务，请稍候…</span>
-      </div>
-
-      <AppEmpty
-        v-else-if="!submissionPending"
-        title="等待发起 AI 匹配分析"
-        description="按上方三步确认输入，提交后会显示百分比、当前阶段和连接状态。"
-        hint="刷新页面不会重复提交正在处理的任务，系统会使用任务编号恢复进度。"
-      />
-
-      <div v-else class="submitting-state" role="status" aria-live="polite">
-        <el-skeleton :rows="3" animated />
-        <span>正在提交分析任务，请稍候…</span>
-      </div>
-    </section>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
+import '@/styles/analysis-workspace.css'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, MagicStick, Refresh, Warning } from '@element-plus/icons-vue'
@@ -1104,6 +1099,7 @@ onBeforeUnmount(() => {
 }
 
 .progress-panel {
+  margin-bottom: var(--space-5);
   margin-top: var(--space-5);
 }
 

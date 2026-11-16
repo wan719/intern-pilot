@@ -1,10 +1,10 @@
 <template>
-  <PageContainer title="" width="wide">
+  <PageContainer class="analysis-workspace" title="" width="wide">
     <template #hero>
       <PageHero
         eyebrow="AI 分析报告"
         title="把匹配结果变成下一步行动"
-        description="先看结论与风险，再决定投递、优化简历或进入面试准备。每份报告都保留生成时的岗位与简历上下文。"
+        description="比较匹配分、优势和风险，再选择投递、优化简历或准备面试。"
       >
         <template #actions>
           <el-button type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
@@ -12,16 +12,20 @@
       </PageHero>
     </template>
 
-    <div class="report-summary-grid">
-      <StatCard label="报告总数" :value="reportStats.total" :icon="Files" :loading="loading" />
-      <StatCard label="平均匹配分" :value="reportStats.avgScore" :icon="TrendCharts" :loading="loading" />
-      <StatCard label="高匹配岗位" :value="reportStats.highCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="最近分析" :value="reportStats.latestText" :icon="Clock" :loading="loading" />
-    </div>
+    <WorkspaceSummary
+      label="当前报告概览"
+      :loading="loading"
+      :metrics="[
+        { label: '报告总数', value: reportStats.total },
+        { label: '平均匹配分', value: reportStats.avgScore },
+        { label: '高匹配岗位', value: reportStats.highCount },
+        { label: '最近分析', value: reportStats.latestText }
+      ]"
+    />
 
     <FilterBar class="report-filter" @reset="resetQuery">
       <template #filters>
-        <el-segmented v-model="scoreFilter" :options="scoreFilterOptions" @change="applyScoreFilter" />
+        <el-segmented v-model="scoreFilter" aria-label="匹配分范围" :options="scoreFilterOptions" @change="applyScoreFilter" />
         <label class="score-input">
           <span>最低匹配分</span>
           <el-input-number v-model="query.minScore" :min="0" :max="100" placeholder="不限" />
@@ -236,8 +240,9 @@
 </template>
 
 <script setup lang="ts">
+import '@/styles/analysis-workspace.css'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { CircleCheck, Clock, Files, MagicStick, Printer, TrendCharts } from '@element-plus/icons-vue'
+import { MagicStick, Printer } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -245,7 +250,7 @@ import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import AiInsightPanel from '@/components/common/AiInsightPanel.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import StatCard from '@/components/common/StatCard.vue'
+import WorkspaceSummary from '@/components/ai/WorkspaceSummary.vue'
 import router from '@/router'
 import { deleteAnalysisReportApi, getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
 import { formatDateTime } from '@/utils/format'
@@ -488,13 +493,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.report-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-}
-
 .report-filter {
   margin-bottom: var(--space-5);
 }
@@ -532,6 +530,7 @@ onBeforeUnmount(() => {
 
 .report-card {
   display: grid;
+  align-items: start;
   grid-template-columns: 118px minmax(0, 1fr) 136px;
   gap: var(--space-5);
   min-width: 0;
@@ -555,7 +554,7 @@ onBeforeUnmount(() => {
 }
 
 .score-panel {
-  min-height: 124px;
+  min-height: 108px;
   padding: var(--space-3);
 }
 
@@ -759,10 +758,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1050px) {
-  .report-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .report-card {
     grid-template-columns: 104px minmax(0, 1fr);
   }
@@ -776,7 +771,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 700px) {
-  .report-summary-grid,
   .report-card,
   .report-meta,
   .insight-preview,

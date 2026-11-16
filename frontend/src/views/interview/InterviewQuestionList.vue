@@ -1,10 +1,10 @@
 <template>
-  <PageContainer title="练好下一场面试" width="wide">
+  <PageContainer class="analysis-workspace" title="练好下一场面试" width="wide">
     <template #hero>
       <PageHero
         eyebrow="求职旅程 · 面试准备"
         title="练好下一场面试"
-        description="用目标岗位的真实语境反复演练：先独立作答，再对照参考答案、关键要点和追问。"
+        description="按岗位查找题单，先独立作答，再看参考答案和追问。"
       >
         <template #actions>
           <el-button type="primary" :icon="Plus" :disabled="!canGenerate || generating" @click="openGenerate">
@@ -50,12 +50,16 @@
       <el-button data-generation-retry type="primary" plain @click="generate">重试生成</el-button>
     </div>
 
-    <div class="interview-summary-grid" :aria-busy="loading">
-      <StatCard label="准备题单" :value="reportStats.total" :icon="Files" :loading="loading" />
-      <StatCard label="练习题目" :value="reportStats.questionTotal" :icon="Tickets" :loading="loading" />
-      <StatCard label="目标岗位" :value="reportStats.jobCount" :icon="Briefcase" :loading="loading" />
-      <StatCard label="最近更新" :value="reportStats.latestText" :icon="Clock" :loading="loading" />
-    </div>
+    <WorkspaceSummary
+      label="当前题单概览"
+      :loading="loading"
+      :metrics="[
+        { label: '准备题单', value: reportStats.total },
+        { label: '练习题目', value: reportStats.questionTotal },
+        { label: '目标岗位', value: reportStats.jobCount },
+        { label: '最近更新', value: reportStats.latestText }
+      ]"
+    />
 
     <FilterBar @reset="resetQuery">
       <template #filters>
@@ -290,14 +294,15 @@
 </template>
 
 <script setup lang="ts">
+import '@/styles/analysis-workspace.css'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Briefcase, Clock, Files, Plus, Tickets } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
-import StatCard from '@/components/common/StatCard.vue'
+import WorkspaceSummary from '@/components/ai/WorkspaceSummary.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
 import router from '@/router'
 import { getAnalysisReportsApi } from '@/api/analysis'
@@ -825,7 +830,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.guide-alert, .dialog-alert, .generation-state, .interview-summary-grid, .filter-bar, .metadata-alert { margin-bottom: var(--space-5); }
+.guide-alert, .dialog-alert, .generation-state, .filter-bar, .metadata-alert { margin-bottom: var(--space-5); }
 .guide-actions, .generation-state, .queue-error, .preparation-card__heading, .preparation-card__actions { display: flex; }
 .guide-actions { gap: var(--space-2); margin-top: var(--space-3); }
 .generation-state, .queue-error {
@@ -839,7 +844,6 @@ onBeforeUnmount(() => {
   width: 12px; height: 12px; flex: 0 0 auto; border-radius: 50%; background: var(--color-primary);
   animation: generation-pulse 1.4s ease-in-out infinite;
 }
-.interview-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
 .queue-shell, .preparation-queue { display: grid; gap: var(--space-4); }
 .queue-loading, .queue-error { min-height: 180px; }
 .queue-loading > span { display: block; margin-bottom: var(--space-4); color: var(--color-text-muted); }
@@ -865,14 +869,13 @@ onBeforeUnmount(() => {
 @keyframes generation-pulse { 50% { opacity: 0.35; transform: scale(0.75); } }
 @media (prefers-reduced-motion: reduce) { .generation-state__pulse { animation: none; } }
 @media (max-width: 900px) {
-  .interview-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preparation-card { grid-template-columns: 1fr; }
   .preparation-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preparation-card__actions { flex-direction: row; flex-wrap: wrap; }
   .preparation-card__actions .el-button { width: auto; flex: 1 1 128px; }
 }
 @media (max-width: 600px) {
-  .interview-summary-grid, .preparation-facts, .switch-row { grid-template-columns: 1fr; }
+  .preparation-facts, .switch-row { grid-template-columns: 1fr; }
   .generation-state, .queue-error, .preparation-card__heading { align-items: stretch; flex-direction: column; }
   .preparation-card { padding: var(--space-4); }
   .pager { justify-content: flex-start; overflow-x: auto; }
