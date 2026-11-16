@@ -124,11 +124,28 @@ describe('shared admin page structure', () => {
     expect(wrapper.findComponent({ name: 'FilterBar' }).exists()).toBe(hasFilters)
     expect(wrapper.findComponent({ name: 'StatusTag' }).exists()).toBe(true)
     expect(wrapper.findAll('.admin-data-table')).toHaveLength(1)
-    expect(wrapper.get('.admin-data-table').attributes('style')).toContain('min-width')
+    const table = wrapper.get('.admin-data-table')
+    if (table.find('.el-scrollbar__wrap[tabindex="0"]').exists()) {
+      expect(table.attributes('style') ?? '').not.toContain('min-width')
+    } else {
+      expect(table.attributes('style')).toContain('min-width')
+    }
     expect(wrapper.find('.mobile-card-list').exists()).toBe(false)
     expect(wrapper.find('.feedback-mobile-list').exists()).toBe(false)
     const headerText = wrapper.get('.el-table__header-wrapper').text()
     for (const label of criticalColumns) expect(headerText).toContain(label)
+  })
+
+  it.each([
+    [AdminRoleList, '/admin/roles'],
+    [AdminPermissionList, '/admin/permissions'],
+    [AdminRagKnowledgeList, '/admin/rag-knowledge'],
+    [OperationLogList, '/admin/operation-logs'],
+    [AdminFeedbackList, '/admin/feedback']
+  ])('keeps the scrollable table area keyboard reachable for %s', async (component, path) => {
+    const wrapper = await mountAdminPage(component, path)
+    expect(wrapper.get('.admin-data-table').find('.el-scrollbar__wrap[tabindex="0"]').exists()).toBe(true)
+    expect(wrapper.get('.admin-table-scroll-hint').text()).toContain('横向滚动')
   })
 
   it('uses the existing summary response for shared metrics and semantic panels without creating a chart canvas', async () => {
