@@ -7,14 +7,15 @@ updated: 2026-11-16
 source_repo: wan719/intern-pilot
 source_branch: main
 source_commit: 1aabf181f2d4707272512694a56ce968e807da14
-verification: NOT_RUN
+verification: RESUMES_G2_LOCAL
+prototype_review: APPROVED_FOR_G2
 product_approval: NOT_RECORDED
 production_authorization: NONE
 ---
 
 # InternPilot 前端 UI 重设计｜需求与验收基线 V1.0
 
-> 本文回答**为什么改、为谁改、哪些业务行为必须保留，以及怎样验收**。**需求草案尚未获得产品签收，也未进行浏览器或自动化测试。** UI 库、Tailwind 引入、设计 Token 和实施顺序属于 [设计与实施方案](../design/frontend-ui-redesign-v1.md)；不得把候选技术方案当成产品需求。本轮不授予生产改动权限。
+> 本文记录重设计范围、业务约束和验收状态。用户已通过简历页原型评审，G2 的本地验证结果见下方矩阵。
 
 ## 一、背景、目标和使用者
 
@@ -64,24 +65,32 @@ P0 为每批交付适用的硬要求；P1 可在相应后续阶段验证，不�
 
 | 验收 ID | 需求映射 | 可检查的结果和方式 | 当前状态 |
 | --- | --- | --- | --- |
-| UI-01 | REQ-C01, REQ-N01 | `/resumes` 桌面与 375px 移动端可以找到“上传简历”，无功能性溢出；真实浏览器 | NOT_RUN |
-| UI-02 | REQ-C02, REQ-N03 | 加载/空/错误、解析成功/进行中/失败可辨认，错误可重试；状态模拟与浏览器 | NOT_RUN |
-| FUN-01 | REQ-C02 | 简历列表、详情、默认操作和版本跳转行为不变；`ResumeList.spec.ts` 加必要断言 | NOT_RUN |
-| FUN-02 | REQ-C03 | 上传 FormData 保持 `file` / `resumeName`，失败可重试，取消删除不会调用删除 API；回归测试 | NOT_RUN |
-| UX-01 | REQ-N02 | 主要交互可用键盘完成，弹窗 ESC/焦点返回可用；浏览器检查 | NOT_RUN |
-| UX-02 | REQ-X01, REQ-N04 | 样式改动不破坏独立打印页、后台表格、移动导航；跨页面检查 | NOT_RUN |
-| SEC-01 | REQ-A01, REQ-A02, REQ-X01 | 登录/401/403、路由守卫、RBAC 和后台按钮授权保持；权限测试及必要联调 | NOT_RUN |
-| ENG-01 | REQ-N04 | 在目标提交执行 `npm run test:run`、`npm run type-check`、`npm run build`，记录退出码/跳过项 | NOT_RUN |
-| ADM-01 | REQ-A01, REQ-A02 | `/admin/users` 筛选、分页、详情、角色与启禁用无回归；`AdminCrudPages.spec.ts` 和人工检查 | NOT_RUN |
+| UI-01 | REQ-C01, REQ-N01 | `/resumes` 桌面与 375px 移动端可以找到“上传简历”，无功能性溢出；真实浏览器 | PASS_LOCAL |
+| UI-02 | REQ-C02, REQ-N03 | 加载/空/错误、解析成功/进行中/失败可辨认，错误可重试；状态模拟与浏览器 | PASS_LOCAL |
+| FUN-01 | REQ-C02 | 简历列表、详情、默认操作和版本跳转行为不变；`ResumeList.spec.ts` 加必要断言 | PASS_LOCAL |
+| FUN-02 | REQ-C03 | 上传 FormData 保持 `file` / `resumeName`，失败可重试，取消删除不会调用删除 API；回归测试 | PASS_LOCAL |
+| UX-01 | REQ-N02 | 主要交互可用键盘完成，弹窗 ESC/焦点返回可用；浏览器检查 | PASS_LOCAL |
+| UX-02 | REQ-X01, REQ-N04 | 样式改动不破坏独立打印页、后台表格、移动导航；跨页面检查 | PASS_LOCAL |
+| SEC-01 | REQ-A01, REQ-A02, REQ-X01 | 登录/401/403、路由守卫、RBAC 和后台按钮授权保持；权限测试及必要联调 | PARTIAL |
+| ENG-01 | REQ-N04 | 在目标提交执行 `npm run test:run`、`npm run type-check`、`npm run build`，记录退出码/跳过项 | PASS_LOCAL |
+| ADM-01 | REQ-A01, REQ-A02 | `/admin/users` 筛选、分页、详情、角色与启禁用无回归；`AdminCrudPages.spec.ts` 和人工检查 | PARTIAL |
 
 每项验收在执行后记录 `repository/commit/environment/command/exit_code/evidence/result`。测试文件存在 ≠ 本次测试已通过；设计原型完成 ≠ 业务行为已通过。必要时可新增视觉对比、移动端和 E2E 测试，但不能把审批状态改写为测试 PASS。
 
+### 2026-11-16 G2 证据
+
+仓库 `wan719/intern-pilot`，G2 提交 `b6617ea8487a9f981b5a5d41f828e90cd25e7978`，Windows、Node `20.20.2`、npm `11.12.1`、Edge `157.0.4341.60`。命令、退出码及桌面和移动截图见[实现与本地验证](../design/frontend-ui-redesign-v1.md#11-resumes-g2-接入与验收)。
+
+- UI-01、UI-02、UX-01 由两种 Edge 视口的简历页交互验证覆盖。FUN-01、FUN-02 由简历组件测试和模拟 API 的浏览器交互覆盖。
+- UX-02 覆盖移动导航以及加载简历 CSS 后的后台样式和打印产物。ENG-01 覆盖锁文件复装、36 个文件和 318 个测试、类型检查以及单入口构建。
+- SEC-01 已检查无会话与模拟 401/403，后台权限的真实服务端联调待执行。ADM-01 已检查后台抽样布局及现有组件测试，浏览器分页和写操作联调待执行。
+
 ## 五、变更管理与待确认问题
 
-- **视觉评审**：仅以参考项目截图评判“相似”不够，需能说明页面的信息层次、操作可达性与失败恢复。产品评审尚未记录。
+- **视觉评审**：仅以参考项目截图评判“相似”不够，需能说明页面的信息层次、操作可达性与失败恢复。用户已通过简历页原型评审。
 - **新增能力**：从上传解析扩展到实时编辑/PDF 预览涉及新的编辑模型、保存、导出与兼容设计，明确排除出本轮；如用户决定新增，独立开 Feature。
 - **信息架构**：首批不改原有求职旅程路由的语义；以后若调整导航名称/分组，要列出新旧映射并更新验收。
-- **测试成本**：当前未采集前后对照截图、移动浏览器和性能指标；应先建立可复现的基线。
+- **测试成本**：已有简历页桌面与移动截图及跨页样式对照。性能数据待按后续页面范围采集。
 - **授权**：本文件是需求初稿，用户对 UI 原型的接受不自动授予生产访问、合并或发布授权。
 
 ## 六、关联文档和交接
@@ -89,4 +98,4 @@ P0 为每批交付适用的硬要求；P1 可在相应后续阶段验证，不�
 - **本文件：需求、范围与验收状态的单一维护点**。
 - [UI 重设计设计与实施方案](../design/frontend-ui-redesign-v1.md)：参考项目取舍、组件、Token、页面优先级、实施 Gate 与回退。
 - [前端现状与开发约定](../frontend.md)、[测试规范](../test.md)、[Git 规范](../git.md)：实施时的约束与操作入口。
-- 下一项合法动作是评审 `/resumes` 桌面与移动原型，形成静态/真实界面证据；候选 UI 组件的兼容性测试应在隔离分支完成，生产权限仍为 NONE。
+- 在隔离测试环境完成真实权限、上传和删除验证，并复核浏览器兼容性。

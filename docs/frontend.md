@@ -1,8 +1,8 @@
 # 前端技术框架与开发约定
 
-> **UI 重设计规划（尚未实施）**：C 端参考 Reactive Resume、后台参考 Art Design Pro 的方案与逐批验收边界见 [UI 重设计需求与验收](requirements/frontend-ui-redesign-requirements.md) 与 [UI 设计与实施方案](design/frontend-ui-redesign-v1.md)。本文描述当前已实现技术，规划不等于已经引入 Tailwind CSS 或 shadcn-vue。
+> **UI 重设计试点**已接入 `/resumes`。逐批验收范围见 [UI 重设计需求与验收](requirements/frontend-ui-redesign-requirements.md) 与 [UI 设计与实施方案](design/frontend-ui-redesign-v1.md)。
 
-`frontend/` 是 InternPilot 的单个 Vue 3 应用，使用同一套源码呈现桌面用户页面、移动端布局和管理后台。本文记录当前已实现的技术与开发约定；界面设计资料可用于理解历史意图，但实际行为以路由、组件、接口封装和实际验证结果为准。案例中的独立 H5/Web 工程、NFC、JetLinks、Nuxt UI、Tailwind CSS 与 pnpm 均不属于本项目现状。
+`frontend/` 是 InternPilot 的单个 Vue 3 应用，使用同一套源码呈现桌面用户页面、移动端布局和管理后台。本文记录当前已实现的技术与开发约定；界面设计资料可用于理解历史意图，但实际行为以路由、组件、接口封装和实际验证结果为准。案例中的独立 H5/Web 工程、NFC、JetLinks、Nuxt UI 与 pnpm 均不属于本项目现状。
 
 ## 技术选型
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 框架 | Vue 3 单页应用 | 单文件组件和组合式 API；入口在 [main.ts](../frontend/src/main.ts)。 |
 | 构建与语言 | Vite、TypeScript、`vue-tsc` | 开发服务、模块处理、类型检查和生产构建。 |
-| 组件与样式 | Element Plus、Sass | 表单、表格、弹窗及全局样式；`src/styles/` 维护设计 token 和组件覆盖。 |
+| 组件与样式 | Element Plus、Sass；简历试点使用 Tailwind CSS v4 与 shadcn-vue Button | Element Plus 负责表单、表格和弹窗。简历上传入口使用按路由加载的前缀样式。 |
 | 路由 | Vue Router | History 路由、登录检查和带权限标记的页面跳转。 |
 | 共享状态 | Pinia | 当前用户、AI 任务中心和反馈状态。 |
 | 接口请求 | Axios | 基础地址、Bearer token、超时、业务响应解包与通用错误提示。 |
@@ -99,7 +99,7 @@ token 目前由 [token.ts](../frontend/src/utils/token.ts) 存在浏览器 `loca
 ## 界面与状态约定
 
 - 新页面沿用 Vue 单文件组件和现有 `<script setup lang="ts">` 写法；接口数据定义 TypeScript 类型，页面内短暂状态用 Vue 响应式能力，跨页面共享状态再进入 Pinia。
-- 使用 Element Plus 和 `src/styles/` 的设计 token 维护颜色、间距与组件状态；不要把案例中的 Nuxt UI、Tailwind CSS 或 Soybean Admin 当作本仓库现有依赖。
+- 使用 Element Plus 和 `src/styles/` 的设计 token 维护颜色、间距与组件状态。`/resumes` 通过 `resume-utilities.css` 按路由加载 `ip:` utilities，扫描范围限简历页与 Button，关闭 Preflight。扩展时运行简历页到后台和打印页的 SPA 对比。
 - 用户端保持工作台、简历、岗位、分析、面试和投递的现有导航语义；管理端保持权限驱动的侧栏分组。调整导航时同时检查桌面、窄屏和直接访问路径。
 - 页面至少处理加载、空数据、失败和权限受限状态。表单、表格、抽屉、对话框、长文本与打印页面应分别检查键盘焦点、标签、窄屏滚动和触控可用性。
 - AI 任务中心在本地持久化部分任务展示状态；修改恢复逻辑时要区分浏览器保存的展示状态与后端权威任务状态，避免刷新后重复完成或丢失失败提示。
