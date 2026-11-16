@@ -206,6 +206,23 @@ describe('job opportunity redesign', () => {
     expect(wrapper.get('[data-job-jd="7"]').text()).toContain(longJd)
   })
 
+  it('distinguishes an empty search from an empty catalog and resets the applied filters', async () => {
+    const wrapper = await mountPage()
+    mockedList.mockResolvedValueOnce({ records: [] } as any)
+    await wrapper.get('input[aria-label="搜索公司或岗位"]').setValue('无匹配岗位')
+    await button(wrapper, '搜索').trigger('click')
+    await flushPromises()
+
+    expect(mockedList).toHaveBeenLastCalledWith({ keyword: '无匹配岗位', jobType: '', location: '', pageNum: 1, pageSize: 100 })
+    expect(wrapper.get('.app-empty').text()).toContain('没有符合条件的岗位')
+    expect(wrapper.find('[data-job-empty-action]').exists()).toBe(false)
+
+    await button(wrapper, '清除筛选').trigger('click')
+    await flushPromises()
+    expect(mockedList).toHaveBeenLastCalledWith({ keyword: '', jobType: '', location: '', pageNum: 1, pageSize: 100 })
+    expect(wrapper.get('.job-card').text()).toContain('前端实习生')
+  })
+
   it('renders an actionable empty state outside the list shell content', async () => {
     const wrapper = await mountPage([])
 
