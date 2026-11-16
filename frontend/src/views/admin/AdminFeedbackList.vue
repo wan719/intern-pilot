@@ -1,66 +1,68 @@
 <template>
   <PageContainer width="wide" title="用户反馈" description="查看、处理和回复用户在系统内提交的问题与建议。">
-    <div class="stat-grid compact-stats">
-      <StatCard label="反馈总数" :value="feedbacks.length" :icon="Message" :loading="loading" />
-      <StatCard label="待处理" :value="statusCount.PENDING" :icon="Warning" :loading="loading" />
-      <StatCard label="处理中" :value="statusCount.PROCESSING" :icon="Clock" :loading="loading" />
-      <StatCard label="已解决" :value="statusCount.RESOLVED" :icon="CircleCheck" :loading="loading" />
-    </div>
+    <AdminMetricGroup class="list-metrics" label="列表概览">
+      <StatCard label="反馈总数" :value="loadError ? '—' : feedbacks.length" :icon="Message" :loading="loading" />
+      <StatCard label="待处理" :value="loadError ? '—' : statusCount.PENDING" :icon="Warning" :loading="loading" />
+      <StatCard label="处理中" :value="loadError ? '—' : statusCount.PROCESSING" :icon="Clock" :loading="loading" />
+      <StatCard label="已解决" :value="loadError ? '—' : statusCount.RESOLVED" :icon="CircleCheck" :loading="loading" />
+    </AdminMetricGroup>
 
-    <FilterBar @reset="resetQuery">
-      <template #filters>
-        <el-select v-model="query.type" aria-label="反馈类型" placeholder="反馈类型" clearable>
-          <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-select v-model="query.status" aria-label="处理状态" placeholder="处理状态" clearable>
-          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-      </template>
-      <template #actions>
-        <el-button type="primary" :loading="loading" @click="loadData">筛选</el-button>
-      </template>
-    </FilterBar>
-
-    <TableShell
+    <AdminResultTable
+      label="反馈列表"
+      :rows="feedbacks"
       :loading="loading"
-      :empty="feedbacks.length === 0"
+      :error="loadError"
+      @retry="loadData"
       empty-title="暂无反馈"
       empty-hint="当前筛选条件下没有用户反馈；用户提交反馈后会显示在这里。"
     >
-      <el-table class="admin-data-table" style="min-width: 1360px" size="small" :data="feedbacks">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="反馈" min-width="280">
-          <template #default="{ row }"><div class="feedback-cell"><strong>{{ row.title }}</strong><span>{{ row.content }}</span></div></template>
-        </el-table-column>
-        <el-table-column label="类型" width="130">
-          <template #default="{ row }"><el-tag effect="plain">{{ typeLabel(row.type) }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="用户" min-width="180">
-          <template #default="{ row }"><div class="user-cell"><strong>{{ row.userName || `用户 #${row.userId}` }}</strong><span>{{ row.userEmail || '-' }}</span></div></template>
-        </el-table-column>
-        <el-table-column label="状态" width="110">
-          <template #default="{ row }"><StatusTag :status="row.status" :label="statusLabel(row.status)" size="small" /></template>
-        </el-table-column>
-        <el-table-column prop="pageUrl" label="页面路径" min-width="170" show-overflow-tooltip />
-        <el-table-column label="提交时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-            <el-button v-if="auth.hasPermission('feedback:write')" link type="warning" @click="openStatus(row)">状态</el-button>
-            <el-button v-if="auth.hasPermission('feedback:write')" link type="primary" @click="openReply(row)">回复</el-button>
-            <el-button
-              v-if="auth.hasPermission('feedback:delete')"
-              link
-              type="danger"
-              :loading="deletingIds.has(row.id)"
-              @click="remove(row)"
-            >删除</el-button>
+      <template #filters>
+        <FilterBar @reset="resetQuery">
+          <template #filters>
+            <el-select v-model="query.type" aria-label="反馈类型" placeholder="反馈类型" clearable>
+              <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+            <el-select v-model="query.status" aria-label="处理状态" placeholder="处理状态" clearable>
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
           </template>
-        </el-table-column>
-      </el-table>
-    </TableShell>
+          <template #actions>
+            <el-button type="primary" :loading="loading" @click="loadData">筛选</el-button>
+          </template>
+        </FilterBar>
+      </template>
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column label="反馈" min-width="280">
+        <template #default="{ row }"><div class="feedback-cell"><strong>{{ row.title }}</strong><span>{{ row.content }}</span></div></template>
+      </el-table-column>
+      <el-table-column label="类型" width="130">
+        <template #default="{ row }"><el-tag effect="plain">{{ typeLabel(row.type) }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="用户" min-width="180">
+        <template #default="{ row }"><div class="user-cell"><strong>{{ row.userName || `用户 #${row.userId}` }}</strong><span>{{ row.userEmail || '-' }}</span></div></template>
+      </el-table-column>
+      <el-table-column label="状态" width="110">
+        <template #default="{ row }"><StatusTag :status="row.status" :label="statusLabel(row.status)" size="small" /></template>
+      </el-table-column>
+      <el-table-column prop="pageUrl" label="页面路径" min-width="170" show-overflow-tooltip />
+      <el-table-column label="提交时间" width="170">
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="230" :fixed="isMobile ? false : 'right'">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+          <el-button v-if="auth.hasPermission('feedback:write')" link type="warning" @click="openStatus(row)">状态</el-button>
+          <el-button v-if="auth.hasPermission('feedback:write')" link type="primary" @click="openReply(row)">回复</el-button>
+          <el-button
+            v-if="auth.hasPermission('feedback:delete')"
+            link
+            type="danger"
+            :loading="deletingIds.has(row.id)"
+            @click="remove(row)"
+          >删除</el-button>
+        </template>
+      </el-table-column>
+    </AdminResultTable>
 
     <el-drawer v-model="detailVisible" title="反馈详情" :size="detailDrawerSize" class="feedback-detail-drawer">
       <div v-if="selected" class="detail-stack">
@@ -124,7 +126,8 @@ import FilterBar from '@/components/common/FilterBar.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
-import TableShell from '@/components/common/TableShell.vue'
+import AdminMetricGroup from './AdminMetricGroup.vue'
+import AdminResultTable from './AdminResultTable.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore, type Feedback, type FeedbackStatus } from '@/stores/feedback'
 import { formatDateTime } from '@/utils/format'
@@ -141,7 +144,7 @@ const saving = ref(false)
 const selected = ref<Feedback | null>(null)
 const writeTarget = ref<Feedback | null>(null)
 const deletingIds = ref(new Set<number>())
-const { responsiveDrawerSize, responsiveDialogWidth } = useResponsiveSize()
+const { isMobile, responsiveDrawerSize, responsiveDialogWidth } = useResponsiveSize()
 const detailDrawerSize = responsiveDrawerSize('48%')
 const dialogWidth = responsiveDialogWidth('560px')
 const statusFormRef = ref<FormInstance>()
@@ -154,6 +157,7 @@ const statusRules: FormRules = { status: [{ required: true, message: '请选择�
 const replyRules: FormRules = {
   reply: [{ required: true, whitespace: true, message: '请输入回复内容', trigger: 'blur' }]
 }
+const loadError = ref('')
 let active = true
 let queuedListParams: { type?: string; status?: string } | null = null
 let listFlight: Promise<void> | null = null
@@ -186,10 +190,11 @@ function loadData() {
     while (active && queuedListParams) {
       const params = queuedListParams
       queuedListParams = null
+      loadError.value = ''
       try {
         await store.fetchFeedbackList(params)
-      } catch (error: any) {
-        if (active) ElMessage.error(error?.message || '反馈列表加载失败，请稍后重试')
+      } catch {
+        if (active && !queuedListParams) loadError.value = '反馈列表加载失败'
       }
     }
   })().finally(() => { listFlight = null })
@@ -319,19 +324,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.compact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.list-metrics { margin-bottom: var(--space-4); }
 :deep(.filter-bar__filters .el-select) { width: min(240px, 100%); }
 .feedback-cell, .user-cell { display: grid; gap: 4px; }
 .feedback-cell span, .user-cell span { display: -webkit-box; overflow: hidden; color: var(--color-text-muted); font-size: 13px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .panel h2 { margin: 0; font-size: 16px; }
 .content { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
 
-@media (max-width: 900px) {
-  .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 @media (max-width: 640px) {
-  .compact-stats { grid-template-columns: 1fr; }
   :deep(.feedback-detail-drawer .el-drawer__header) { margin-bottom: 12px; padding: 16px 16px 10px; }
   :deep(.feedback-detail-drawer .el-drawer__body) { padding: 0 16px 16px; }
 }

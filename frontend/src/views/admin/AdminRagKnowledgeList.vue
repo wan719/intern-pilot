@@ -4,66 +4,68 @@
       <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
     </template>
 
-    <div class="stat-grid compact-stats">
-      <StatCard label="知识文档" :value="documents.length" :icon="Document" :loading="loading" />
-      <StatCard label="启用中" :value="enabledCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="停用" :value="disabledCount" :icon="Warning" :loading="loading" />
-      <StatCard label="文本切片" :value="chunkTotal" :icon="Files" :loading="loading" />
-    </div>
+    <AdminMetricGroup class="list-metrics" label="列表概览">
+      <StatCard label="知识文档" :value="loadError ? '—' : documents.length" :icon="Document" :loading="loading" />
+      <StatCard label="启用中" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
+      <StatCard label="停用" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
+      <StatCard label="文本切片" :value="loadError ? '—' : chunkTotal" :icon="Files" :loading="loading" />
+    </AdminMetricGroup>
 
-    <FilterBar @reset="resetQuery">
-      <template #filters>
-        <el-input v-model="query.direction" aria-label="岗位方向" placeholder="岗位方向，例如 Java 后端" clearable @keyup.enter="loadDocuments" />
-        <el-select v-model="query.knowledgeType" aria-label="知识类型" placeholder="知识类型" clearable>
-          <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-select v-model="query.enabled" aria-label="知识状态" placeholder="状态" clearable>
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
-        </el-select>
-      </template>
-      <template #actions>
-        <el-button type="primary" :loading="loading" @click="loadDocuments">筛选</el-button>
-        <el-button :icon="Search" @click="openSearch">测试检索</el-button>
-      </template>
-    </FilterBar>
-
-    <TableShell
+    <AdminResultTable
+      label="知识文档列表"
+      :rows="documents"
       :loading="loading"
-      :empty="documents.length === 0"
+      :error="loadError"
+      @retry="loadDocuments"
       empty-title="暂无 RAG 知识文档"
       empty-hint="维护岗位方向知识后，AI 分析可以引用更稳定的上下文。建议先添加技能要求、面试重点、简历优化建议或学习路线。"
     >
+      <template #filters>
+        <FilterBar @reset="resetQuery">
+          <template #filters>
+            <el-input v-model="query.direction" aria-label="岗位方向" placeholder="岗位方向，例如 Java 后端" clearable @keyup.enter="loadDocuments" />
+            <el-select v-model="query.knowledgeType" aria-label="知识类型" placeholder="知识类型" clearable>
+              <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+            <el-select v-model="query.enabled" aria-label="知识状态" placeholder="状态" clearable>
+              <el-option label="启用" :value="1" />
+              <el-option label="停用" :value="0" />
+            </el-select>
+          </template>
+          <template #actions>
+            <el-button type="primary" :loading="loading" @click="loadDocuments">筛选</el-button>
+            <el-button :icon="Search" @click="openSearch">测试检索</el-button>
+          </template>
+        </FilterBar>
+      </template>
       <template #empty-actions>
         <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
       </template>
-      <el-table class="admin-data-table" style="min-width: 1180px" size="small" :data="documents">
-        <el-table-column label="知识文档" min-width="270">
-          <template #default="{ row }">
-            <div class="doc-cell"><strong>{{ row.title }}</strong><span>{{ row.summary || '暂无摘要' }}</span></div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="direction" label="方向" width="150" show-overflow-tooltip />
-        <el-table-column label="类型" width="170">
-          <template #default="{ row }"><el-tag effect="plain">{{ typeLabel(row.knowledgeType) }}</el-tag></template>
-        </el-table-column>
-        <el-table-column prop="chunkCount" label="切片数" width="90" />
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }"><StatusTag :status="row.enabled" :label="row.enabled === 1 ? '启用' : '停用'" size="small" /></template>
-        </el-table-column>
-        <el-table-column label="更新时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.documentId)">详情</el-button>
-            <el-button v-if="canManage" link type="primary" @click="openEdit(row.documentId)">编辑</el-button>
-            <el-button v-if="canManage" link type="warning" :loading="pendingDocumentIds.has(row.documentId)" @click="rebuild(row)">重建</el-button>
-            <el-button v-if="canManage" link type="danger" :loading="pendingDocumentIds.has(row.documentId)" @click="remove(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </TableShell>
+      <el-table-column label="知识文档" min-width="248">
+        <template #default="{ row }">
+          <div class="doc-cell"><strong>{{ row.title }}</strong><span>{{ row.summary || '暂无摘要' }}</span></div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="direction" label="方向" width="140" show-overflow-tooltip />
+      <el-table-column label="类型" width="160">
+        <template #default="{ row }"><el-tag effect="plain">{{ typeLabel(row.knowledgeType) }}</el-tag></template>
+      </el-table-column>
+      <el-table-column prop="chunkCount" label="切片数" width="80" />
+      <el-table-column label="状态" width="80">
+        <template #default="{ row }"><StatusTag :status="row.enabled" :label="row.enabled === 1 ? '启用' : '停用'" size="small" /></template>
+      </el-table-column>
+      <el-table-column label="更新时间" width="160">
+        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="220" :fixed="isMobile ? false : 'right'">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row.documentId)">详情</el-button>
+          <el-button v-if="canManage" link type="primary" @click="openEdit(row.documentId)">编辑</el-button>
+          <el-button v-if="canManage" link type="warning" :loading="pendingDocumentIds.has(row.documentId)" @click="rebuild(row)">重建</el-button>
+          <el-button v-if="canManage" link type="danger" :loading="pendingDocumentIds.has(row.documentId)" @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </AdminResultTable>
 
     <el-dialog v-model="formVisible" :title="editingId ? '编辑知识文档' : '新增知识文档'" :width="formDialogWidth" @closed="formRef?.clearValidate()">
       <el-form ref="formRef" v-loading="editingLoading" :model="form" :rules="formRules" label-position="top">
@@ -160,7 +162,8 @@ import FilterBar from '@/components/common/FilterBar.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
-import TableShell from '@/components/common/TableShell.vue'
+import AdminMetricGroup from './AdminMetricGroup.vue'
+import AdminResultTable from './AdminResultTable.vue'
 import {
   createRagKnowledgeApi, deleteRagKnowledgeApi, getRagKnowledgeDetailApi, getRagKnowledgeListApi,
   rebuildRagKnowledgeApi, searchRagKnowledgeApi, updateRagKnowledgeApi
@@ -188,7 +191,7 @@ const detailLoading = ref(false)
 const formVisible = ref(false)
 const detailVisible = ref(false)
 const searchVisible = ref(false)
-const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const { isMobile, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
 const formDialogWidth = responsiveDialogWidth('760px')
 const searchDialogWidth = responsiveDialogWidth('760px')
 const detailDrawerSize = responsiveDrawerSize('52%')
@@ -207,6 +210,7 @@ const formRules: FormRules = {
   content: [{ required: true, message: '请输入知识内容', trigger: 'blur' }]
 }
 const searchRules: FormRules = { query: [{ required: true, message: '请输入检索内容', trigger: 'blur' }] }
+const loadError = ref('')
 let active = true
 let listRequestId = 0
 let editRequestId = 0
@@ -230,14 +234,15 @@ const enabledSwitch = computed({
 async function loadDocuments() {
   const requestId = ++listRequestId
   loading.value = true
+  loadError.value = ''
   try {
     const params = { ...query, pageNum: 1, pageSize: 100 }
     const res: any = await getRagKnowledgeListApi(params)
     if (active && requestId === listRequestId) documents.value = res.records || []
-  } catch (error: any) {
+  } catch {
     if (active && requestId === listRequestId) {
       documents.value = []
-      ElMessage.error(error?.message || 'RAG 知识库加载失败，请稍后重试')
+      loadError.value = 'RAG 知识库加载失败'
     }
   } finally {
     if (active && requestId === listRequestId) loading.value = false
@@ -440,7 +445,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.compact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.list-metrics { margin-bottom: var(--space-4); }
 :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: min(220px, 100%); }
 .doc-cell { display: grid; gap: 5px; }
 .doc-cell span { display: -webkit-box; overflow: hidden; color: var(--color-text-muted); font-size: 13px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -448,12 +453,4 @@ onBeforeUnmount(() => {
 .content-preview, .chunk-content { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
 .chunk-content { margin-bottom: var(--space-2); }
 .search-results { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
-
-@media (max-width: 900px) {
-  .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 520px) {
-  .compact-stats { grid-template-columns: 1fr; }
-}
 </style>

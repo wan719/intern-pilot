@@ -136,6 +136,18 @@ describe('shared admin page structure', () => {
     for (const label of criticalColumns) expect(headerText).toContain(label)
   })
 
+  it.each([
+    [AdminRoleList, '/admin/roles'],
+    [AdminPermissionList, '/admin/permissions'],
+    [AdminRagKnowledgeList, '/admin/rag-knowledge'],
+    [OperationLogList, '/admin/operation-logs'],
+    [AdminFeedbackList, '/admin/feedback']
+  ])('keeps the scrollable table area keyboard reachable for %s', async (component, path) => {
+    const wrapper = await mountAdminPage(component, path)
+    expect(wrapper.get('.admin-data-table').find('.el-scrollbar__wrap[tabindex="0"]').exists()).toBe(true)
+    expect(wrapper.get('.admin-table-scroll-hint').text()).toContain('横向滚动')
+  })
+
   it('uses the existing summary response for shared metrics and semantic panels without creating a chart canvas', async () => {
     const wrapper = await mountAdminPage(AdminDashboard, '/admin/dashboard')
 

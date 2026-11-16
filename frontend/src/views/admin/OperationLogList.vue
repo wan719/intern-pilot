@@ -1,84 +1,89 @@
 <template>
   <PageContainer width="wide" title="操作日志" description="查看系统关键操作、执行结果、请求来源和耗时，辅助定位后台风险。">
-    <div class="stat-grid compact-stats">
-      <StatCard label="当前结果总数" :value="total" :icon="Files" :loading="loading" />
-      <StatCard label="本页成功" :value="successCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="本页失败" :value="failureCount" :icon="Warning" :loading="loading" />
-      <StatCard label="平均耗时" :value="averageCostText" :icon="Clock" :loading="loading" />
-    </div>
+    <AdminMetricGroup class="list-metrics" label="列表概览">
+      <StatCard label="当前结果总数" :value="loadError ? '—' : total" :icon="Files" :loading="loading" />
+      <StatCard label="本页成功" :value="loadError ? '—' : successCount" :icon="CircleCheck" :loading="loading" />
+      <StatCard label="本页失败" :value="loadError ? '—' : failureCount" :icon="Warning" :loading="loading" />
+      <StatCard label="平均耗时" :value="loadError ? '—' : averageCostText" :icon="Clock" :loading="loading" />
+    </AdminMetricGroup>
 
-    <FilterBar @reset="resetQuery">
-      <template #filters>
-        <el-input v-model="query.module" aria-label="模块" placeholder="模块，例如 用户管理" clearable @keyup.enter="search" />
-        <el-select v-model="query.operationType" aria-label="操作类型" placeholder="操作类型" clearable>
-          <el-option label="新增" value="CREATE" /><el-option label="修改" value="UPDATE" />
-          <el-option label="删除" value="DELETE" /><el-option label="登录" value="LOGIN" />
-          <el-option label="上传" value="UPLOAD" /><el-option label="AI 操作" value="AI" />
-          <el-option label="授权" value="GRANT" />
-        </el-select>
-        <el-input v-model="query.username" aria-label="操作人" placeholder="操作人" clearable @keyup.enter="search" />
-        <el-select v-model="query.success" aria-label="执行结果" placeholder="结果" clearable>
-          <el-option label="成功" :value="1" /><el-option label="失败" :value="0" />
-        </el-select>
-      </template>
-      <template #actions>
-        <el-button type="primary" :loading="loading" @click="search">查询</el-button>
-      </template>
-    </FilterBar>
-
-    <TableShell
+    <AdminResultTable
+      label="操作日志列表"
+      :rows="logs"
       :loading="loading"
-      :empty="logs.length === 0"
+      :error="loadError"
+      @retry="loadList"
       empty-title="暂无操作日志"
       empty-hint="当前筛选条件下没有操作日志；可以重置筛选条件，或稍后在系统产生操作后再查看。"
     >
-      <el-table class="admin-data-table" style="min-width: 1540px" size="small" :data="logs">
-        <el-table-column prop="logId" label="ID" width="80" />
-        <el-table-column prop="operatorUsername" label="操作人" width="140" show-overflow-tooltip />
-        <el-table-column prop="module" label="模块" width="140" show-overflow-tooltip />
-        <el-table-column prop="operation" label="操作" min-width="180" show-overflow-tooltip />
-        <el-table-column label="类型" width="110">
-          <template #default="{ row }"><el-tag effect="plain">{{ operationTypeLabel(row.operationType) }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="请求" min-width="280" show-overflow-tooltip>
-          <template #default="{ row }"><span class="request-line">{{ row.requestMethod || '-' }} {{ row.requestUri || '-' }}</span></template>
-        </el-table-column>
-        <el-table-column label="结果" width="90">
-          <template #default="{ row }"><StatusTag :status="row.success === 1 ? 'SUCCESS' : 'FAILED'" :label="row.success === 1 ? '成功' : '失败'" size="small" /></template>
-        </el-table-column>
-        <el-table-column label="耗时" width="110">
-          <template #default="{ row }"><span :class="{ slow: Number(row.costTime || 0) >= 1000 }">{{ row.costTime || 0 }} ms</span></template>
-        </el-table-column>
-        <el-table-column label="时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.logId)">详情</el-button>
-            <el-button
-              v-if="hasPermission('operation-log:delete')"
-              link
-              type="danger"
-              :loading="pendingLogIds.has(row.logId)"
-              @click="removeLog(row)"
-            >删除</el-button>
+      <template #filters>
+        <FilterBar @reset="resetQuery">
+          <template #filters>
+            <el-input v-model="query.module" aria-label="模块" placeholder="模块，例如 用户管理" clearable @keyup.enter="search" />
+            <el-select v-model="query.operationType" aria-label="操作类型" placeholder="操作类型" clearable>
+              <el-option label="新增" value="CREATE" /><el-option label="修改" value="UPDATE" />
+              <el-option label="删除" value="DELETE" /><el-option label="登录" value="LOGIN" />
+              <el-option label="上传" value="UPLOAD" /><el-option label="AI 操作" value="AI" />
+              <el-option label="授权" value="GRANT" />
+            </el-select>
+            <el-input v-model="query.username" aria-label="操作人" placeholder="操作人" clearable @keyup.enter="search" />
+            <el-select v-model="query.success" aria-label="执行结果" placeholder="结果" clearable>
+              <el-option label="成功" :value="1" /><el-option label="失败" :value="0" />
+            </el-select>
           </template>
-        </el-table-column>
-      </el-table>
+          <template #actions>
+            <el-button type="primary" :loading="loading" @click="search">查询</el-button>
+          </template>
+        </FilterBar>
+      </template>
+      <el-table-column prop="logId" label="ID" width="80" />
+      <el-table-column prop="operatorUsername" label="操作人" width="140" show-overflow-tooltip />
+      <el-table-column prop="module" label="模块" width="140" show-overflow-tooltip />
+      <el-table-column prop="operation" label="操作" min-width="180" show-overflow-tooltip />
+      <el-table-column label="类型" width="110">
+        <template #default="{ row }"><el-tag effect="plain">{{ operationTypeLabel(row.operationType) }}</el-tag></template>
+      </el-table-column>
+      <el-table-column label="请求" min-width="280" show-overflow-tooltip>
+        <template #default="{ row }"><span class="request-line">{{ row.requestMethod || '-' }} {{ row.requestUri || '-' }}</span></template>
+      </el-table-column>
+      <el-table-column label="结果" width="90">
+        <template #default="{ row }"><StatusTag :status="row.success === 1 ? 'SUCCESS' : 'FAILED'" :label="row.success === 1 ? '成功' : '失败'" size="small" /></template>
+      </el-table-column>
+      <el-table-column label="耗时" width="110">
+        <template #default="{ row }"><span :class="{ slow: Number(row.costTime || 0) >= 1000 }">{{ row.costTime || 0 }} ms</span></template>
+      </el-table-column>
+      <el-table-column label="时间" width="170">
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="140" :fixed="isMobile ? false : 'right'">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row.logId)">详情</el-button>
+          <el-button
+            v-if="hasPermission('operation-log:delete')"
+            link
+            type="danger"
+            :loading="pendingLogIds.has(row.logId)"
+            @click="removeLog(row)"
+          >删除</el-button>
+        </template>
+      </el-table-column>
 
-      <el-pagination
-        v-if="total > 0"
-        class="pager"
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :current-page="query.pageNum"
-        :page-size="query.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
-    </TableShell>
+      <template #pagination>
+        <el-pagination
+          v-if="total > 0"
+          class="pager"
+          background
+          :layout="isMobile ? 'total, sizes, ->, prev, pager, next' : 'total, sizes, prev, pager, next'"
+          :pager-count="isMobile ? 5 : 7"
+          :total="total"
+          :current-page="query.pageNum"
+          :page-size="query.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </template>
+    </AdminResultTable>
 
     <el-drawer v-model="detailVisible" title="操作日志详情" :size="detailDrawerSize" @closed="invalidateDetail">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
@@ -122,7 +127,8 @@ import FilterBar from '@/components/common/FilterBar.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
-import TableShell from '@/components/common/TableShell.vue'
+import AdminMetricGroup from './AdminMetricGroup.vue'
+import AdminResultTable from './AdminResultTable.vue'
 import { deleteOperationLogApi, getOperationLogDetailApi, getOperationLogListApi } from '@/api/adminOperationLog'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
@@ -136,8 +142,9 @@ const detailLoading = ref(false)
 const detailVisible = ref(false)
 const detail = ref<any>(null)
 const pendingLogIds = ref(new Set<number>())
-const { responsiveDrawerSize } = useResponsiveSize()
+const { isMobile, responsiveDrawerSize } = useResponsiveSize()
 const detailDrawerSize = responsiveDrawerSize('54%')
+const loadError = ref('')
 let active = true
 let listRequestId = 0
 let detailRequestId = 0
@@ -155,16 +162,17 @@ const averageCostText = computed(() => {
 async function loadList() {
   const requestId = ++listRequestId
   loading.value = true
+  loadError.value = ''
   try {
     const res: any = await getOperationLogListApi({ ...query })
     if (!active || requestId !== listRequestId) return
     logs.value = res.records || []
     total.value = res.total || 0
-  } catch (error: any) {
+  } catch {
     if (!active || requestId !== listRequestId) return
     logs.value = []
     total.value = 0
-    ElMessage.error(error?.message || '操作日志加载失败，请稍后重试')
+    loadError.value = '操作日志加载失败'
   } finally {
     if (active && requestId === listRequestId) loading.value = false
   }
@@ -252,7 +260,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.compact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.list-metrics { margin-bottom: var(--space-4); }
 :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: min(200px, 100%); }
 .pager { justify-content: flex-end; padding: var(--space-3); border-top: 1px solid var(--color-border-soft); }
 .request-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
@@ -261,12 +269,16 @@ onBeforeUnmount(() => {
 .log-text { max-height: 260px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--color-text); line-height: 1.6; }
 .log-text.error { color: var(--color-danger); }
 
-@media (max-width: 900px) {
-  .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 @media (max-width: 520px) {
-  .compact-stats { grid-template-columns: 1fr; }
-  .pager { justify-content: flex-start; overflow-x: auto; }
+  .pager {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: var(--space-2);
+  }
+
+  .pager :deep(.el-pagination__rightwrapper) {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
 }
 </style>
