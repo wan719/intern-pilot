@@ -42,13 +42,16 @@ Thumbs.db
 .superpowers/
 .worktrees/
 
-# Keep only four public development guides under docs/. Design and operations
-# notes remain available locally after being removed from the Git index.
+# Keep local documentation ignored and allow reviewed pilot evidence.
 /docs/**
 !/docs/backend.md
 !/docs/frontend.md
 !/docs/git.md
 !/docs/test.md
+!/docs/design/
+!/docs/design/frontend-ui-resume-g2/
+!/docs/design/frontend-ui-resume-g2/resumes-1440.png
+!/docs/design/frontend-ui-resume-g2/resumes-375.png
 
 # Local test helper output
 /gradle_result.txt

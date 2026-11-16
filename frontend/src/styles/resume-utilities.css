@@ -1,0 +1,11 @@
+@layer theme, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(ip);
+@import "tailwindcss/utilities.css" layer(utilities) prefix(ip) source(none);
+@source "../views/resume/ResumeList.vue";
+@source "../components/ui/button";
+
+@theme inline {
+  --color-primary: var(--color-primary-hover);
+  --color-primary-foreground: #fff;
+  --color-ring: var(--color-primary-hover);
+}

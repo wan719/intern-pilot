@@ -7,27 +7,27 @@ updated: 2026-11-16
 source_repo: wan719/intern-pilot
 source_branch: main
 source_commit: 1aabf181f2d4707272512694a56ce968e807da14
-implementation: NOT_STARTED
-verification: STATIC_REVIEW_ONLY
+implementation: RESUMES_G2_IMPLEMENTED
+verification: RESUMES_G2_LOCAL_AND_REAL_BACKEND
 production_authorization: NONE
 ---
 
 # InternPilot 前端 UI 重设计｜设计与实施方案 V1.0
 
-> **本文件是设计与迁移方案，不是需求事实源或重构完成报告。** 需求、业务保持边界及验收编号统一参见[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md)。 本次只读取源码与公开参考，尚未执行依赖安装、前端测试、浏览器截图验证、PR 合并或生产部署。进入实现前必须刷新仓库 HEAD、检查实际工作区与锁文件。参照项目只供产品交互和设计语言借鉴，不表示 InternPilot 要迁移到 React 或复制对方代码、Logo、品牌和模板。
+> 需求、业务保持边界及验收编号见[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md)。2026-11-16 用户通过简历原型并批准 G2 接入。当前试点的实现和本地验证见[第 11 节](#11-resumes-g2-接入与验收)。
 
 ## 00. 决策摘要
 
 **设计输入**：以[需求文档](../requirements/frontend-ui-redesign-requirements.md)的 REQ-C01～C05、REQ-A01～A02、REQ-X01、REQ-N01～N05 为交付边界。本文件负责技术方案、具体页面布局与实施顺序；新增需求必须先更新需求文档。
 
-**推荐但尚待兼容性验证的技术方案：**
+**技术方案**
 - 继续使用 **Vue 3 + TypeScript + Vite** 的单一 `frontend/` 工程，保持现有 Vue Router、Pinia、Axios、ECharts、SockJS/STOMP。
 - **C 端**：目标采用 `shadcn-vue（基于 Reka UI 的可复制组件代码）+ Tailwind CSS v4` 做新设计组件；**先以一个页面隔离试点**，不立即删除页面中仍依赖的 Element Plus。
 - **管理后台**：继续采用 `Element Plus + 当前 Sass`，必要时仅使用受控的 Tailwind 布局 Utilities。借鉴 Art Design Pro 的后台布局和交互，不直接导入其整套后台工程。
 - **统一 Design Tokens**：在当前 `frontend/src/styles/tokens.scss` 基础上增加语义映射，统一品牌色、前景、背景、边框、状态、间距、圆角、动效与响应式断点。C 端和后台可有不同密度与表面层级，但不能有两套相互矛盾的业务状态色。
 - **暂不**：切换 React、拆成 C 端/后台两个部署应用、更换 npm 为 pnpm、统一重写所有 Sass、直接接入在线简历 WYSIWYG/PDF 排版引擎、改造后端 API 或生产部署。
 
-技术选型是当前方案，不等于依赖兼容性已实测通过。若 Tailwind v4 + shadcn-vue 与现有 Element Plus / Vite / Node 20 / 构建流程产生无法隔离的冲突，优先采用 **Element Plus + 现有 CSS Variables/Sass 实现 C 端视觉**作为回退，不为追求新库而扩大工程风险。
+组件试验支持为简历首批接入选择关闭 Preflight 的 Tailwind CSS v4 和 shadcn-vue Button。业务弹窗仍用 Element Plus。若后续出现无法隔离的跨页样式回归，使用 Element Plus 和局部 Sass 回退。
 
 ## 01. 只读源码核验基线
 
@@ -183,23 +183,23 @@ frontend/src/
 
 ## 08. 逐批实施与 Gate
 
-**G0｜只读准入（待执行）**
+**G0｜现有页面基线已采集**
 - 核对新 HEAD、工作区是否 clean、相关测试是否存在、当前 npm 依赖锁、Node 和目标浏览器范围。
 - 收集现有 `/resumes` 和 `/admin/users` 的桌面/窄屏界面基线，使用**合成、脱敏数据**；截图需要有可追溯的版本与环境。
 - 检查 C 端、后台共享样式的选择器和 `ElMessage` / `ElDrawer` / `ElDialog` 等 Teleport 行为。
 
-**G1｜设计准入（本文件是初稿）**
+**G1｜原型评审及隔离兼容性试验已完成**
 - 确认 C 端/后台各自的导航、字体、色彩、布局、动效、状态表达规范；完成 `/resumes` 的桌面和移动原型、关键状态列表。
 - 评估 Tailwind v4/shadcn-vue 的真实依赖兼容、构建增量、暗色/焦点/Portal 问题；失败可选纯 Element Plus + Sass 方案。
 - 明确何者是纯视觉改动，何者改变了交互或需求；后者添加明确的验收条件。
 
-**G2｜隔离实现与验证（未执行）**
+**G2｜简历列表已实现并完成本地验证**
 - 以独立分支从新 HEAD 出发；先最小化引入样式/Tokens，再只改 `/resumes`，保留上传、详情、版本、默认、删除和异常恢复。
 - 从 `frontend/` 运行 `npm ci`、受影响 Vitest、`npm run type-check`、`npm run build`；评估全套 `npm run test:run` 的回归覆盖。失败、跳过和未执行分别记录。
 - 桌面（例如 1440/1280）与移动（例如 375/768）在真实浏览器检查键盘、Tab 顺序、焦点返回、空/加载/错误、上传和取消。
 - 对受影响范围做视觉对比；检查前端 bundle 变化、主要交互响应与页面横向溢出（保留检查方法和版本，**不设无证据的收益数字**）。
 
-**G3｜独立 Review 与逐批交付（未执行）**
+**G3｜PR 评审及 CI 检查**
 - 重点 Review：REST/FormData 未变、登录/角色权限没回归、移动导航仍可用、AI 任务与 PDF 打印未被全局 CSS 破坏、敏感用户简历内容未流入样例或截图。
 - 逐批 PR、检查 CI 与当前提交 SHA，按 `docs/git.md` 完成 Review；只有验证和决策都充分才可合并。
 - 生产镜像、部署与回滚 **不在本计划的自动授权范围**；发布需要另行制定变更与回滚方案。
@@ -216,7 +216,7 @@ frontend/src/
 - 在 `frontend/` 内运行 `npm run test:run`、`npm run type-check`、`npm run build` 并留存 SHA、命令、环境及退出码，对应 ENG-01。
 - 浏览器验证桌面/375px 手机、键盘与焦点、Dialog、加载/空/错误、RBAC、删除确认和打印隔离，对应 UI-01/UI-02/UX-01/SEC-01。
 
-上述检查**当前均为 NOT_RUN**；已有测试文件并不证明本轮兼容性、构建或交互已经 PASS。
+本轮已执行项及剩余范围见[第 11 节](#11-resumes-g2-接入与验收)。
 
 ## 10. 待验证的技术方案与下一合法动作
 
@@ -225,4 +225,41 @@ frontend/src/
 - **组件方案**：shadcn-vue + Tailwind v4 是**候选架构**，只有隔离试点证明兼容后才升级为全站规范；失败优先回退已有 Element Plus/Sass。
 - **生产边界**：现有生产服务版本、备份和上线策略不由本设计文档声明；此处完全没有发布/生产执行授权。
 
-**下一步**：先执行 `G0` 的基线采集和 `G1` 的 `/resumes` 桌面 + 375px 移动设计原型，再小范围试验 Tailwind v4 与 shadcn-vue。不要先批量安装 UI 库或重做所有页面。
+简历 G2 的真实后端联调和 Firefox 冒烟已完成。进入 G3 时用第 12 节的证据评审试点改动及剩余验收范围。
+
+## 11. /resumes G2 接入与验收
+
+### 实现范围
+
+- 在 `codex/frontend-ui-resumes` 从 `b2d17660de6a93eefad3be2715a51937fcdcd626` 接入已评审的布局。验证对象为本分支的 G2 提交 `b6617ea8487a9f981b5a5d41f828e90cd25e7978`。工作区保留单一简历列表 DOM，在 940px 及以下呈现卡片。页首保留上传与默认简历摘要，列表行保留名称、原文件名、类型、大小、解析状态、默认标记和上传时间。
+- G1 对比试验证实完整 Preflight 会改变旧页面标题字重和打印项目符号。G2 仅引入 Tailwind v4.3.5 的 theme 与 utilities，扫描范围为简历页和 Button。样式随路由加载，utility 使用 `ip:` 前缀。生成的主题变量和 Tailwind 属性声明仍可能随 CSS 留在文档内，跨页 SPA 回归以浏览器验证为准。
+- shadcn-vue Button 用于上传入口，包含源代码许可。初批采用 Element Plus 的「更多」菜单、上传、详情抽屉和删除确认。上传失败时保留文件和名称并显示重试提示，成功后清理文件队列。列表、版本路由、上传字段、会话及权限沿用既有契约。
+
+### 证据与复现
+
+- [1440×960 桌面截图](frontend-ui-resume-g2/resumes-1440.png) · [375×812 移动截图](frontend-ui-resume-g2/resumes-375.png)。使用合成 API 数据，移动截图包含整页长名称示例，底栏固定在首个视口底部。
+- Windows / Node `20.20.2` / npm `11.12.1` / Edge `157.0.4341.60`。在本分支的 `frontend/` 使用 `npm ci --offline --no-audit --no-fund`、`npm run test:run -- --reporter=dot`、`npm run type-check`、`npm run build`。命令均退出 `0`。Vitest 共 36 个文件、318 例通过，无跳过。生产构建只有 `dist/index.html` 一个 HTML 入口。Element Plus 分包仍有 Vite 的 500 kB 告警。
+- 在 `frontend/` 执行 `npm run preview -- --host 127.0.0.1 --port 5184 --strictPort`。另开 PowerShell，将 `INTERNPILOT_PLAYWRIGHT` 设为临时安装的 `playwright-core@1.65.1` 模块绝对路径，并保证 `pdfinfo`、`pdftoppm` 在 PATH 中。用 Node 20 执行 [浏览器脚本](../../frontend/scripts/check-resume-g2.cjs)，退出 `0`，结果写入 `frontend/dist/resume-g2-evidence/`。
+- 两种视口覆盖加载、空列表、读取失败重试、四种解析状态、长名称、上传失败保留文件并成功重试、菜单键盘操作、删除取消、弹窗焦点与滚动锁、无会话及 401/403。额外核对 940px/941px 的卡片和列表切换。后台和打印各对比直接访问与加载简历 CSS 后的同会话 SPA 导航。后台抽样样式一致，打印项目符号保留且两页 A4 的逐页像素一致。
+- 第 11 节的浏览器证据来自模拟接口。真实服务端联调和 Firefox 结果见第 12 节。若本批需要回退，仅回退 G2 接入改动和试点依赖，数据及部署配置无迁移步骤。
+
+## 12. G2 真实后端联调与 Firefox 冒烟
+
+2026-11-16 在 `codex/frontend-ui-resumes` 的 `94ecffbb6a6dc5813ecd2c06fc1a84bcad389ee6` 上完成。本轮为本地 Windows 联调，使用独立的 MySQL 8.0.43、Redis 5.0.14.1、Temurin JDK 17.0.18、Node 20.20.2、Playwright Core 1.65.1。后端用真实 Spring Boot、权限校验、解析器、数据库和文件存储。验证码与 AI 使用 test profile 的 mock，实现浏览器测试所需的合成注册与报告数据。
+
+| 场景 | 实际证据 |
+| --- | --- |
+| Edge 157.0.4341.60，1440×960 | PDF 和 DOCX 的上传均返回 HTTP 200 / 业务 200，详情展示合成解析文本。首份简历自动默认，第二份设为默认后刷新仍生效，并能从页面进入原始版本。 |
+| 解析失败与恢复 | 不可解析 PDF 返回 HTTP 200 / 业务 700，页面保留文件并显示重试提示，列表未产生失败记录。移除错误文件并选择合成 DOCX 后上传成功。 |
+| 删除 | 取消后浏览器未发 DELETE，刷新后保留记录。确认返回 HTTP 200 / 业务 200，删除后详情返回 HTTP 200 / 业务 400，另一份简历仍保留并为默认。 |
+| 会话与角色权限 | 无会话访问简历页面跳转登录，直接读取 API 返回 HTTP 401 / 业务 401。普通账号访问管理列表 API 返回 HTTP 403 / 业务 403。隔离测试库的合成管理员读取该列表成功。 |
+| 账号归属 | B 的列表没有 A 的两份简历；B 请求 A 的简历详情、设默认和删除均返回 HTTP 200 / 业务 400，响应没有业务数据。A 的列表和默认状态与操作前一致。 |
+| Firefox 159.0，375×812 | 简历卡片、底部导航、更多菜单键盘操作、上传弹窗焦点返回及滚动释放通过。加载简历 CSS 后经同一 SPA 会话进入后台，抽样表格布局与直接访问一致。用 mock AI 产出的真实持久化报告检查打印媒体，保留列表圆点，隐藏操作栏，内容为黑色。 |
+
+### 执行记录
+
+- 在新临时目录运行 `mysqld --defaults-file=<临时目录>/mysql.ini --initialize-insecure`，随后用同一配置启动 MySQL；Redis 用 `redis-server <临时目录>/redis.conf` 启动。MySQL 客户端通过 `--protocol=TCP --host=127.0.0.1 --port=13316` 执行 `source backend/src/main/resources/sql/init.sql`，初始化退出 `0`，确认初始简历数为零。
+- 在 `backend/` 执行 `.gradlew.bat bootJar --no-daemon`，退出 `0`。以 `java -jar <bootJar> --spring.profiles.active=dev,test --spring.config.additional-location=file:<临时目录>/application-real.properties` 启动，显式配置本轮 MySQL、Redis、独立上传目录及临时 JWT 密钥。MySQL、Redis、后端、前端监听 `127.0.0.1:13316/16389/18080/15173`。后端 `/actuator/health` 返回 `UP`，数据库与 Redis 组件均为 `UP`。
+- 在 `frontend/` 设置 `VITE_API_BASE_URL=http://127.0.0.1:15173` 后使用 Node 20 执行 `npm run build`，退出 `0`。以 `vite preview --config <临时目录>/preview.config.mjs` 启动，`/api`、`/uploads`、`/ws` 代理到本轮后端。
+- Playwright Core CLI 的 `install firefox` 退出 `0`。在本轮临时目录执行 `npm exec --yes --package=node@20.20.2 -- node check-real.cjs`，退出 `0`。本机 `$env:TEMP/internpilot-g2-real-94ecffb/evidence/` 保留脱敏的 `real-results.json`，以及 `edge-resumes-real.png`、`firefox-resumes-real-375.png`、`firefox-print-media-375.png` 和 `firefox-admin-after-resumes-375.png`。回执仅包含测试名称、HTTP／业务码及浏览器版本；截图使用合成数据。
+- 已停止四个本轮监听。后台分页和写操作、Firefox 实体打印或 PDF 输出、Redis 7 兼容及生产验收仍待验证。前端全量测试、CI 和 PR 状态沿用各自的独立证据，本次执行范围是构建与联调。
