@@ -43,15 +43,16 @@ flowchart LR
     Backend[InternPilot 后端]
     Data[(MySQL、Redis、上传文件)]
     External[AI、邮件和短信服务]
-    Browser -->|/api、/uploads；部署时还有 /ws| Proxy
-    Browser -->|开发时 SockJS 默认直连 /ws/analysis| Backend
+    Browser -->|/api、/uploads；本机 18082 联调或部署时还有 /ws| Proxy
+    Browser -->|普通开发模式下 SockJS 默认直连 /ws/analysis| Backend
     Proxy --> Backend
     Backend --> Data
     Backend --> External
 ```
 
 - 浏览器调用 InternPilot 后端处理业务；鉴权、数据归属和状态转换由后端最终确认。前端不连接数据库，也不持有 AI、邮件或短信服务的私密凭据。
-- [vite.config.ts](../frontend/vite.config.ts) 在开发时使用 5173 端口，将 `/api`、`/uploads` 代理到本机 8080 后端；它没有配置 `/ws` 代理。[analysisSocket.ts](../frontend/src/utils/analysisSocket.ts) 默认直接连接 `http://localhost:8080/ws/analysis`，或使用配置的 `VITE_API_BASE_URL`。`npm run dev` 允许本机网络访问，开发时应留意所处网络环境。
+- [vite.config.ts](../frontend/vite.config.ts) 的 `npm run dev` 使用 5173 端口，将 `/api`、`/uploads` 代理到本机 8080 后端。[analysisSocket.ts](../frontend/src/utils/analysisSocket.ts) 默认连接 `http://localhost:8080/ws/analysis`，也可通过 `VITE_API_BASE_URL` 配置。`npm run dev` 允许本机网络访问，开发时应留意所处网络环境。
+- 本机已有后端运行在 `127.0.0.1:18082` 时，从 `frontend/` 运行 `npm run dev:local`。该模式仅监听 `127.0.0.1:5173`，端口占用时直接报错，`/api`、`/uploads`、`/actuator` 和 SockJS 的 `/ws` 都通过同源代理访问本机后端。日常修改 Vue 组件和样式由 Vite 热更新。
 - 部署镜像使用 [nginx.conf](../frontend/nginx.conf) 提供静态文件、History 路由回退，并代理 `/api/`、`/uploads/`、`/ws/` 等路径。开发代理和生产代理不是同一配置；联调和部署分别核对。
 - AI 进度使用现有 SockJS/STOMP 工具和任务中心状态。修改长任务页面时，要检查断线、重复通知、页面刷新、取消和失败恢复；任务是否完成以服务端结果为准。
 

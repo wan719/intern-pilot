@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:local": "vite --mode local-infra",
     "test": "vitest",
     "test:run": "vitest run",
     "build": "vue-tsc -b && vite build",

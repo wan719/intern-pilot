@@ -17,7 +17,10 @@ export function createAnalysisSocket(
   onMessage: (message: AnalysisProgressMessage) => void,
   onError?: (error: any) => void
 ) {
-  const socketUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws/analysis`
+  const socketBase = import.meta.env.VITE_LOCAL_INFRA
+    ? window.location.origin
+    : import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  const socketUrl = `${socketBase}/ws/analysis`
 
   const client = new Client({
     webSocketFactory: () => new SockJS(socketUrl),
