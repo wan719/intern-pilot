@@ -5,6 +5,7 @@ import com.internpilot.audit.annotation.OperationLog;
 import com.internpilot.common.PageResult;
 import com.internpilot.common.Result;
 import com.internpilot.audit.enums.OperationTypeEnum;
+import com.internpilot.resume.service.ResumeOriginalFile;
 import com.internpilot.resume.service.ResumeService;
 import com.internpilot.resume.vo.ResumeDetailResponse;
 import com.internpilot.resume.vo.ResumeListResponse;
@@ -12,6 +13,12 @@ import com.internpilot.resume.vo.ResumeUploadResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.charset.StandardCharsets;
 
 @Tag(name = "简历管理接")
 @RestController
@@ -56,6 +65,41 @@ public class ResumeController {
     @GetMapping("/{id}")
     public Result<ResumeDetailResponse> getDetail(@PathVariable Long id) {
         return Result.success(resumeService.getDetail(id));
+    }
+
+    @Operation(summary = "读取本人上传的简历原件")
+    @PreAuthorize("hasAuthority('resume:read')")
+    @GetMapping("/{id}/file")
+    public ResponseEntity<Resource> getOriginal(@PathVariable Long id) {
+        return resumeService.findOriginal(id)
+                .map(this::originalResponse)
+                .orElseGet(() -> ResponseEntity.notFound().header(HttpHeaders.CACHE_CONTROL, "private, no-store").build());
+    }
+
+    private ResponseEntity<Resource> originalResponse(ResumeOriginalFile original) {
+        MediaType mediaType = switch (original.type()) {
+            case PDF -> MediaType.APPLICATION_PDF;
+            case DOCX -> MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        };
+        String name = safeDownloadName(original.originalName(), original.type().getExtension());
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(name, StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(new FileSystemResource(original.path()));
+    }
+
+    private String safeDownloadName(String name, String extension) {
+        if (name != null) {
+            String basename = name.replace('\\', '/');
+            basename = basename.substring(basename.lastIndexOf('/') + 1).replaceAll("\\p{Cntrl}", "").strip();
+            if (!basename.isEmpty() && !basename.equals(".") && !basename.equals("..")) {
+                return basename;
+            }
+        }
+        return "resume." + extension;
     }
 
     @Operation(summary = "删除简", description = "逻辑删除当前用户的简")

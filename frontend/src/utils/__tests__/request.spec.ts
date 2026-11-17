@@ -78,6 +78,16 @@ describe('request error presentation', () => {
     expect(ElMessage.error).not.toHaveBeenCalled()
   })
 
+  it('passes authenticated Blob responses through without unwrapping JSON', async () => {
+    setToken('file-reader')
+    const file = new Blob(['%PDF'], { type: 'application/pdf' })
+    request.defaults.adapter = async (config) => {
+      expect(config.headers.Authorization).toBe('Bearer file-reader')
+      return { config, data: file, headers: { 'content-type': 'application/pdf' }, status: 200, statusText: 'OK' }
+    }
+    await expect(request.get('/api/resumes/7/file', { responseType: 'blob', silentError: true })).resolves.toBe(file)
+  })
+
   it('still redirects an expired current session to login', async () => {
     const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
     setToken('expired-session')

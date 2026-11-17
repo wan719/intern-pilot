@@ -120,7 +120,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="简历详情" :size="detailDrawerSize" @close="closeDetail">
+    <el-drawer :model-value="detailVisible" title="简历详情" :size="detailDrawerSize" :before-close="closeDetail">
       <div v-if="detail" class="detail-stack">
         <section class="panel flat">
           <div class="panel-header">
@@ -129,7 +129,7 @@
               {{ parseStatusLabel(detail.parseStatus) }}
             </el-tag>
           </div>
-          <el-descriptions :column="2" border>
+          <el-descriptions :column="isMobile ? 1 : 2" border>
             <el-descriptions-item label="名称">{{ detail.resumeName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="文件">{{ detail.originalFileName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="类型">{{ detail.fileType || '-' }}</el-descriptions-item>
@@ -137,32 +137,44 @@
           </el-descriptions>
         </section>
 
-        <section class="panel flat">
-          <div class="panel-header">
-            <h3>AI 使用建议</h3>
-            <span>默认简历会优先用于匹配分析</span>
-          </div>
-          <ul class="resume-advice">
-            <li>确保项目经历、技能关键词和实习经历尽量完整。</li>
-            <li>如解析文本明显缺失，建议调整文件格式后重新上传。</li>
-            <li>针对不同岗位可使用版本管理维护定向简历。</li>
-          </ul>
-        </section>
+        <el-tabs v-model="detailTab" class="resume-detail-tabs">
+          <el-tab-pane label="原件" name="original">
+            <section class="panel flat resume-original" aria-label="上传原件">
+              <div class="panel-header">
+                <div>
+                  <h3>上传原件</h3>
+                  <p v-if="detail.fileType === 'DOCX'">下载后用文档应用查看原始排版。</p>
+                  <p v-else-if="!canPreviewPdf">下载后用 PDF 查看器查看原始排版。</p>
+                </div>
+                <Button type="button" class="ip:min-h-11" :disabled="originalLoading" @click="downloadOriginal">下载原件</Button>
+              </div>
+              <p v-if="originalLoading" role="status">正在读取原件…</p>
+              <div v-else-if="originalError" class="resume-original-error">
+                <p role="alert">{{ originalError }}</p>
+                <el-button size="small" @click="retryOriginal">重试</el-button>
+              </div>
+              <iframe v-else-if="detailTab === 'original' && canPreviewPdf && originalUrl" :src="originalUrl"
+                class="resume-pdf-preview" title="PDF 简历原件" />
+            </section>
+          </el-tab-pane>
 
-        <section class="panel flat">
-          <div class="panel-header">
-            <h3>解析文本</h3>
-            <span>用于 AI 匹配分析的主要文本输入</span>
-          </div>
-          <div class="text-preview">{{ detail.parsedText || '暂无解析文本' }}</div>
-        </section>
+          <el-tab-pane label="AI 读取文本" name="text">
+            <section class="panel flat">
+              <div class="panel-header">
+                <h3>AI 读取文本</h3>
+                <span>上传时保存的解析结果</span>
+              </div>
+              <div class="text-preview">{{ detail.parsedText || '暂无解析文本' }}</div>
+            </section>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-drawer>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile, type UploadInstance } from 'element-plus'
 import { ArrowDown, Document, Upload, UploadFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -170,7 +182,7 @@ import AppEmpty from '@/components/common/AppEmpty.vue'
 import { Button } from '@/components/ui/button'
 import '@/styles/resume-utilities.css'
 import router from '@/router'
-import { deleteResumeApi, getResumeDetailApi, getResumeListApi, setDefaultResumeApi, uploadResumeApi } from '@/api/resume'
+import { deleteResumeApi, getResumeDetailApi, getResumeFileApi, getResumeListApi, setDefaultResumeApi, uploadResumeApi } from '@/api/resume'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 
@@ -181,7 +193,7 @@ const uploadFailed = ref(false)
 const uploadControl = ref<UploadInstance>()
 const uploadVisible = ref(false)
 const detailVisible = ref(false)
-const { responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const { isMobile, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
 const uploadDialogWidth = responsiveDialogWidth('520px')
 const detailDrawerSize = responsiveDrawerSize('48%')
 const resumes = ref<any[]>([])
@@ -190,6 +202,12 @@ const selectedFile = ref<File>()
 const uploadForm = reactive({ resumeName: '' })
 let detailRequestId = 0
 let detailPageActive = true
+const detailTab = ref<'original' | 'text'>('original')
+const originalUrl = ref('')
+const originalLoading = ref(false)
+const originalError = ref('')
+let originalRequest: AbortController | undefined
+const canPreviewPdf = computed(() => detail.value?.fileType === 'PDF' && !isMobile.value && navigator.pdfViewerEnabled === true)
 
 const defaultResume = computed(() => resumes.value.find((item) => item.isDefault))
 
@@ -244,17 +262,85 @@ async function submitUpload() {
 
 async function openDetail(id: number) {
   const requestId = ++detailRequestId
-  const result = await getResumeDetailApi(id)
-  if (!detailPageActive || requestId !== detailRequestId) return
-  detail.value = result
-  detailVisible.value = true
+  releaseOriginal()
+  detail.value = null
+  detailTab.value = 'original'
+  try {
+    const result = await getResumeDetailApi(id)
+    if (!detailPageActive || requestId !== detailRequestId) return
+    detail.value = result
+    detailVisible.value = true
+  } catch {
+    if (detailPageActive && requestId === detailRequestId) closeDetail()
+  }
 }
 
 function closeDetail() {
   detailRequestId += 1
+  releaseOriginal()
   detailVisible.value = false
   detail.value = null
 }
+
+function releaseOriginal() {
+  originalRequest?.abort()
+  originalRequest = undefined
+  if (originalUrl.value) URL.revokeObjectURL(originalUrl.value)
+  originalUrl.value = ''
+  originalError.value = ''
+  originalLoading.value = false
+}
+
+async function loadOriginal() {
+  if (!detail.value || originalRequest) return
+  if (originalUrl.value) return originalUrl.value
+  const { resumeId, fileType } = detail.value
+  const controller = new AbortController()
+  originalRequest = controller
+  originalLoading.value = true
+  originalError.value = ''
+  try {
+    const file = await getResumeFileApi(resumeId, controller.signal)
+    if (originalRequest !== controller) return
+    const expectedType = fileType === 'PDF' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    if (!file.size || file.type !== expectedType) throw new Error('Invalid original file response')
+    originalUrl.value = URL.createObjectURL(file)
+    return originalUrl.value
+  } catch (error) {
+    if (originalRequest !== controller) return
+    const status = (error as { response?: { status?: number } })?.response?.status
+    originalError.value = status === 404 ? '原件不存在或已不可用。'
+      : status === 403 ? '当前账号没有读取原件的权限。'
+        : '暂时无法读取原件，请重试。'
+  } finally {
+    if (originalRequest === controller) {
+      originalRequest = undefined
+      originalLoading.value = false
+    }
+  }
+}
+
+async function downloadOriginal() {
+  const current = detail.value
+  if (!current) return
+  const url = await loadOriginal()
+  if (!url || detail.value !== current) return
+  const link = document.createElement('a')
+  link.href = url
+  const name = String(current.originalFileName || '').split(/[\\/]/).pop()?.replace(/[\x00-\x1f\x7f]/g, '').trim()
+  link.download = name || (current.fileType === 'PDF' ? '简历.pdf' : '简历.docx')
+  document.body.append(link)
+  link.click()
+  link.remove()
+}
+
+function retryOriginal() {
+  return canPreviewPdf.value ? loadOriginal() : downloadOriginal()
+}
+
+watch([canPreviewPdf, detailTab, () => detail.value?.resumeId], ([preview, tab]) => {
+  if (preview && tab === 'original' && !originalError.value) void loadOriginal()
+})
 
 function goVersions(id: number) {
   router.push(`/resumes/${id}/versions`)
@@ -317,11 +403,18 @@ function formatFileSize(value?: number | string) {
 onMounted(loadResumes)
 onBeforeUnmount(() => {
   detailPageActive = false
-  detailRequestId += 1
+  closeDetail()
 })
 </script>
 
 <style scoped>
+.resume-original .panel-header { display: flex; gap: var(--space-3); align-items: flex-start; flex-wrap: wrap; }
+.resume-original .panel-header p { margin: var(--space-1) 0 0; color: var(--color-text-muted); }
+.resume-original-error { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
+.resume-pdf-preview {
+  display: block; width: 100%; height: clamp(360px, calc(100vh - 440px), 900px);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface);
+}
 .resume-center {
   background: var(--color-bg);
   color: var(--color-text);
@@ -525,13 +618,6 @@ onBeforeUnmount(() => {
 
 .resume-upload-error {
   color: var(--color-danger);
-}
-
-.resume-advice {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--color-text-muted);
-  line-height: 1.8;
 }
 
 @media (max-width: 940px) {

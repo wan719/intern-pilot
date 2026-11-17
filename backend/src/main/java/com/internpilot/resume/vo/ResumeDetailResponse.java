@@ -18,12 +18,6 @@ public class ResumeDetailResponse {
     @Schema(description = "原始文件名")
     private String originalFileName;
 
-    @Schema(description = "存储文件名")
-    private String storedFileName;
-
-    @Schema(description = "文件路径")
-    private String filePath;
-
     @Schema(description = "文件类型")
     private String fileType;
 

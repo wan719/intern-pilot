@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { mkdir, writeFile } = require('node:fs/promises')
+const { mkdir, readFile, writeFile } = require('node:fs/promises')
 const path = require('node:path')
 const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-core')
 
@@ -574,10 +574,114 @@ async function verifyInterviewPreparation(browser, viewport) {
   }
 }
 
+function createResumePdf() {
+  const page = (stream) => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 420 360] /Resources << /Font << /F1 7 0 R >> >> /Contents ' + stream + ' 0 R >>'
+  const content = (number, text) => {
+    const body = `BT /F1 24 Tf 32 304 Td (SYNTHETIC RESUME - PAGE ${number}) Tj /F1 14 Tf 0 -40 Td (${text}) Tj ET`
+    return `<< /Length ${Buffer.byteLength(body)} >>\nstream\n${body}\nendstream`
+  }
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Count 2 /Kids [3 0 R 5 0 R] >>',
+    page(4), content(1, 'Experience and education'),
+    page(6), content(2, 'Projects and technical skills'),
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  ]
+  let pdf = '%PDF-1.4\n'
+  const offsets = objects.map((object, index) => {
+    const offset = Buffer.byteLength(pdf)
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`
+    return offset
+  })
+  const index = Buffer.byteLength(pdf)
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  for (const offset of offsets) pdf += String(offset).padStart(10, '0') + ' 00000 n \n'
+  return Buffer.from(pdf + `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${index}\n%%EOF\n`)
+}
+
+async function verifyResumeOriginal(browser, viewport, forceDownload = false) {
+  const context = await browser.newContext({ viewport, locale: 'zh-CN', reducedMotion: 'reduce' })
+  const pdf = createResumePdf()
+  const original = { ...resume, originalFileName: '校园开发简历.pdf', parsedText: '上传时保存的解析文本' }
+  let fileRequests = 0
+  let failOnce = true
+  try {
+    await context.addInitScript((forceFallback) => {
+      localStorage.setItem('internpilot_token', 'synthetic-workspace-session')
+      if (forceFallback) Object.defineProperty(navigator, 'pdfViewerEnabled', { value: false })
+    }, forceDownload)
+    await context.route(origin + '/api/**', (route) => {
+      const request = route.request()
+      const key = new URL(request.url()).pathname
+      if (key === '/api/resumes/1/file') {
+        fileRequests++
+        assert.equal(request.headers().authorization, 'Bearer synthetic-workspace-session')
+        if (failOnce) {
+          failOnce = false
+          return route.fulfill({ status: 404 })
+        }
+        return route.fulfill({ contentType: 'application/pdf', body: pdf })
+      }
+      const data = key === '/api/resumes/1' ? original : fixtures.get(key)
+      if (data === undefined) return route.fulfill({ status: 404, json: { code: 404, message: 'No fixture' } })
+      return route.fulfill({ json: { code: 200, data } })
+    })
+    const page = await context.newPage()
+    await page.goto(origin + '/resumes')
+    await page.getByRole('button', { name: '详情', exact: true }).press('Enter')
+    const dialog = page.getByRole('dialog', { name: '简历详情' })
+    const originalTab = dialog.getByRole('tab', { name: '原件', exact: true })
+    const textTab = dialog.getByRole('tab', { name: 'AI 读取文本' })
+    const frame = dialog.locator('iframe[title="PDF 简历原件"]')
+    const download = dialog.getByRole('button', { name: '下载原件' })
+    const preview = viewport.width > 640 && !forceDownload
+    assert.equal(await originalTab.getAttribute('aria-selected'), 'true')
+    if (preview) {
+      assert(await page.evaluate(() => navigator.pdfViewerEnabled), 'Desktop browser should provide a native PDF viewer')
+    } else {
+      assert.equal(fileRequests, 0, 'Download-only clients should fetch only after a user action')
+      await download.press('Enter')
+    }
+    await dialog.getByRole('alert').filter({ hasText: '原件不存在' }).waitFor()
+    await originalTab.press('ArrowRight')
+    await dialog.getByText('上传时保存的解析文本', { exact: true }).waitFor()
+    assert.equal(await textTab.getAttribute('aria-selected'), 'true')
+    await textTab.press('ArrowLeft')
+    const retry = dialog.getByRole('button', { name: '重试', exact: true })
+    if (preview) {
+      await retry.press('Enter')
+      await frame.waitFor()
+      assert.match(await frame.getAttribute('src'), /^blob:/)
+      // The native viewer renders off the page's DOM; allow time for the visual evidence.
+      await page.waitForTimeout(900)
+      await page.screenshot({ path: path.join(output, 'resume-original-desktop.png'), animations: 'disabled' })
+      await frame.hover()
+      await page.mouse.wheel(0, 480)
+      await page.waitForTimeout(400)
+      await page.screenshot({ path: path.join(output, 'resume-original-desktop-page2.png'), animations: 'disabled' })
+    } else {
+      assert.equal(await frame.count(), 0)
+    }
+    const [file] = await Promise.all([page.waitForEvent('download'), (preview ? download : retry).press('Enter')])
+    assert.equal(file.suggestedFilename(), '校园开发简历.pdf')
+    assert.deepEqual(await readFile(await file.path()), pdf)
+    assert.equal(fileRequests, 2)
+    if (!preview) {
+      await page.screenshot({ path: path.join(output, `resume-original-download-${viewport.width}.png`), animations: 'disabled' })
+    }
+    await originalTab.press('Escape')
+    await dialog.waitFor({ state: 'hidden' })
+  } finally {
+    await context.close()
+  }
+}
+
 async function main() {
   await mkdir(output, { recursive: true })
   const browser = await chromium.launch({ channel: 'msedge' })
   try {
+    for (const viewport of [viewports[0], viewports[2]]) await verifyResumeOriginal(browser, viewport)
+    await verifyResumeOriginal(browser, viewports[0], true)
     for (const viewport of [viewports[0], viewports[2]]) await verifyInterviewPreparation(browser, viewport)
     const reports = []
     for (const viewport of viewports) {
@@ -594,6 +698,7 @@ async function main() {
       ...results.filter((result) => result.error), ...pageErrors, ...missing
     ])
     assert.deepEqual(failures, [], 'Workspace layout checks')
+    console.log('Verified protected resume preview, download, retry, and parsed text on desktop and mobile.')
     console.log('Verified scoped interview preparation, confirmation, and invalid-link recovery on desktop and mobile.')
     console.log('Verified sample report navigation and focus, zero public API requests, landing glass, reduced motion, intentional logout, and protected print.')
     console.log(`Verified ${reports.reduce((count, report) => count + report.results.length, 0)} route and viewport combinations.`)

@@ -1,5 +1,6 @@
 package com.internpilot.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +17,14 @@ import java.time.Duration;
 @Schema(description = "Web配置类，定义了RestTemplate Bean，用于与外部服务进行HTTP通信，并设置了连接和读取超时时间")//这个注解用于Swagger API文档生成，提供了对该配置类的描述信息
 public class WebConfig implements WebMvcConfigurer {
 
+    @Value("${file.avatar-dir:uploads/avatars}")
+    private String avatarDir;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String uploadPath = Paths.get("uploads").toAbsolutePath().normalize().toUri().toString();
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(uploadPath);
+        String avatarPath = Paths.get(avatarDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/uploads/avatars/**")
+                .addResourceLocations(avatarPath.endsWith("/") ? avatarPath : avatarPath + "/");
     }
 
     @Bean

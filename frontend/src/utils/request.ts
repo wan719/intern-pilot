@@ -41,6 +41,7 @@ function handleUnauthorized(config?: InternalAxiosRequestConfig) {
 request.interceptors.response.use(
   (response) => {
     const body = response.data
+    if (response.config.responseType === 'blob' && body instanceof Blob) return body
     if (body?.code !== 200) {
       if (body?.code === 401 && handleUnauthorized(response.config)) return Promise.reject(body)
       if (!response.config.silentError) ElMessage.error(getFriendlyErrorMessage(body?.message, body?.code))

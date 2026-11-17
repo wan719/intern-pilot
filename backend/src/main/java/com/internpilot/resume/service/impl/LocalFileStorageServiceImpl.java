@@ -11,12 +11,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -58,6 +61,31 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
             );
         } catch (IOException e) {
             throw new FileParseException("简历文件保存失败");
+        }
+    }
+
+    @Override
+    public Optional<Path> findOriginal(Long userId, String storedFileName) {
+        if (storedFileName == null || storedFileName.isBlank() || storedFileName.contains("/")
+                || storedFileName.contains("\\") || storedFileName.contains(":")
+                || storedFileName.equals(".") || storedFileName.equals("..")) {
+            return Optional.empty();
+        }
+        try {
+            Path root = Paths.get(fileStorageConfig.getUploadDir()).toRealPath();
+            Path ownerDir = root.resolve("user-" + userId);
+            if (!Files.isDirectory(ownerDir, LinkOption.NOFOLLOW_LINKS)
+                    || !ownerDir.toRealPath().equals(ownerDir)) {
+                return Optional.empty();
+            }
+            Path file = ownerDir.resolve(storedFileName);
+            if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || !Files.isReadable(file)) {
+                return Optional.empty();
+            }
+            Path actualFile = file.toRealPath();
+            return ownerDir.equals(actualFile.getParent()) ? Optional.of(actualFile) : Optional.empty();
+        } catch (IOException | InvalidPathException e) {
+            return Optional.empty();
         }
     }
 

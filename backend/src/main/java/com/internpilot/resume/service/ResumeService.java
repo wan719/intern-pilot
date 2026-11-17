@@ -6,6 +6,8 @@ import com.internpilot.resume.vo.ResumeListResponse;
 import com.internpilot.resume.vo.ResumeUploadResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Optional;
+
 public interface ResumeService {
 
     ResumeUploadResponse upload(MultipartFile file, String resumeName);
@@ -13,6 +15,8 @@ public interface ResumeService {
     PageResult<ResumeListResponse> list(Integer pageNum, Integer pageSize);
 
     ResumeDetailResponse getDetail(Long id);
+
+    Optional<ResumeOriginalFile> findOriginal(Long id);
 
     Boolean delete(Long id);
 

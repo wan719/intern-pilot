@@ -5,12 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.internpilot.common.PageResult;
 import com.internpilot.resume.entity.Resume;
 import com.internpilot.resume.entity.ResumeVersion;
+import com.internpilot.resume.enums.FileTypeEnum;
 import com.internpilot.resume.enums.ParseStatusEnum;
 import com.internpilot.resume.enums.ResumeVersionTypeEnum;
 import com.internpilot.exception.BusinessException;
 import com.internpilot.resume.mapper.ResumeMapper;
 import com.internpilot.resume.mapper.ResumeVersionMapper;
 import com.internpilot.resume.service.FileStorageService;
+import com.internpilot.resume.service.ResumeOriginalFile;
 import com.internpilot.resume.service.ResumeParseService;
 import com.internpilot.resume.service.ResumeService;
 import com.internpilot.resume.service.StoredFileInfo;
@@ -27,6 +29,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -106,6 +110,23 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     @Override
+    public Optional<ResumeOriginalFile> findOriginal(Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        Resume resume = findOwnedResume(id, userId);
+        if (resume == null) {
+            return Optional.empty();
+        }
+        FileTypeEnum type = FileTypeEnum.fromExtension(resume.getFileType());
+        String storedName = resume.getStoredFileName();
+        if (type == null || storedName == null
+                || !storedName.toLowerCase(Locale.ROOT).endsWith("." + type.getExtension())) {
+            return Optional.empty();
+        }
+        return fileStorageService.findOriginal(userId, storedName)
+                .map(path -> new ResumeOriginalFile(path, type, resume.getOriginalFileName()));
+    }
+
+    @Override
     @Transactional
     public Boolean delete(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
@@ -139,18 +160,21 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     private Resume getUserResumeOrThrow(Long resumeId, Long userId) {
-        Resume resume = resumeMapper.selectOne(
+        Resume resume = findOwnedResume(resumeId, userId);
+        if (resume == null) {
+            throw new BusinessException("绠€鍘嗕笉瀛樺湪鎴栨棤鏉冮檺璁块棶");
+        }
+        return resume;
+    }
+
+    private Resume findOwnedResume(Long resumeId, Long userId) {
+        return resumeMapper.selectOne(
                 new LambdaQueryWrapper<Resume>()
                         .eq(Resume::getId, resumeId)
                         .eq(Resume::getUserId, userId)
                         .eq(Resume::getDeleted, 0)
                         .last("LIMIT 1")
         );
-
-        if (resume == null) {
-            throw new BusinessException("绠€鍘嗕笉瀛樺湪鎴栨棤鏉冮檺璁块棶");
-        }
-        return resume;
     }
 
     private ResumeUploadResponse toUploadResponse(Resume resume) {
@@ -185,8 +209,6 @@ public class ResumeServiceImpl implements ResumeService {
         response.setResumeId(resume.getId());
         response.setResumeName(resume.getResumeName());
         response.setOriginalFileName(resume.getOriginalFileName());
-        response.setStoredFileName(resume.getStoredFileName());
-        response.setFilePath(resume.getFilePath());
         response.setFileType(resume.getFileType());
         response.setFileSize(resume.getFileSize());
         response.setParseStatus(resume.getParseStatus());

@@ -15,6 +15,10 @@ export function getResumeDetailApi(id: number, config?: { silentError?: boolean 
   return config ? request.get(path, config) : request.get(path)
 }
 
+export function getResumeFileApi(id: number, signal: AbortSignal) {
+  return request.get<Blob, Blob>(`/api/resumes/${id}/file`, { responseType: 'blob', silentError: true, signal })
+}
+
 export function deleteResumeApi(id: number) {
   return request.delete(`/api/resumes/${id}`)
 }
