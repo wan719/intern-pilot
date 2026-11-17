@@ -72,9 +72,10 @@ describe('journey navigation', () => {
     ])
 
     const actualJourneys = new Map(
-      router.getRoutes()
-        .filter((route) => expectedJourneys.has(route.path))
-        .map((route) => [route.path, route.meta.journey])
+      [...expectedJourneys.keys()].map((path) => [
+        path,
+        router.resolve(path.replace(/:[^/]+/g, '1')).meta.journey
+      ])
     )
 
     expect(actualJourneys).toEqual(expectedJourneys)

@@ -3,27 +3,27 @@ import { getToken, removeToken } from '@/utils/token'
 import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
+  { path: '/', name: 'landing', component: () => import('@/views/landing/Landing.vue'), meta: { public: true, title: 'InternPilot' } },
   { path: '/login', component: () => import('@/views/auth/Login.vue'), meta: { public: true } },
   { path: '/register', component: () => import('@/views/auth/Register.vue'), meta: { public: true } },
   { path: '/analysis/reports/:id/print', component: () => import('@/views/analysis/AnalysisReportPrint.vue'), meta: { title: '打印分析报告' } },
   { path: '/403', component: () => import('@/views/error/Forbidden.vue'), meta: { public: true, title: '无权限' } },
   {
-    path: '/',
+    path: '/dashboard',
     component: () => import('@/components/layout/AppLayout.vue'),
-    redirect: '/dashboard',
     children: [
-      { path: 'dashboard', component: () => import('@/views/dashboard/Dashboard.vue'), meta: { title: '数据看板', journey: 'dashboard' } },
-      { path: 'resumes', component: () => import('@/views/resume/ResumeList.vue'), meta: { title: '简历管理', journey: 'resumes' } },
-      { path: 'resumes/:resumeId/versions', component: () => import('@/views/resume/ResumeVersionList.vue'), meta: { title: '简历版本管理', journey: 'resumes' } },
-      { path: 'jobs', component: () => import('@/views/job/JobList.vue'), meta: { title: '岗位管理', journey: 'jobs' } },
-      { path: 'analysis/match', component: () => import('@/views/analysis/AnalysisMatch.vue'), meta: { title: 'AI 匹配分析', journey: 'analysis' } },
-      { path: 'analysis/reports', component: () => import('@/views/analysis/AnalysisReportList.vue'), meta: { title: '分析报告', journey: 'analysis' } },
-      { path: 'job-recommendations', component: () => import('@/views/recommendation/JobRecommendationList.vue'), meta: { title: '岗位推荐', permission: 'analysis:read', journey: 'jobs' } },
-      { path: 'job-recommendations/:batchId', component: () => import('@/views/recommendation/JobRecommendationDetail.vue'), meta: { title: '推荐详情', permission: 'analysis:read', journey: 'jobs' } },
-      { path: 'interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题', journey: 'interview' } },
-      { path: 'interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情', journey: 'interview' } },
-      { path: 'applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录', journey: 'applications' } },
-      { path: 'user/center', component: () => import('@/views/user/UserCenter.vue'), meta: { title: '个人中心' } }
+      { path: '', component: () => import('@/views/dashboard/Dashboard.vue'), meta: { title: '数据看板', journey: 'dashboard' } },
+      { path: '/resumes', component: () => import('@/views/resume/ResumeList.vue'), meta: { title: '简历管理', journey: 'resumes' } },
+      { path: '/resumes/:resumeId/versions', component: () => import('@/views/resume/ResumeVersionList.vue'), meta: { title: '简历版本管理', journey: 'resumes' } },
+      { path: '/jobs', component: () => import('@/views/job/JobList.vue'), meta: { title: '岗位管理', journey: 'jobs' } },
+      { path: '/analysis/match', component: () => import('@/views/analysis/AnalysisMatch.vue'), meta: { title: 'AI 匹配分析', journey: 'analysis' } },
+      { path: '/analysis/reports', component: () => import('@/views/analysis/AnalysisReportList.vue'), meta: { title: '分析报告', journey: 'analysis' } },
+      { path: '/job-recommendations', component: () => import('@/views/recommendation/JobRecommendationList.vue'), meta: { title: '岗位推荐', permission: 'analysis:read', journey: 'jobs' } },
+      { path: '/job-recommendations/:batchId', component: () => import('@/views/recommendation/JobRecommendationDetail.vue'), meta: { title: '推荐详情', permission: 'analysis:read', journey: 'jobs' } },
+      { path: '/interview-questions', component: () => import('@/views/interview/InterviewQuestionList.vue'), meta: { title: 'AI 面试题', journey: 'interview' } },
+      { path: '/interview-questions/:id', component: () => import('@/views/interview/InterviewQuestionDetail.vue'), meta: { title: '面试题详情', journey: 'interview' } },
+      { path: '/applications', component: () => import('@/views/application/ApplicationList.vue'), meta: { title: '投递记录', journey: 'applications' } },
+      { path: '/user/center', component: () => import('@/views/user/UserCenter.vue'), meta: { title: '个人中心' } }
     ]
   },
   {
@@ -72,7 +72,11 @@ const routes: RouteRecordRaw[] = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (from.name === 'landing' && to.name !== 'landing') return { top: 0 }
+  }
 })
 
 router.beforeEach(async (to) => {

@@ -10,9 +10,9 @@ const viewports = [
   { width: 768, height: 1024 },
   { width: 375, height: 812 }
 ]
-const publicPaths = ['/login', '/register', '/403']
+const publicPaths = ['/', '/login', '/register', '/403']
 const workspacePaths = [
-  '/', '/dashboard', '/resumes', '/resumes/1/versions?versionId=5', '/jobs',
+  '/dashboard', '/resumes', '/resumes/1/versions?versionId=5', '/jobs',
   '/job-recommendations', '/job-recommendations/11', '/analysis/match', '/analysis/reports',
   '/interview-questions', '/interview-questions/41', '/applications', '/user/center'
 ]
@@ -77,7 +77,7 @@ async function verifyRoute(page, route, viewport) {
   assert.equal(response.status(), 200, route)
   await page.getByRole('heading', { level: 1 }).first().waitFor()
   await page.waitForLoadState('networkidle')
-  const expected = { '/': '/dashboard', '/admin': '/admin/dashboard' }[route] || route
+  const expected = route === '/admin' ? '/admin/dashboard' : route
   assert.equal(page.url(), origin + expected)
 
   const sizes = await page.evaluate(() => ({
@@ -88,6 +88,10 @@ async function verifyRoute(page, route, viewport) {
   if (workspacePaths.includes(route)) {
     assert.equal(await page.locator('.workspace-sidebar').isVisible(), viewport.width >= 1024)
     assert.equal(await page.getByRole('navigation', { name: '移动端求职旅程' }).isVisible(), viewport.width < 1024)
+  }
+  if (route === '/') {
+    await page.getByRole('heading', { level: 1, name: /^实习求职，\s*从简历到投递$/ }).waitFor()
+    assert.equal(await page.locator('.workspace-sidebar, .mobile-bottom-nav').count(), 0)
   }
   if (route === '/resumes/1/versions?versionId=5') {
     const preview = viewport.width > 1024
@@ -131,6 +135,10 @@ async function verifyViewport(browser, viewport) {
         results.push({ route, width: viewport.width, error: String(error) })
       }
     }
+    await page.goto(origin + '/')
+    await page.getByRole('link', { name: '进入工作台' }).first().click()
+    await page.waitForURL(origin + '/dashboard')
+    await page.getByRole('heading', { level: 1 }).first().waitFor()
     if (viewport.width === 768) {
       for (const width of [1023, 1024]) {
         await page.setViewportSize({ width, height: viewport.height })
@@ -143,6 +151,61 @@ async function verifyViewport(browser, viewport) {
   }
 }
 
+async function verifyAnonymousLanding(browser, viewport) {
+  const context = await browser.newContext({ viewport, locale: 'zh-CN', reducedMotion: 'reduce' })
+  const requestedApiPaths = []
+  try {
+    await context.route(origin + '/api/**', (route) => {
+      requestedApiPaths.push(new URL(route.request().url()).pathname)
+      return route.abort()
+    })
+    const page = await context.newPage()
+    await verifyRoute(page, '/', viewport)
+    const primaryAction = page.getByRole('link', { name: '开始使用' }).first()
+    assert.equal(await primaryAction.evaluate((link) => getComputedStyle(link).color), 'rgb(255, 255, 255)')
+    await page.screenshot({ path: path.join(output, 'landing-' + viewport.width + '.png'), animations: 'disabled' })
+    await page.keyboard.press('Tab')
+    const skipLink = page.getByRole('link', { name: '跳到主要内容' })
+    assert.equal(await skipLink.evaluate((link) => link === document.activeElement), true)
+    await page.keyboard.press('Enter')
+    assert.equal(await page.locator('#landing-main').evaluate((main) => main === document.activeElement), true)
+
+    const sections = [
+      ['简历与岗位', 'resumes-and-jobs'],
+      ['匹配与面试', 'matching-and-interviews'],
+      ['投递进度', 'application-tracking']
+    ]
+    for (const [name, fragment] of sections) {
+      await page.getByRole('link', { name, exact: true }).click()
+      await page.waitForURL(origin + '/#' + fragment)
+      await page.locator('#' + fragment + ' h2').waitFor()
+      await expectInViewport(page.locator('#' + fragment + ' h2'))
+    }
+
+    await page.reload()
+    await expectInViewport(page.locator('#application-tracking h2'))
+    assert.deepEqual(requestedApiPaths, [], 'Public landing must not call the API')
+    await page.getByRole('link', { name: '开始使用' }).last().click()
+    await page.waitForURL(origin + '/register')
+    await page.waitForFunction(() => window.scrollY === 0)
+    await expectInViewport(page.getByRole('heading', { level: 1 }))
+    await page.goto(origin + '/')
+    await page.getByRole('link', { name: '登录', exact: true }).click()
+    await page.waitForURL(origin + '/login')
+    await page.goto(origin + printPath)
+    await page.waitForURL(origin + '/login')
+  } finally {
+    await context.close()
+  }
+}
+
+async function expectInViewport(heading) {
+  assert(await heading.evaluate((element) => {
+    const { top, bottom } = element.getBoundingClientRect()
+    return top >= 0 && bottom <= window.innerHeight
+  }))
+}
+
 async function main() {
   await mkdir(output, { recursive: true })
   const browser = await chromium.launch({ channel: 'msedge' })
@@ -150,12 +213,14 @@ async function main() {
     const reports = []
     for (const viewport of viewports) {
       reports.push(await verifyViewport(browser, viewport))
+      await verifyAnonymousLanding(browser, viewport)
     }
     await writeFile(path.join(output, 'layout-results.json'), JSON.stringify({ browser: browser.version(), reports }, null, 2))
     const failures = reports.flatMap(({ results, pageErrors, missing }) => [
       ...results.filter((result) => result.error), ...pageErrors, ...missing
     ])
     assert.deepEqual(failures, [], 'Workspace layout checks')
+    console.log('Verified anonymous landing, keyboard skip link, section links, authentication links and protected print at all three widths.')
     console.log(`Verified ${reports.reduce((count, report) => count + report.results.length, 0)} route and viewport combinations.`)
   } finally {
     await browser.close()

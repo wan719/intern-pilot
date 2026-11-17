@@ -4,6 +4,7 @@
 @source "../views/resume/ResumeList.vue";
 @source "../views/resume/ResumeVersionList.vue";
 @source "../views/dashboard";
+@source "../views/landing/Landing.vue";
 @source "../views/job";
 @source "../views/recommendation";
 @source "../views/analysis/AnalysisMatch.vue";
