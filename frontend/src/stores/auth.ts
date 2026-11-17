@@ -24,11 +24,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchCurrentUser() {
-    if (!getToken()) {
+    const sessionToken = getToken()
+    if (!sessionToken) {
       user.value = null
       return null
     }
     const currentUser = await getCurrentUserApi()
+    if (getToken() !== sessionToken) return null
     user.value = currentUser
     return currentUser
   }

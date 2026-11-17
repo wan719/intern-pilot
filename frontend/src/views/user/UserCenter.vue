@@ -388,7 +388,7 @@ async function changePassword() {
 
 function logoutCurrentSession() {
   auth.logout()
-  router.push('/login')
+  void router.replace('/')
 }
 
 onMounted(async () => {

@@ -106,8 +106,9 @@ function go(path: string) {
   void router.push(path)
 }
 function logout() {
+  menuOpen.value = false
   auth.logout()
-  go('/login')
+  void router.replace('/')
 }
 function switchMode(mode: Mode) {
   emit('mode', mode)

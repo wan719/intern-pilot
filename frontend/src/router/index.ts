@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'landing', component: () => import('@/views/landing/Landing.vue'), meta: { public: true, title: 'InternPilot' } },
+  { path: '/sample-report', name: 'sample-report', component: () => import('@/views/landing/SampleReport.vue'), meta: { public: true, title: '样例报告' } },
   { path: '/login', component: () => import('@/views/auth/Login.vue'), meta: { public: true } },
   { path: '/register', component: () => import('@/views/auth/Register.vue'), meta: { public: true } },
   { path: '/analysis/reports/:id/print', component: () => import('@/views/analysis/AnalysisReportPrint.vue'), meta: { title: '打印分析报告' } },
@@ -75,23 +76,27 @@ const router = createRouter({
   routes,
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
-    if (from.name === 'landing' && to.name !== 'landing') return { top: 0 }
+    if (to.name === 'landing' && !to.hash) return { top: 0 }
+    if ((from.name === 'landing' || from.name === 'sample-report') && from.name !== to.name) return { top: 0 }
   }
 })
 
 router.beforeEach(async (to) => {
   if (to.meta.public) return true
-  if (!getToken()) return '/login'
+  const token = getToken()
+  if (!token) return '/login'
 
   const auth = useAuthStore()
   if (!auth.user) {
     try {
       await auth.fetchCurrentUser()
     } catch {
+      if (getToken() !== token) return false
       auth.logout()
       removeToken()
       return '/login'
     }
+    if (getToken() !== token) return false
   }
 
   const permission = to.meta.permission as string | undefined

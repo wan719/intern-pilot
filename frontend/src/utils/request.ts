@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { getToken, removeToken } from '@/utils/token'
@@ -26,25 +26,31 @@ request.interceptors.request.use((config) => {
   return config
 })
 
+function handleUnauthorized(config?: InternalAxiosRequestConfig) {
+  const authorization = config?.headers.Authorization
+  if (!authorization) return false
+
+  const token = getToken()
+  if (!token || authorization !== `Bearer ${token}`) return true
+
+  removeToken()
+  void router.push('/login')
+  return false
+}
+
 request.interceptors.response.use(
   (response) => {
     const body = response.data
     if (body?.code !== 200) {
+      if (body?.code === 401 && handleUnauthorized(response.config)) return Promise.reject(body)
       if (!response.config.silentError) ElMessage.error(getFriendlyErrorMessage(body?.message, body?.code))
-      if (body?.code === 401) {
-        removeToken()
-        router.push('/login')
-      }
       return Promise.reject(body)
     }
     return body.data
   },
   (error) => {
     const status = error.response?.status
-    if (status === 401) {
-      removeToken()
-      router.push('/login')
-    }
+    if (status === 401 && handleUnauthorized(error.config)) return Promise.reject(error)
     if (!error.config?.silentError) ElMessage.error(getFriendlyErrorMessage(error.response?.data?.message, status))
     return Promise.reject(error)
   }

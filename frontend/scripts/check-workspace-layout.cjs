@@ -10,7 +10,7 @@ const viewports = [
   { width: 768, height: 1024 },
   { width: 375, height: 812 }
 ]
-const publicPaths = ['/', '/login', '/register', '/403']
+const publicPaths = ['/', '/sample-report', '/login', '/register', '/403']
 const workspacePaths = [
   '/dashboard', '/resumes', '/resumes/1/versions?versionId=5', '/jobs',
   '/job-recommendations', '/job-recommendations/11', '/analysis/match', '/analysis/reports',
@@ -24,7 +24,7 @@ const printPath = '/analysis/reports/91/print'
 
 const date = '2026-11-16T09:30:00'
 const user = {
-  userId: 17, username: 'sample', nickname: '合成运营账号', email: 'sample@example.invalid',
+  userId: 17, username: 'sample', nickname: '合成示例账号', email: 'sample@example.invalid',
   roles: ['ADMIN'], permissions: [
     'admin:dashboard', 'user:read', 'user:update', 'role:read', 'permission:read',
     'rag:read', 'operation-log:read', 'feedback:read', 'analysis:read'
@@ -90,7 +90,7 @@ async function verifyRoute(page, route, viewport) {
     assert.equal(await page.getByRole('navigation', { name: '移动端求职旅程' }).isVisible(), viewport.width < 1024)
   }
   if (route === '/') {
-    await page.getByRole('heading', { level: 1, name: /^实习求职，\s*从简历到投递$/ }).waitFor()
+    await page.getByRole('heading', { level: 1, name: '投递前，先看你和岗位差在哪' }).waitFor()
     assert.equal(await page.locator('.workspace-sidebar, .mobile-bottom-nav').count(), 0)
   }
   if (route === '/resumes/1/versions?versionId=5') {
@@ -272,6 +272,9 @@ async function verifyViewport(browser, viewport) {
     await page.getByRole('link', { name: '进入工作台' }).first().click()
     await page.waitForURL(origin + '/dashboard')
     await page.getByRole('heading', { level: 1 }).first().waitFor()
+    await page.goto(origin + '/sample-report')
+    await page.getByRole('link', { name: '用我的简历开始' }).click()
+    await page.waitForURL(origin + '/dashboard')
     if (viewport.width === 768) {
       for (const width of [1023, 1024]) {
         await page.setViewportSize({ width, height: viewport.height })
@@ -330,20 +333,76 @@ async function verifyAnonymousLanding(browser, viewport) {
     await page.keyboard.press('Enter')
     assert.equal(await page.locator('#landing-main').evaluate((main) => main === document.activeElement), true)
 
-    const sections = [
-      ['简历与岗位', 'resumes-and-jobs'],
-      ['匹配与面试', 'matching-and-interviews'],
-      ['投递进度', 'application-tracking']
-    ]
-    for (const [name, fragment] of sections) {
-      await page.getByRole('link', { name, exact: true }).click()
-      await page.waitForURL(origin + '/#' + fragment)
-      await page.locator('#' + fragment + ' h2').waitFor()
-      await expectInViewport(page.locator('#' + fragment + ' h2'))
+    assert.deepEqual(await page.locator('.hero .display-a div[class$="-note"] strong').allTextContents(), [
+      '能开发网页和后端接口', '参与开发校园报修系统', '实现报修提交和进度查询'
+    ])
+    const chapters = page.locator('.chapter')
+    assert.deepEqual(await chapters.evaluateAll((sections) => sections.map((section) => section.id)), [
+      'match', 'revision', 'interview', 'application'
+    ])
+    const evidence = await page.locator('#match mark').innerText()
+    const revision = await page.locator('#revision .revision-line p').last().innerText()
+    const question = await page.locator('#interview .sample-question').innerText()
+    assert.equal(evidence, '参与开发校园报修系统')
+    assert(await chapters.last().getByText('林予安的全栈开发简历').isVisible())
+    assert(await chapters.last().getByText('面试中', { exact: true }).first().isVisible())
+    assert(await page.locator('.navigation').evaluate((el) =>
+      getComputedStyle(el).transitionDuration.split(',').every((duration) => parseFloat(duration) < 0.001)
+    ))
+    if (viewport.width === 375) {
+      for (const link of await page.locator('.hero .actions a, .account a').all()) await expectInViewport(link)
     }
 
-    await page.reload()
-    await expectInViewport(page.locator('#application-tracking h2'))
+    await page.locator('.hero').getByRole('link', { name: '查看样例报告' }).press('Enter')
+    await page.waitForURL(origin + '/sample-report')
+    const sampleHeading = page.getByRole('heading', { name: '样例报告', exact: true })
+    assert(await sampleHeading.evaluate((heading) => heading === document.activeElement))
+    assert.deepEqual(await page.locator('main h2').allTextContents(), ['岗位匹配', '简历改写', '面试准备'])
+    assert(await page.getByText('林予安 · 全栈开发实习生').isVisible())
+    assert.equal(await page.locator('.report-paper mark').innerText(), evidence)
+    assert.equal(await page.locator('.report-paper .revision-line p').last().innerText(), revision)
+    assert.equal(await page.locator('.report-paper .sample-question').innerText(), question)
+    await page.getByRole('link', { name: '返回首页' }).press('Enter')
+    await page.waitForURL(origin + '/')
+
+    await verifyRoute(page, '/sample-report', viewport)
+    await page.screenshot({ path: path.join(output, 'sample-report-' + viewport.width + '.png'), fullPage: true })
+    assert.deepEqual(requestedApiPaths, [], 'Public pages must not call the API')
+    await page.getByRole('link', { name: '用我的简历开始' }).press('Enter')
+    await page.waitForURL(origin + '/register')
+    await page.waitForFunction(() => window.scrollY === 0)
+    await page.goto(origin + '/')
+
+    const sections = [
+      ['匹配分析', 'match'],
+      ['简历优化', 'revision'],
+      ['面试准备', 'interview'],
+      ['投递追踪', 'application']
+    ]
+    if (viewport.width > 820) {
+      for (const [name, fragment] of sections) {
+        await page.getByRole('link', { name, exact: true }).press('Enter')
+        await page.waitForURL(origin + '/#' + fragment)
+        const section = page.locator('#' + fragment)
+        await expectInViewport(section.locator('h2'))
+        assert(await section.evaluate((el) => el === document.activeElement))
+      }
+      await page.goBack()
+      await page.waitForURL(origin + '/#interview')
+      await expectInViewport(page.locator('#interview h2'))
+      await page.waitForFunction(() => document.activeElement.id === 'interview')
+    }
+    for (const [oldAnchor, newAnchor] of [
+      ['resumes-and-jobs', 'match'],
+      ['matching-and-interviews', 'match'],
+      ['application-tracking', 'application']
+    ]) {
+      await page.goto(origin + '/#' + oldAnchor)
+      await page.waitForFunction((id) => {
+        const el = document.querySelector('#' + id + ' h2')
+        return el && el.getBoundingClientRect().top > 0 && el.getBoundingClientRect().bottom <= innerHeight
+      }, newAnchor)
+    }
     assert.deepEqual(requestedApiPaths, [], 'Public landing must not call the API')
     await page.getByRole('link', { name: '开始使用' }).last().click()
     await page.waitForURL(origin + '/register')
@@ -354,6 +413,76 @@ async function verifyAnonymousLanding(browser, viewport) {
     await page.waitForURL(origin + '/login')
     await page.goto(origin + printPath)
     await page.waitForURL(origin + '/login')
+  } finally {
+    await context.close()
+  }
+}
+
+async function verifyLandingGlass(browser, viewport, forceFallback = false) {
+  const context = await browser.newContext({ viewport })
+  try {
+    if (forceFallback) {
+      await context.route(/\.css(?:\?|$)/, async (route) => {
+        const response = await route.fetch()
+        const css = (await response.text()).replace(/@supports[^\{]*backdrop-filter[^\{]*\{/g, '@supports not (display: block) {')
+        await route.fulfill({ response, body: css })
+      })
+    }
+    const page = await context.newPage()
+    await page.goto(origin + '/')
+    const nav = page.locator('.navigation')
+    const box = await nav.boundingBox()
+    assert.equal(await nav.evaluate((el) => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)')
+    await page.evaluate(() => window.scrollTo(0, 185))
+    await page.waitForFunction((color) => getComputedStyle(document.querySelector('.navigation')).backgroundColor === color,
+      forceFallback ? 'rgb(255, 255, 255)' : 'rgba(255, 255, 255, 0.48)')
+    assert.deepEqual(await nav.boundingBox(), box)
+    assert.equal((await nav.evaluate((el) => getComputedStyle(el).backdropFilter)).includes('blur(8px)'), !forceFallback)
+    if (!forceFallback && viewport.width === 1440) {
+      await page.screenshot({ path: path.join(output, 'landing-glass-1440.png'), clip: { x: 0, y: 0, width: 1440, height: 246 } })
+    }
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.navigation')).backgroundColor === 'rgba(0, 0, 0, 0)')
+  } finally {
+    await context.close()
+  }
+}
+
+async function verifyLogout(browser) {
+  const context = await browser.newContext({ viewport: viewports[0] })
+  try {
+    await context.route(origin + '/api/**', (route) => {
+      const key = new URL(route.request().url()).pathname
+      return fixtures.has(key)
+        ? route.fulfill({ json: { code: 200, data: fixtures.get(key) } })
+        : route.fulfill({ status: 404, json: { code: 404 } })
+    })
+    const page = await context.newPage()
+    await page.goto(origin + '/')
+    await page.evaluate(() => localStorage.setItem('internpilot_token', 'synthetic-logout-session'))
+    await page.goto(origin + '/resumes')
+    await page.goto(origin + '/dashboard')
+    await page.getByRole('button', { name: '打开账号菜单' }).click()
+    await page.getByRole('button', { name: '退出登录' }).click()
+    await page.waitForURL(origin + '/')
+    assert.equal(await page.evaluate(() => localStorage.getItem('internpilot_token')), null)
+    await page.goBack()
+    await page.waitForURL(origin + '/login')
+    await page.goto(origin + '/analysis/reports')
+    await page.waitForURL(origin + '/login')
+
+    await page.evaluate(() => localStorage.setItem('internpilot_token', 'synthetic-logout-session'))
+    await page.goto(origin + '/user/center')
+    await page.getByRole('button', { name: '退出当前账号' }).click()
+    await page.waitForURL(origin + '/')
+    assert.equal(await page.evaluate(() => localStorage.getItem('internpilot_token')), null)
+
+    await context.route(origin + '/api/user/me', (route) => route.fulfill({ status: 401, json: { code: 401 } }))
+    await page.evaluate(() => localStorage.setItem('internpilot_token', 'synthetic-expired-session'))
+    await page.goto(origin + '/')
+    await page.locator('.hero').getByRole('link', { name: '进入工作台' }).click()
+    await page.waitForURL(origin + '/login')
+    assert.equal(await page.evaluate(() => localStorage.getItem('internpilot_token')), null)
   } finally {
     await context.close()
   }
@@ -372,16 +501,20 @@ async function main() {
   try {
     const reports = []
     for (const viewport of viewports) {
-      reports.push(await verifyViewport(browser, viewport))
       await verifyAnonymousLanding(browser, viewport)
+      await verifyLandingGlass(browser, viewport)
+      reports.push(await verifyViewport(browser, viewport))
     }
+    await verifyAnonymousLanding(browser, { width: 320, height: 740 })
+    await verifyLandingGlass(browser, viewports[0], true)
+    await verifyLogout(browser)
     await verifyRestrictedAdminTabs(browser)
     await writeFile(path.join(output, 'layout-results.json'), JSON.stringify({ browser: browser.version(), reports }, null, 2))
     const failures = reports.flatMap(({ results, pageErrors, missing }) => [
       ...results.filter((result) => result.error), ...pageErrors, ...missing
     ])
     assert.deepEqual(failures, [], 'Workspace layout checks')
-    console.log('Verified anonymous landing, keyboard skip link, section links, authentication links and protected print at all three widths.')
+    console.log('Verified sample report navigation and focus, zero public API requests, landing glass, reduced motion, intentional logout, and protected print.')
     console.log(`Verified ${reports.reduce((count, report) => count + report.results.length, 0)} route and viewport combinations.`)
   } finally {
     await browser.close()

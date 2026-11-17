@@ -26,7 +26,7 @@ CI 和 Docker 构建使用 Node.js 20；`package.json` 尚未用 `engines` 锁�
 
 | 使用场景 | 当前入口与页面 | 交互重点 |
 | --- | --- | --- |
-| 公开介绍 | `/` | 访客纵向浏览产品与合成示例，从首页进入登录、注册或工作台。 |
+| 公开介绍 | `/`、`/sample-report` | 用同一份全栈开发实习案例展示匹配、简历优化与版本、面试准备和投递追踪。访客可匿名查看样例报告。 |
 | 普通用户 | `/dashboard`、`/resumes`、`/jobs`、`/analysis/...`、`/interview-questions`、`/applications` | 简历管理、岗位与推荐、AI 分析、面试准备、投递追踪及用户中心。 |
 | 管理后台 | `/admin/...` | 用户、角色、权限、RAG 知识库、操作日志和反馈管理；入口与操作按权限显示。 |
 | 手机浏览器 | 与用户端共用路由和数据 | 底部导航、窄屏表单、触控操作、抽屉及长内容适配；不是独立安装包或独立 API。 |
@@ -83,7 +83,7 @@ frontend/
 
 ## 路由、登录与权限
 
-[router/index.ts](../frontend/src/router/index.ts) 使用 `createWebHistory()`。`/`、`/login`、`/register` 和 `/403` 标记为公开页面；其他页面先检查本地 token，必要时拉取当前用户。部分管理和业务路由有 `meta.permission`，守卫发现缺少权限会跳到 `/403`。
+[router/index.ts](../frontend/src/router/index.ts) 使用 `createWebHistory()`。`/`、`/sample-report`、`/login`、`/register` 和 `/403` 标记为公开页面；其他页面先检查本地 token，必要时拉取当前用户。部分管理和业务路由有 `meta.permission`，守卫发现缺少权限会跳到 `/403`。
 
 token 目前由 [token.ts](../frontend/src/utils/token.ts) 存在浏览器 `localStorage`，键名为 `internpilot_token`。这是当前实现，不应在日志、错误上报或截图中泄露 token；涉及脚本注入或第三方脚本的改动需考虑本地存储被读取的风险。前端路由守卫和按钮可见性只是用户体验控制，不能代替后端的 401/403、资源所属关系及操作权限检查。
 
@@ -115,7 +115,9 @@ token 目前由 [token.ts](../frontend/src/utils/token.ts) 存在浏览器 `loca
 
 ### 页面行为
 
-- [公开首页](../frontend/src/views/landing/Landing.vue) 独立于工作台和管理布局，使用本地合成示例。会话标记只决定主按钮文案与目标，进入 `/dashboard` 后再由[路由守卫](../frontend/src/router/index.ts)校验会话。修改首页时检查键盘跳转、直接打开带锚点的 URL 和无会话访问。
+- [公开首页](../frontend/src/views/landing/Landing.vue) 和样例报告共用本地合成案例，渲染时无业务请求。吸顶导航在页首透明，下滑后显示清透玻璃，不支持背景模糊时使用实白。会话标记决定注册或工作台入口，进入 `/dashboard` 后由[路由守卫](../frontend/src/router/index.ts)校验会话。修改公开页时检查键盘焦点、减少动态效果、章节锚点和匿名访问。
+- 头像菜单和个人中心主动退出清除当前会话并替换为公开首页。当前会话失效仍引导登录，携带旧会话令牌的迟到 `401` 不得清除另一个会话或触发跳转。
+- [样例报告](../frontend/src/views/landing/SampleReport.vue) 与首屏共用合成案例，直接渲染岗位要求、匹配依据、简历前后对照和面试建议。公开样例的加载独立于真实报告接口。
 - 新页面沿用 Vue 单文件组件和现有 `<script setup lang="ts">` 写法；接口数据定义 TypeScript 类型，页面内短暂状态用 Vue 响应式能力，跨页面共享状态再进入 Pinia。
 - 用户端保持工作台、简历、岗位、分析、面试和投递的现有导航语义；管理端保持权限驱动的侧栏分组。调整导航时同时检查桌面、窄屏和直接访问路径。
 - 页面至少处理加载、空数据、失败和权限受限状态。表单、表格、抽屉、对话框、长文本与打印页面应分别检查键盘焦点、标签、窄屏滚动和触控可用性。

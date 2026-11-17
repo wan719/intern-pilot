@@ -56,6 +56,7 @@ async function mountPage() {
     history: createMemoryHistory(),
     routes: [
       { path: '/user/center', component: { template: '<div />' }, meta: { title: '个人中心' } },
+      { path: '/', component: { template: '<div />' } },
       { path: '/login', component: { template: '<div />' } }
     ]
   })
@@ -153,14 +154,16 @@ describe('user center redesign', () => {
     expect(wrapper.get('[data-account-section="session"]').text()).toContain('退出当前账号')
   })
 
-  it('ends the current session through the existing auth store and login route', async () => {
+  it('ends the current session and replaces the protected route with the landing', async () => {
     const { wrapper, auth, router } = await mountPage()
+    const replace = vi.spyOn(router, 'replace')
 
     await wrapper.get('[data-session-logout]').trigger('click')
     await flushPromises()
 
     expect(auth.user).toBeNull()
-    expect(router.currentRoute.value.path).toBe('/login')
+    expect(replace).toHaveBeenCalledWith('/')
+    expect(router.currentRoute.value.path).toBe('/')
   })
 
   it('rolls a failed default-resume change back across selection, resumes, and profile', async () => {
