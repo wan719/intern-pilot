@@ -4,8 +4,9 @@ export function createResumeVersionApi(resumeId: number, data: any) {
   return request.post(`/api/resumes/${resumeId}/versions`, data)
 }
 
-export function getResumeVersionListApi(resumeId: number) {
-  return request.get(`/api/resumes/${resumeId}/versions`)
+export function getResumeVersionListApi(resumeId: number, config?: { silentError?: boolean }) {
+  const path = `/api/resumes/${resumeId}/versions`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function getResumeVersionDetailApi(resumeId: number, versionId: number) {

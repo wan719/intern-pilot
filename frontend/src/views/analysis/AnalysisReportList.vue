@@ -171,7 +171,7 @@
           <div class="detail-actions">
             <el-button data-plan-from-report type="primary" @click="goToPlanFromReport(detail.reportId)">加入投递计划</el-button>
             <el-button :icon="Printer" @click="openPrintPage(detail.reportId)">导出 PDF</el-button>
-            <el-button type="primary" :icon="MagicStick" @click="router.push('/interview-questions')">生成面试题</el-button>
+            <el-button data-interview-from-report type="primary" :icon="MagicStick" @click="goInterviewQuestions(detail)">生成面试题</el-button>
             <el-button @click="router.push('/analysis/match')">重新分析</el-button>
           </div>
         </section>

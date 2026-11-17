@@ -8,8 +8,9 @@ export function getJobListApi(params = {}) {
   return request.get('/api/jobs', { params })
 }
 
-export function getJobDetailApi(id: number) {
-  return request.get(`/api/jobs/${id}`)
+export function getJobDetailApi(id: number, config?: { silentError?: boolean }) {
+  const path = `/api/jobs/${id}`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function updateJobApi(id: number, data: any) {

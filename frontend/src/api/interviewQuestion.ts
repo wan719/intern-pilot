@@ -4,8 +4,8 @@ export function generateInterviewQuestionsApi(data: any) {
   return request.post('/api/interview-questions/generate', data)
 }
 
-export function getInterviewQuestionReportsApi(params = {}) {
-  return request.get('/api/interview-questions', { params })
+export function getInterviewQuestionReportsApi(params = {}, config?: { silentError?: boolean }) {
+  return request.get('/api/interview-questions', { ...config, params })
 }
 
 export function getInterviewQuestionDetailApi(reportId: number, config?: { silentError?: boolean }) {

@@ -6,7 +6,7 @@
         description="按岗位查找题单，先独立作答，再看参考答案和追问。"
       >
         <template #actions>
-          <Button type="button" class="ip:min-h-11" :disabled="!canGenerate || generating" @click="openGenerate">
+          <Button type="button" class="ip:min-h-11" :disabled="!canGenerate || generating || preparationState === 'loading'" @click="openGenerate">
             <el-icon aria-hidden="true"><Plus /></el-icon>
             生成面试题
           </Button>
@@ -27,6 +27,15 @@
         <el-button size="small" @click="router.push('/jobs')">去新增岗位</el-button>
       </div>
     </el-alert>
+
+    <section v-if="preparationState !== 'idle'" class="generation-state preparation-notice" aria-label="面试准备来源">
+      <p v-if="preparationState === 'loading'" role="status">正在确认对应的岗位、简历和题单…</p>
+      <p v-else role="alert">{{ preparationState === 'error' ? '暂时无法确认面试资料，请重试。' : '这条投递或报告已不可用，请手动选择准备资料。' }}</p>
+      <div class="guide-actions responsive-actions">
+        <el-button v-if="preparationState === 'error'" @click="prepareFromRoute">重试加载</el-button>
+        <el-button type="primary" plain @click="startManualPreparation">手动准备</el-button>
+      </div>
+    </section>
 
     <div
       v-if="generating"
@@ -133,7 +142,7 @@
         description="选择简历和目标岗位，生成一套可以反复演练的专属面试题。"
         hint="建议先完善岗位 JD 和简历解析结果，问题会更贴近真实面试。"
       >
-        <el-button data-empty-generate type="primary" :icon="Plus" :disabled="!canGenerate || generating" @click="openGenerate">
+        <el-button data-empty-generate type="primary" :icon="Plus" :disabled="!canGenerate || generating || preparationState === 'loading'" @click="openGenerate">
           生成第一套面试题
         </el-button>
       </AppEmpty>
@@ -225,7 +234,14 @@
       />
     </section>
 
-    <el-dialog v-model="generateVisible" title="生成 AI 面试题" :width="generateDialogWidth">
+    <el-dialog :model-value="generateVisible" title="生成 AI 面试题" :width="generateDialogWidth"
+      :before-close="closeGenerate">
+      <p v-for="note in preparationNotes" :key="note" class="field-hint">{{ note }}</p>
+      <p v-if="reportSelectionNotice" class="field-hint" role="status">{{ reportSelectionNotice }}</p>
+      <div v-if="optionsLoadError" class="dialog-alert">
+        <p role="alert">暂时无法加载简历和岗位选项。</p>
+        <el-button size="small" :loading="loadingOptions" @click="reloadOptions">重试加载选项</el-button>
+      </div>
       <el-alert
         v-if="!canGenerate"
         class="dialog-alert"
@@ -245,10 +261,14 @@
           </el-select>
         </el-form-item>
         <el-form-item label="简历版本">
-          <el-select v-model="form.resumeVersionId" placeholder="默认使用当前版本" clearable filterable :disabled="!form.resumeId">
+          <el-select v-model="form.resumeVersionId" placeholder="默认使用当前版本" clearable filterable :disabled="!form.resumeId || versionLoading">
             <el-option v-for="item in versions" :key="item.versionId" :label="`${item.versionName}${item.isCurrent === 1 ? '（当前）' : ''}`" :value="item.versionId" />
           </el-select>
         </el-form-item>
+        <div v-if="versionLoadError" class="dialog-alert">
+          <p role="alert">暂时无法加载简历版本。</p>
+          <el-button size="small" @click="loadSelectedVersions()">重试加载版本</el-button>
+        </div>
         <el-form-item label="AI 匹配分析报告">
           <el-select
             v-model="form.analysisReportId"
@@ -264,7 +284,7 @@
               :value="item.reportId"
             />
           </el-select>
-          <p class="field-hint">只展示与当前简历和岗位匹配的分析报告；不选也可以直接根据简历和 JD 生成。</p>
+          <p class="field-hint">可选。报告需与选中的岗位、简历和版本匹配。</p>
         </el-form-item>
         <el-form-item label="题目数量">
           <el-input-number v-model="form.questionCount" :min="3" :max="20" />
@@ -286,8 +306,8 @@
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="generateVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!canGenerate" :loading="generating" @click="generate">生成</el-button>
+        <el-button @click="closeGenerate">取消</el-button>
+        <el-button type="primary" :disabled="!form.resumeId || !form.jobId || versionLoading || versionLoadError" :loading="generating" @click="generate">生成</el-button>
       </template>
     </el-dialog>
   </PageContainer>
@@ -297,6 +317,7 @@
 import '@/styles/analysis-workspace.css'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { Button } from '@/components/ui/button'
@@ -317,6 +338,7 @@ import {
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
+import { loadInterviewPreparation, preparationSource, reportMatchesSelection, type PreparationReport } from './interviewPreparation'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
@@ -342,7 +364,7 @@ const reports = ref<any[]>([])
 const resumes = ref<any[]>([])
 const jobs = ref<any[]>([])
 const versions = ref<any[]>([])
-const analysisReports = ref<any[]>([])
+const analysisReports = ref<PreparationReport[]>([])
 const reportMetadata = ref<Record<number, ReportTaxonomy>>({})
 const metadataCache = new Map<string, Pick<ReportTaxonomy, 'categories' | 'difficulties'>>()
 const activeMetadataKeys = new Map<number, string>()
@@ -355,6 +377,20 @@ const loadingOptions = ref(false)
 const generating = ref(false)
 const generateVisible = ref(false)
 const generationError = ref('')
+const route = useRoute()
+const navigation = useRouter()
+const preparationState = ref<'idle' | 'loading' | 'error' | 'invalid'>('idle')
+const preparationNotes = ref<string[]>([])
+const reportSelectionNotice = ref('')
+const versionLoading = ref(false)
+const versionLoadError = ref(false)
+const optionsLoadError = ref(false)
+let preparationEpoch = 0
+let hasPreparationSource = false
+let versionEpoch = 0
+let applyingPreparation = false
+let optionsLoaded = false
+let optionsRequest: Promise<void> | undefined
 const { responsiveDialogWidth } = useResponsiveSize()
 const generateDialogWidth = responsiveDialogWidth('560px')
 const loadError = ref('')
@@ -421,7 +457,8 @@ const reportStats = computed(() => {
 })
 const filteredAnalysisReports = computed(() => {
   if (!form.resumeId || !form.jobId) return []
-  return analysisReports.value.filter((item) => item.resumeId === form.resumeId && item.jobId === form.jobId)
+  const versionId = form.resumeVersionId ?? versions.value.find(item => item.isCurrent === 1)?.versionId
+  return analysisReports.value.filter(item => reportMatchesSelection(item, form.resumeId, form.jobId, versionId))
 })
 const filteredReports = computed(() => reports.value.filter((item) => {
   const metadata = reportMetadataFor(item)
@@ -434,22 +471,47 @@ const metadataUnavailableCount = computed(() => reports.value.filter((item) => r
 const filterCoverageIncomplete = computed(() => Boolean(filters.category || filters.difficulty)
   && reports.value.some((item) => reportMetadataFor(item).state !== 'available'))
 
-watch(() => [form.resumeId, form.jobId], () => {
-  if (!filteredAnalysisReports.value.some((item) => item.reportId === form.analysisReportId)) form.analysisReportId = undefined
-})
-watch(() => form.resumeId, async () => {
-  if (!form.resumeId) {
-    versions.value = []
-    form.resumeVersionId = undefined
-    return
+watch(() => [form.resumeId, form.jobId, form.resumeVersionId], () => {
+  if (applyingPreparation || form.analysisReportId == null) return
+  if (!filteredAnalysisReports.value.some(item => item.reportId === form.analysisReportId)) {
+    form.analysisReportId = undefined
+    reportSelectionNotice.value = '已取消关联报告，因为它与当前选择的岗位、简历或版本不匹配。'
   }
-  const res: any = await getResumeVersionListApi(form.resumeId)
-  versions.value = res || []
-  form.resumeVersionId = versions.value.find((item) => item.isCurrent === 1)?.versionId
-})
+}, { flush: 'sync' })
+
+watch(() => form.resumeId, () => {
+  if (!applyingPreparation) void loadSelectedVersions()
+}, { flush: 'sync' })
+
+async function loadSelectedVersions() {
+  const epoch = ++versionEpoch
+  const resumeId = form.resumeId
+  versions.value = []
+  form.resumeVersionId = undefined
+  versionLoadError.value = false
+  versionLoading.value = resumeId != null
+  if (resumeId == null) return
+  try {
+    const items: any = await getResumeVersionListApi(resumeId, { silentError: true })
+    if (!componentActive || epoch !== versionEpoch) return
+    versions.value = items || []
+    form.resumeVersionId = versions.value.find(item => item.isCurrent === 1)?.versionId
+  } catch {
+    if (componentActive && epoch === versionEpoch) versionLoadError.value = true
+  } finally {
+    if (componentActive && epoch === versionEpoch) versionLoading.value = false
+  }
+}
+
+function ensureOptions() {
+  if (optionsLoaded) return Promise.resolve()
+  optionsRequest ??= loadOptions().then(() => { optionsLoaded = true }).finally(() => { optionsRequest = undefined })
+  return optionsRequest
+}
 
 async function loadOptions() {
   loadingOptions.value = true
+  optionsLoadError.value = false
   try {
     const [resumeRes, jobRes, analysisRes]: any[] = await Promise.all([
       getResumeListApi({ pageNum: 1, pageSize: 100 }),
@@ -459,6 +521,9 @@ async function loadOptions() {
     resumes.value = resumeRes.records || []
     jobs.value = jobRes.records || []
     analysisReports.value = analysisRes.records || []
+  } catch (error) {
+    optionsLoadError.value = true
+    throw error
   } finally {
     loadingOptions.value = false
   }
@@ -591,7 +656,117 @@ function clearClientFilters() {
 }
 function handlePageChange(page: number) { query.pageNum = page; loadReports() }
 function handleSizeChange(size: number) { query.pageSize = size; query.pageNum = 1; loadReports() }
+function resetPreparationForm() {
+  versionEpoch++
+  applyingPreparation = true
+  form.analysisReportId = undefined
+  form.resumeId = undefined
+  form.jobId = undefined
+  form.resumeVersionId = undefined
+  applyingPreparation = false
+  versions.value = []
+  versionLoading.value = false
+  versionLoadError.value = false
+  preparationNotes.value = []
+  reportSelectionNotice.value = ''
+}
+
+async function prepareFromRoute() {
+  const epoch = ++preparationEpoch
+  if (route.path !== '/interview-questions') return
+  const source = preparationSource(route.query)
+  const hadSource = hasPreparationSource
+  hasPreparationSource = Boolean(source)
+  preparationState.value = 'idle'
+  if (!source && !hadSource) return
+  generateVisible.value = false
+  generationError.value = ''
+  resetPreparationForm()
+  if (!source) return
+  if (source === 'invalid') {
+    preparationState.value = 'invalid'
+    return
+  }
+  preparationState.value = 'loading'
+  const isCurrent = () => componentActive && epoch === preparationEpoch
+  try {
+    await ensureOptions()
+    if (!isCurrent()) return
+    const result = await loadInterviewPreparation(source, { jobs: jobs.value, resumes: resumes.value })
+    if (!isCurrent()) return
+    if (result.kind === 'unavailable') {
+      preparationState.value = 'invalid'
+      return
+    }
+    if (result.kind === 'practice') {
+      const failure = await navigation.replace(`/interview-questions/${result.id}`)
+      if (failure && isCurrent()) preparationState.value = 'error'
+      return
+    }
+
+    if (result.job && !jobs.value.some(item => item.jobId === result.job?.jobId)) jobs.value.push(result.job)
+    if (result.resume && !resumes.value.some(item => item.resumeId === result.resume?.resumeId)) resumes.value.push(result.resume)
+    if (result.report) {
+      // The detail response is authoritative, including the version, even when the report is already in the first page.
+      analysisReports.value = [...analysisReports.value.filter(item => item.reportId !== result.report?.reportId), result.report]
+    }
+    applyingPreparation = true
+    form.resumeId = result.resume?.resumeId
+    form.jobId = result.job?.jobId
+    versions.value = result.versions
+    form.resumeVersionId = result.versionId
+    form.analysisReportId = result.report?.reportId
+    applyingPreparation = false
+    preparationNotes.value = result.notes
+    preparationState.value = 'idle'
+    generateVisible.value = true
+  } catch {
+    if (isCurrent()) preparationState.value = 'error'
+  }
+}
+
+function clearPreparationSource() {
+  if (!preparationSource(route.query)) return
+  preparationEpoch++
+  hasPreparationSource = false
+  preparationState.value = 'idle'
+  const query = { ...route.query }
+  delete query.applicationId
+  delete query.reportId
+  void navigation.replace({ path: route.path, query, hash: route.hash })
+}
+
+function closeGenerate() {
+  generateVisible.value = false
+  if (preparationSource(route.query)) {
+    resetPreparationForm()
+    clearPreparationSource()
+  } else if (versionLoading.value || versionLoadError.value) {
+    versionEpoch++
+    versionLoading.value = false
+    versionLoadError.value = false
+  }
+}
+
+function reloadOptions() {
+  // loadOptions exposes failures beside the material selectors.
+  return ensureOptions().catch(() => undefined)
+}
+
+function startManualPreparation() {
+  generationError.value = ''
+  resetPreparationForm()
+  clearPreparationSource()
+  generateVisible.value = true
+  void reloadOptions()
+}
+
 function openGenerate() {
+  if (preparationSource(route.query)) {
+    startManualPreparation()
+    return
+  }
+  resetPreparationForm()
   form.resumeId = resumes.value[0]?.resumeId
   form.jobId = jobs.value[0]?.jobId
   form.questionCount = form.questionCount || 8
@@ -601,7 +776,7 @@ function openGenerate() {
 }
 
 async function generate() {
-  if (generating.value) return
+  if (generating.value || versionLoading.value || versionLoadError.value) return
   if (!form.resumeId || !form.jobId) {
     ElMessage.warning('请选择简历和岗位')
     return
@@ -753,7 +928,7 @@ function generationPayload() {
     includeFollowUps: form.includeFollowUps
   }
 }
-function observeGeneration(entry: ActiveInterviewGeneration): Promise<void> {
+function observeGeneration(entry: ActiveInterviewGeneration, followResult = true): Promise<void> {
   const observationKey = `${entry.kind}:${entry.signature}`
   const existing = generationObservations.get(observationKey)
   if (existing) return existing
@@ -764,10 +939,11 @@ function observeGeneration(entry: ActiveInterviewGeneration): Promise<void> {
   } else {
     regeneratingId.value = entry.reportId ?? null
   }
+  const epoch = preparationEpoch
   const observation = entry.promise.then(async (outcome) => {
-    if (!componentActive) return
-    if (entry.kind === 'INTERVIEW_QUESTION') await finishGeneration(outcome)
-    else await finishRegeneration(entry, outcome)
+    if (!componentActive || epoch !== preparationEpoch || !followResult) return
+    if (entry.kind === 'INTERVIEW_QUESTION') await finishGeneration(outcome, epoch)
+    else await finishRegeneration(entry, outcome, epoch)
   }).finally(() => {
     generationObservations.delete(observationKey)
     if (!componentActive) return
@@ -777,7 +953,7 @@ function observeGeneration(entry: ActiveInterviewGeneration): Promise<void> {
   generationObservations.set(observationKey, observation)
   return observation
 }
-async function finishGeneration(outcome: InterviewGenerationOutcome) {
+async function finishGeneration(outcome: InterviewGenerationOutcome, epoch: number) {
   generateVisible.value = false
   if (!outcome.ok) {
     generationError.value = getErrorMessage(outcome.error, '面试题生成失败，请检查简历、岗位和 AI 服务配置。')
@@ -787,9 +963,9 @@ async function finishGeneration(outcome: InterviewGenerationOutcome) {
   ElMessage.success('面试题生成成功')
   query.pageNum = 1
   await loadReports()
-  if (componentActive) router.push(`/interview-questions/${outcome.reportId}`)
+  if (componentActive && epoch === preparationEpoch) router.push(`/interview-questions/${outcome.reportId}`)
 }
-async function finishRegeneration(entry: ActiveInterviewGeneration, outcome: InterviewGenerationOutcome) {
+async function finishRegeneration(entry: ActiveInterviewGeneration, outcome: InterviewGenerationOutcome, epoch: number) {
   if (!outcome.ok) {
     ElMessage.error(getErrorMessage(outcome.error, '重新生成失败，请稍后重试'))
     return
@@ -797,10 +973,10 @@ async function finishRegeneration(entry: ActiveInterviewGeneration, outcome: Int
   ElMessage.success('面试题重新生成成功')
   if (entry.reportId) invalidateReportMetadata(entry.reportId)
   await loadReports()
-  if (componentActive) router.push(`/interview-questions/${outcome.reportId}`)
+  if (componentActive && epoch === preparationEpoch) router.push(`/interview-questions/${outcome.reportId}`)
 }
 function attachActiveGenerations() {
-  activeInterviewGenerations().forEach((entry) => { void observeGeneration(entry) })
+  activeInterviewGenerations().forEach((entry) => { void observeGeneration(entry, !preparationSource(route.query)) })
 }
 function reconcileInterruptedGenerationTasks() {
   const activeTaskIds = new Set(activeInterviewGenerations().map((entry) => entry.localTaskId))
@@ -813,11 +989,13 @@ function reconcileInterruptedGenerationTasks() {
   })
 }
 
+watch(() => [route.path, route.query.reportId, route.query.applicationId], prepareFromRoute, { immediate: true, flush: 'sync' })
+
 onMounted(async () => {
   componentActive = true
   attachActiveGenerations()
   const initialization = aiTaskCenter.initialize()
-  const pageLoad = Promise.allSettled([loadOptions(), loadReports()])
+  const pageLoad = Promise.allSettled([ensureOptions(), loadReports()])
   await initialization
   if (!componentActive) return
   reconcileInterruptedGenerationTasks()
@@ -826,6 +1004,8 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   componentActive = false
+  preparationEpoch++
+  versionEpoch++
   reportLoadEpoch += 1
 })
 </script>
@@ -839,6 +1019,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface);
 }
 .generation-state p, .queue-error p { margin: var(--space-1) 0 0; color: var(--color-text-muted); line-height: 1.6; }
+.preparation-notice { align-items: flex-start; flex-wrap: wrap; }
+.preparation-notice p { margin: 0; }
+.preparation-notice .guide-actions { margin: 0; }
 .generation-state--loading { border-color: var(--color-primary-border); background: var(--color-primary-soft); }
 .generation-state--error, .queue-error { border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border)); }
 .generation-state__pulse {

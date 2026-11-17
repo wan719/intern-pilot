@@ -495,10 +495,90 @@ async function expectInViewport(heading) {
   }))
 }
 
+async function verifyInterviewPreparation(browser, viewport) {
+  const context = await browser.newContext({ viewport, locale: 'zh-CN', reducedMotion: 'reduce' })
+  const submissions = []
+  const scopedLookups = []
+  const question = {
+    ...interview, reportId: 42, title: '对应岗位的已有题单', resumeId: 1, resumeVersionId: 5, questionCount: 1,
+    questions: [{ questionId: 1, questionType: 'PROJECT', difficulty: 'MEDIUM', question: '介绍你的项目', answer: '合成答案' }]
+  }
+  const generated = { ...question, reportId: 43, title: '新生成的题单' }
+  try {
+    await context.addInitScript(() => localStorage.setItem('internpilot_token', 'synthetic-workspace-session'))
+    await context.route(origin + '/api/**', (route) => {
+      const request = route.request()
+      const url = new URL(request.url())
+      const success = data => route.fulfill({ json: { code: 200, data } })
+      if (url.pathname === '/api/interview-questions/generate' && request.method() === 'POST') {
+        submissions.push(request.postDataJSON())
+        return success({ reportId: generated.reportId })
+      }
+      if (url.pathname === '/api/interview-questions' && url.searchParams.has('jobId')) {
+        scopedLookups.push([url.searchParams.get('jobId'), url.searchParams.get('resumeId')])
+        return success(counted({ ...question, reportId: 55, resumeId: 2 }, question))
+      }
+      if (url.pathname === '/api/interview-questions/42') return success(question)
+      if (url.pathname === '/api/interview-questions/43') return success(generated)
+      if (!fixtures.has(url.pathname)) {
+        return route.fulfill({ status: 404, json: { code: 404, message: 'No fixture' } })
+      }
+      return success(fixtures.get(url.pathname))
+    })
+
+    const page = await context.newPage()
+    await page.goto(origin + '/dashboard')
+    await page.getByRole('link', { name: '准备面试：合成公司 · 前端实习生' }).press('Enter')
+    await page.waitForURL(origin + '/interview-questions/42')
+    await page.getByRole('heading', { name: question.title, exact: true }).waitFor()
+    assert.deepEqual(scopedLookups, [['7', '1']])
+    assert.deepEqual(submissions, [])
+    await page.reload()
+    await page.getByRole('heading', { name: question.title, exact: true }).waitFor()
+    await page.goBack()
+    await page.waitForURL(origin + '/dashboard')
+    await page.getByRole('link', { name: '准备面试：合成公司 · 前端实习生' }).waitFor()
+
+    await page.goto(origin + '/analysis/reports')
+    await page.getByRole('button', { name: '查看详情', exact: true }).press('Enter')
+    await page.getByRole('dialog', { name: '分析报告详情' }).getByRole('button', { name: '生成面试题', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/interview-questions?reportId=91')
+    const dialog = page.getByRole('dialog', { name: '生成 AI 面试题' })
+    for (const value of ['合成简历', '合成公司 - 前端实习生', '实习求职版（当前）', '合成公司 - 前端实习生 - 82分']) {
+      await dialog.getByText(value, { exact: true }).waitFor()
+    }
+    assert.deepEqual(submissions, [])
+    await page.reload()
+    await dialog.getByText('合成公司 - 前端实习生 - 82分', { exact: true }).waitFor()
+    assert(await dialog.evaluate(el => el.getBoundingClientRect().width <= innerWidth))
+    await page.screenshot({ path: path.join(output, `interview-preparation-${viewport.width}.png`), animations: 'disabled' })
+    await dialog.getByRole('button', { name: '生成', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/interview-questions/43')
+    await page.getByRole('heading', { name: generated.title, exact: true }).waitFor()
+    assert.equal(submissions.length, 1)
+    const { jobId, resumeId, resumeVersionId, analysisReportId } = submissions[0]
+    assert.deepEqual({ jobId, resumeId, resumeVersionId, analysisReportId },
+      { jobId: 7, resumeId: 1, resumeVersionId: 5, analysisReportId: 91 })
+
+    await page.goto(origin + '/interview-questions?reportId=99')
+    await page.getByRole('alert').filter({ hasText: '已不可用' }).waitFor()
+    await page.getByRole('button', { name: '手动准备', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/interview-questions')
+    await dialog.getByText('请选择简历', { exact: true }).waitFor()
+    assert(await dialog.getByRole('button', { name: '生成', exact: true }).isDisabled())
+    await dialog.getByRole('button', { name: '取消', exact: true }).press('Escape')
+    await dialog.waitFor({ state: 'hidden' })
+    assert.equal(submissions.length, 1)
+  } finally {
+    await context.close()
+  }
+}
+
 async function main() {
   await mkdir(output, { recursive: true })
   const browser = await chromium.launch({ channel: 'msedge' })
   try {
+    for (const viewport of [viewports[0], viewports[2]]) await verifyInterviewPreparation(browser, viewport)
     const reports = []
     for (const viewport of viewports) {
       await verifyAnonymousLanding(browser, viewport)
@@ -514,6 +594,7 @@ async function main() {
       ...results.filter((result) => result.error), ...pageErrors, ...missing
     ])
     assert.deepEqual(failures, [], 'Workspace layout checks')
+    console.log('Verified scoped interview preparation, confirmation, and invalid-link recovery on desktop and mobile.')
     console.log('Verified sample report navigation and focus, zero public API requests, landing glass, reduced motion, intentional logout, and protected print.')
     console.log(`Verified ${reports.reduce((count, report) => count + report.results.length, 0)} route and viewport combinations.`)
   } finally {

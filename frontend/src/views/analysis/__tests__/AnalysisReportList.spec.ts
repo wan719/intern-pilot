@@ -59,7 +59,7 @@ function button(wrapper: VueWrapper, label: string, index = 0) {
   return matches[index]
 }
 
-async function mountPage(path = '/analysis/reports') {
+async function mountPage(path = '/analysis/reports', renderDrawer = false) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/analysis/reports', component: { template: '<div />' }, meta: { title: '分析报告' } }]
@@ -67,7 +67,13 @@ async function mountPage(path = '/analysis/reports') {
   await router.push(path)
   await router.isReady()
   const wrapper = mount(AnalysisReportList, {
-    global: { plugins: [router], stubs: { teleport: true } }
+    global: {
+      plugins: [router],
+      stubs: {
+        teleport: true,
+        ...(renderDrawer ? { ElDrawer: { props: ['modelValue'], template: '<section v-if="modelValue"><slot /></section>' } } : {})
+      }
+    }
   })
   await flushPromises()
   return wrapper
@@ -102,8 +108,8 @@ describe('analysis report list contract characterization', () => {
     expect(mockedList).toHaveBeenLastCalledWith({ minScore: undefined, pageNum: 1, pageSize: 100 })
   })
 
-  it('keeps detail, interview and print routes unchanged', async () => {
-    const wrapper = await mountPage()
+  it('opens the same report context from both interview buttons and keeps the print route', async () => {
+    const wrapper = await mountPage('/analysis/reports', true)
 
     await button(wrapper, '查看详情').trigger('click')
     await flushPromises()
@@ -111,6 +117,8 @@ describe('analysis report list contract characterization', () => {
 
     await button(wrapper, '生成面试题').trigger('click')
     expect(push).toHaveBeenCalledWith('/interview-questions?reportId=91')
+    await wrapper.get('[data-interview-from-report]').trigger('click')
+    expect(push.mock.calls).toEqual([['/interview-questions?reportId=91'], ['/interview-questions?reportId=91']])
 
     await button(wrapper, '导出 PDF').trigger('click')
     expect(resolve).toHaveBeenCalledWith('/analysis/reports/91/print')

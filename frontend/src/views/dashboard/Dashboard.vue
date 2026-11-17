@@ -40,16 +40,20 @@
             <p v-else-if="loadError || scheduleError">暂时无法加载面试日程</p>
             <el-button v-if="!loading && !loadError && scheduleError" link @click="loadSchedule">重试日程</el-button>
             <p v-if="!loading && !scheduleLoading && !loadError && !scheduleError && !upcoming.length">暂无即将到来的面试</p>
-            <RouterLink v-for="item in upcoming" :key="item.applicationId" to="/applications" class="dashboard-schedule-row">
-              <span class="dashboard-date-box" aria-hidden="true">
-                <small>{{ calendarMonth(item.interviewDate) }}</small><b>{{ calendarDay(item.interviewDate) }}</b>
-              </span>
-              <span>
-                <time :datetime="item.interviewDate" :aria-label="formatDateTime(item.interviewDate)">{{ interviewTime(item.interviewDate) }}</time>
-                <strong>{{ item.companyName || '未知公司' }} · {{ item.jobTitle || '未知岗位' }}</strong>
-              </span>
-              <el-icon aria-hidden="true"><ArrowRight /></el-icon>
-            </RouterLink>
+            <div v-for="item in upcoming" :key="item.applicationId" class="dashboard-schedule-entry">
+              <RouterLink to="/applications" class="dashboard-schedule-row">
+                <span class="dashboard-date-box" aria-hidden="true">
+                  <small>{{ calendarMonth(item.interviewDate) }}</small><b>{{ calendarDay(item.interviewDate) }}</b>
+                </span>
+                <span>
+                  <time :datetime="item.interviewDate" :aria-label="formatDateTime(item.interviewDate)">{{ interviewTime(item.interviewDate) }}</time>
+                  <strong>{{ item.companyName || '未知公司' }} · {{ item.jobTitle || '未知岗位' }}</strong>
+                </span>
+                <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+              </RouterLink>
+              <RouterLink class="dashboard-schedule-prepare" :to="interviewPreparationPath(item.applicationId)"
+                :aria-label="`准备面试：${item.companyName || '未知公司'} · ${item.jobTitle || '未知岗位'}`">准备面试</RouterLink>
+            </div>
             <RouterLink v-if="!loading" class="dashboard-schedule-link" to="/applications">查看投递记录</RouterLink>
           </div>
         </section>
@@ -490,12 +494,17 @@ async function loadInterviewReportCount() {
   }
 }
 
+function interviewPreparationPath(applicationId: number) {
+  return { path: '/interview-questions', query: { applicationId: String(applicationId) } }
+}
+
 function handlePrimaryAction() {
   if ('retry' in primaryAction.value && primaryAction.value.retry) {
     loadInterviewReportCount()
     return
   }
-  router.push(primaryAction.value.path)
+  const interview = primaryAction.value.key === 'interview' ? upcoming.value[0] : undefined
+  router.push(interview ? interviewPreparationPath(interview.applicationId) : primaryAction.value.path)
 }
 
 const charts = new Map<HTMLElement, ReturnType<typeof init>>()
@@ -935,6 +944,12 @@ onBeforeUnmount(() => {
 }
 
 .dashboard-schedule-row { grid-template-columns: 44px minmax(0, 1fr) 16px; }
+.dashboard-schedule-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.dashboard-schedule-prepare {
+  display: inline-flex; min-height: 44px; align-items: center; justify-content: center;
+  padding-inline: 6px; font-size: 12px; color: var(--color-primary); text-decoration: underline;
+  text-underline-offset: 3px; white-space: nowrap;
+}
 .dashboard-date-box { display: grid; min-height: 42px; place-content: center; text-align: center; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-muted); }
 .dashboard-date-box small { font-size: 11px; color: var(--color-text-muted); }
 .dashboard-date-box b { line-height: 1.2; font-variant-numeric: tabular-nums; }

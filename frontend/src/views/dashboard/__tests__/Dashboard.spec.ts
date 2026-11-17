@@ -68,6 +68,22 @@ beforeEach(() => {
 })
 
 describe('career action workspace', () => {
+  it('links each upcoming interview and routes the main interview action to the soonest application', async () => {
+    setResults({
+      resumes: 1, jobs: 1, reports: 1, applications: 2,
+      applicationRecords: [
+        { applicationId: 31, companyName: '星河', jobTitle: '后端实习', interviewDate: '2099-11-19T15:00:00' },
+        { applicationId: 32, companyName: '森林', jobTitle: '前端实习', interviewDate: '2099-11-18T15:00:00' }
+      ]
+    })
+    const wrapper = await mountDashboard()
+    expect(wrapper.findAll('a').filter(link => link.text() === '准备面试').map(link => link.attributes('href')))
+      .toEqual(['/interview-questions?applicationId=32', '/interview-questions?applicationId=31'])
+    expect(wrapper.get('.dashboard-schedule-link').attributes('href')).toBe('/applications')
+    await wrapper.get('[data-primary-action]').trigger('click')
+    expect(push).toHaveBeenCalledWith({ path: '/interview-questions', query: { applicationId: '32' } })
+  })
+
   it('includes a sooner interview from a later page of the existing applications API', async () => {
     mockedApplications.mockResolvedValueOnce(listResult(101, [
       { applicationId: 1, companyName: '稍晚公司', interviewDate: '2099-11-20T15:00:00' },

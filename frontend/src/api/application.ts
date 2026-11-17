@@ -28,8 +28,9 @@ export function getApplicationListApi(params = {}) {
   return request.get('/api/applications', { params })
 }
 
-export function getApplicationDetailApi(id: number) {
-  return request.get(`/api/applications/${id}`)
+export function getApplicationDetailApi(id: number, config?: { silentError?: boolean }) {
+  const path = `/api/applications/${id}`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function updateApplicationStatusApi(id: number, data: any) {

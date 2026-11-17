@@ -3,7 +3,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import InterviewQuestionList from '@/views/interview/InterviewQuestionList.vue'
-import { getAnalysisReportsApi } from '@/api/analysis'
+import { getAnalysisReportDetailApi, getAnalysisReportsApi } from '@/api/analysis'
+import { getApplicationDetailApi } from '@/api/application'
 import {
   deleteInterviewQuestionReportApi,
   generateInterviewQuestionsApi,
@@ -11,8 +12,8 @@ import {
   getInterviewQuestionReportsApi,
   regenerateInterviewQuestionsApi
 } from '@/api/interviewQuestion'
-import { getJobListApi } from '@/api/job'
-import { getResumeListApi } from '@/api/resume'
+import { getJobDetailApi, getJobListApi } from '@/api/job'
+import { getResumeDetailApi, getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 
 const { push, taskCenter } = vi.hoisted(() => ({
@@ -32,7 +33,8 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({ hasPermission: (permission: string) => permission === 'analysis:delete' })
 }))
 vi.mock('@/stores/aiTaskCenter', () => ({ useAiTaskCenterStore: () => taskCenter }))
-vi.mock('@/api/analysis', () => ({ getAnalysisReportsApi: vi.fn() }))
+vi.mock('@/api/analysis', () => ({ getAnalysisReportsApi: vi.fn(), getAnalysisReportDetailApi: vi.fn() }))
+vi.mock('@/api/application', () => ({ getApplicationDetailApi: vi.fn() }))
 vi.mock('@/api/interviewQuestion', () => ({
   deleteInterviewQuestionReportApi: vi.fn(),
   generateInterviewQuestionsApi: vi.fn(),
@@ -40,8 +42,8 @@ vi.mock('@/api/interviewQuestion', () => ({
   getInterviewQuestionReportsApi: vi.fn(),
   regenerateInterviewQuestionsApi: vi.fn()
 }))
-vi.mock('@/api/job', () => ({ getJobListApi: vi.fn() }))
-vi.mock('@/api/resume', () => ({ getResumeListApi: vi.fn() }))
+vi.mock('@/api/job', () => ({ getJobListApi: vi.fn(), getJobDetailApi: vi.fn() }))
+vi.mock('@/api/resume', () => ({ getResumeListApi: vi.fn(), getResumeDetailApi: vi.fn() }))
 vi.mock('@/api/resumeVersion', () => ({ getResumeVersionListApi: vi.fn() }))
 
 const mockedAnalysisReports = vi.mocked(getAnalysisReportsApi)
@@ -92,12 +94,15 @@ function button(wrapper: VueWrapper, label: string, index = 0) {
   return matches[index]
 }
 
-async function mountPage() {
+async function mountPage(path = '/interview-questions') {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/interview-questions', component: { template: '<div />' }, meta: { title: 'AI 面试题' } }]
+    routes: [
+      { path: '/interview-questions', component: { template: '<div />' }, meta: { title: 'AI 面试题' } },
+      { path: '/interview-questions/:id', component: { template: '<div />' } }
+    ]
   })
-  await router.push('/interview-questions')
+  await router.push(path)
   await router.isReady()
   const wrapper = mount(InterviewQuestionList, {
     global: { plugins: [router], stubs: { teleport: true } }
@@ -131,6 +136,140 @@ beforeEach(() => {
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'error').mockImplementation(() => undefined as any)
+})
+
+describe('interview preparation from an existing source', () => {
+  it.each([
+    ['matching report', 7, 4, 11, 4],
+    ['unrelated report', 8, 4, undefined, 5],
+    ['deleted version', 7, 99, undefined, 5]
+  ])('opens the application draft with %s handled safely', async (_label, reportJob, version, selectedReport, selectedVersion) => {
+    vi.mocked(getApplicationDetailApi).mockResolvedValue({ applicationId: 32, jobId: 7, resumeId: 3, reportId: 11 } as any)
+    vi.mocked(getAnalysisReportDetailApi).mockResolvedValue({ reportId: 11, jobId: reportJob, resumeId: 3, resumeVersionId: version } as any)
+    mockedReports.mockResolvedValue({ records: [], total: 0 } as any)
+    const wrapper = await mountPage('/interview-questions?applicationId=32')
+    expect((wrapper.vm as any).generateVisible).toBe(true)
+    expect((wrapper.vm as any).form).toMatchObject({
+      jobId: 7, resumeId: 3, resumeVersionId: selectedVersion, analysisReportId: selectedReport
+    })
+    if (selectedReport === undefined) {
+      expect((wrapper.vm as any).preparationNotes.join(' ')).toContain('报告')
+    } else {
+      ;(wrapper.vm as any).form.resumeVersionId = 5
+      expect((wrapper.vm as any).form.analysisReportId).toBeUndefined()
+      expect((wrapper.vm as any).reportSelectionNotice).toContain('已取消关联报告')
+    }
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps the application job and asks the user to choose a resume when none is linked', async () => {
+    vi.mocked(getApplicationDetailApi).mockResolvedValue({ applicationId: 32, jobId: 7 } as any)
+    mockedReports.mockResolvedValue({ records: [], total: 0 } as any)
+    const wrapper = await mountPage('/interview-questions?applicationId=32')
+    expect((wrapper.vm as any).form).toMatchObject({ jobId: 7, resumeId: undefined })
+    expect((wrapper.vm as any).preparationNotes.join(' ')).toContain('未关联简历')
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps the selected job when the linked resume was deleted', async () => {
+    vi.mocked(getApplicationDetailApi).mockResolvedValue({ applicationId: 32, jobId: 7, resumeId: 75 } as any)
+    vi.mocked(getResumeDetailApi).mockRejectedValue({ code: 400, message: '简历不存在或无权限访问' })
+    const wrapper = await mountPage('/interview-questions?applicationId=32')
+    expect((wrapper.vm as any).form).toMatchObject({ jobId: 7, resumeId: undefined })
+    expect((wrapper.vm as any).preparationNotes.join(' ')).toContain('原简历已不可用')
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/interview-questions')
+    wrapper.unmount()
+  })
+
+  it('offers manual preparation for inaccessible sources without prefilling unrelated options', async () => {
+    vi.mocked(getAnalysisReportDetailApi).mockRejectedValue({ response: { status: 403 } })
+    const wrapper = await mountPage('/interview-questions?reportId=88')
+    expect(wrapper.get('.preparation-notice').text()).toContain('已不可用')
+    await button(wrapper, '手动准备').trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.query).toEqual({})
+    expect((wrapper.vm as any).generateVisible).toBe(true)
+    expect((wrapper.vm as any).form).toMatchObject({ jobId: undefined, resumeId: undefined })
+    wrapper.unmount()
+  })
+
+  it('offers retry after a scoped question lookup fails instead of opening a new generation', async () => {
+    vi.mocked(getApplicationDetailApi).mockResolvedValue({ applicationId: 32, jobId: 7, resumeId: 3 } as any)
+    mockedReports.mockImplementation(async (params: any) => {
+      if (params.jobId) throw new Error('timeout')
+      return { records: [report], total: 1 } as any
+    })
+    const wrapper = await mountPage('/interview-questions?applicationId=32')
+    expect(wrapper.get('.preparation-notice').text()).toContain('请重试')
+    expect((wrapper.vm as any).generateVisible).toBe(false)
+    mockedReports.mockResolvedValue({ records: [report], total: 1 } as any)
+    await button(wrapper, '重试加载').trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/interview-questions/41')
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps the newest report draft when an earlier source responds after switching or canceling', async () => {
+    const first = deferred<any>()
+    const last = deferred<any>()
+    vi.mocked(getAnalysisReportDetailApi).mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce({ reportId: 89, jobId: 7, resumeId: 3, resumeVersionId: 5 } as any)
+      .mockReturnValueOnce(last.promise)
+    const wrapper = await mountPage('/interview-questions?reportId=88')
+    const router = wrapper.vm.$router
+    await router.push('/interview-questions?reportId=89')
+    await flushPromises()
+    first.resolve({ reportId: 88, jobId: 7, resumeId: 3, resumeVersionId: 4 })
+    await flushPromises()
+    expect((wrapper.vm as any).form.analysisReportId).toBe(89)
+
+    await router.push('/interview-questions?reportId=90')
+    await flushPromises()
+    await button(wrapper, '手动准备').trigger('click')
+    await flushPromises()
+    last.resolve({ reportId: 90, jobId: 7, resumeId: 3, resumeVersionId: 4 })
+    await flushPromises()
+    expect((wrapper.vm as any).form.analysisReportId).toBeUndefined()
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('takes the application to the newest usable question set for its job and linked resume', async () => {
+    vi.mocked(getApplicationDetailApi).mockResolvedValue({ applicationId: 32, jobId: 7, resumeId: 3 } as any)
+    mockedReports.mockImplementation(async (params: any) => ({
+      records: params.jobId ? [
+        reportWithId(49, { jobId: 8 }), reportWithId(48, { resumeId: 2 }),
+        reportWithId(47, { questionCount: 0 }), reportWithId(46), reportWithId(45)
+      ] : [report],
+      total: params.jobId ? 5 : 1
+    }) as any)
+    const wrapper = await mountPage('/interview-questions?applicationId=32')
+    expect(mockedReports).toHaveBeenCalledWith(expect.objectContaining({ jobId: 7, resumeId: 3 }), { silentError: true })
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/interview-questions/46')
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('uses the report version and its exact references beyond the first option page, then waits for confirmation', async () => {
+    vi.mocked(getAnalysisReportDetailApi).mockResolvedValue({
+      reportId: 88, jobId: 9, resumeId: 6, resumeVersionId: 4, jobTitle: '后端实习', companyName: '森林'
+    } as any)
+    vi.mocked(getJobDetailApi).mockResolvedValue({ jobId: 9, jobTitle: '后端实习', companyName: '森林' } as any)
+    vi.mocked(getResumeDetailApi).mockResolvedValue({ resumeId: 6, resumeName: '后端简历' } as any)
+    const wrapper = await mountPage('/interview-questions?reportId=88')
+    expect((wrapper.vm as any).generateVisible).toBe(true)
+    expect((wrapper.vm as any).form).toMatchObject({ jobId: 9, resumeId: 6, resumeVersionId: 4, analysisReportId: 88 })
+    expect(mockedGenerate).not.toHaveBeenCalled()
+    await (wrapper.vm as any).generate()
+    expect(mockedGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 9, resumeId: 6, resumeVersionId: 4, analysisReportId: 88
+    }))
+    wrapper.unmount()
+  })
 })
 
 describe('interview question list legacy contracts', () => {
@@ -220,6 +359,7 @@ describe('interview question list legacy contracts', () => {
     mockedGenerate.mockRejectedValueOnce(new Error('generation unavailable'))
     const wrapper = await mountPage()
     Object.assign((wrapper.vm as any).form, { resumeId: 3, jobId: 7 })
+    await flushPromises()
 
     await (wrapper.vm as any).generate()
 
@@ -515,6 +655,7 @@ describe('interview preparation queue redesign', () => {
     })
     const firstPage = await mountPage()
     Object.assign((firstPage.vm as any).form, { resumeId: 3, jobId: 7 })
+    await flushPromises()
     const submission = (firstPage.vm as any).generate()
     await flushPromises()
     expect(mockedGenerate).toHaveBeenCalledTimes(1)
@@ -614,6 +755,7 @@ describe('interview preparation queue redesign', () => {
     const wrapper = await mountPage()
     ;(wrapper.vm as any).openGenerate()
     Object.assign((wrapper.vm as any).form, { resumeId: 3, jobId: 7 })
+    await flushPromises()
 
     const submission = (wrapper.vm as any).generate()
     await flushPromises()

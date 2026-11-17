@@ -10,8 +10,9 @@ export function getResumeListApi(params = {}) {
   return request.get('/api/resumes', { params })
 }
 
-export function getResumeDetailApi(id: number) {
-  return request.get(`/api/resumes/${id}`)
+export function getResumeDetailApi(id: number, config?: { silentError?: boolean }) {
+  const path = `/api/resumes/${id}`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function deleteResumeApi(id: number) {
