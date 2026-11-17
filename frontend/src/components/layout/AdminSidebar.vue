@@ -68,7 +68,7 @@ const visibleGroups = computed(() =>
 .admin-nav-group-label {
   margin: 0;
   padding: 0 var(--space-3);
-  color: #a9b9cb;
+  color: var(--admin-menu-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -85,7 +85,7 @@ const visibleGroups = computed(() =>
   align-items: center;
   gap: var(--space-3);
   border-radius: var(--radius-sm);
-  color: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  color: var(--admin-menu-text);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -100,13 +100,13 @@ const visibleGroups = computed(() =>
 }
 
 .admin-nav-item:hover {
-  background: var(--color-nav-soft);
-  color: var(--color-surface);
+  background: var(--admin-menu-hover);
+  color: var(--admin-menu-active-text);
 }
 
 .admin-nav-item.is-active {
-  background: var(--color-primary-hover);
-  color: var(--color-surface);
+  background: var(--admin-menu-active);
+  color: var(--admin-menu-active-text);
 }
 
 .admin-nav-item:focus-visible {

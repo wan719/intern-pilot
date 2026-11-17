@@ -1,5 +1,6 @@
 @use './tokens';
 @use './element';
+@use './workspace';
 
 :root {
   color: var(--color-text);

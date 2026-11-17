@@ -109,6 +109,10 @@ token 目前由 [token.ts](../frontend/src/utils/token.ts) 存在浏览器 `loca
 - 两端共用 `tokens.scss` 中的品牌色、状态色、间距和圆角等 CSS 变量。管理后台可按需调整侧栏配色和表格密度。Tailwind 通过 `@theme inline` 引用共享变量，Element Plus 通过 `element.scss` 中的 `--el-*` 变量对接。参见 [tokens.scss](../frontend/src/styles/tokens.scss)、[resume-utilities.css](../frontend/src/styles/resume-utilities.css) 和 [element.scss](../frontend/src/styles/element.scss)。
 - C 端布局按路由加载 Tailwind 主题与工具类，使用 `ip:` 前缀和显式 `@source`，保持 Preflight 关闭。扫描范围覆盖 C 端业务页面和 Button。扩展后，在同一个浏览器标签页从 C 端切换到后台和报告打印页，并与直接打开时的表现对比，检查样式是否串页。
 
+- C 端默认 Clario，可在账号菜单的「外观设置」切换 LiquidGlass 或定制桌面布局、菜单与主色。设置面板先预览，保存后按账号和端写入当前浏览器；取消恢复上次保存值。
+- 管理后台默认浅色和浅色侧栏。工作页签只记录已有权限的后台路由，有权限时固定后台看板；页签保存于当前浏览器标签的登录会话，退出登录时清除。
+- 工作台的下一步沿用五阶段判断，近期资料来自简历、匹配报告列表，日程来自投递记录中的未来面试时间。
+
 ### 页面行为
 
 - [公开首页](../frontend/src/views/landing/Landing.vue) 独立于工作台和管理布局，使用本地合成示例。会话标记只决定主按钮文案与目标，进入 `/dashboard` 后再由[路由守卫](../frontend/src/router/index.ts)校验会话。修改首页时检查键盘跳转、直接打开带锚点的 URL 和无会话访问。

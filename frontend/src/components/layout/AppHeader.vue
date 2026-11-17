@@ -1,94 +1,83 @@
 <template>
-  <header class="app-header">
-    <div class="app-header-inner">
-      <RouterLink class="header-brand" to="/dashboard" aria-label="InternPilot 工作台">
-        <img :src="brandLogo" alt="" />
-        <span>
-          <strong>InternPilot</strong>
-        </span>
-      </RouterLink>
+  <div ref="controls" class="workspace-controls">
+    <div class="workspace-tools">
+      <button class="header-action" type="button" :title="aiTaskBadgeText" :aria-label="aiTaskBadgeText" @click="aiTaskCenter.openDrawer">
+        <Cpu aria-hidden="true" /><span class="header-action-label">AI 任务</span>
+        <span v-if="aiTaskBadgeCount" class="header-action-badge">{{ aiTaskBadgeCount }}</span>
+      </button>
+      <span v-if="aiProvider" class="provider-tag">{{ aiProvider === 'deepseek' ? 'DeepSeek' : 'Mock AI' }}</span>
+      <button class="header-action" type="button" title="刷新当前页面" aria-label="刷新当前页面" @click="emit('refresh')">
+        <Refresh aria-hidden="true" /><span class="header-action-label">刷新</span>
+      </button>
+    </div>
 
-      <div class="header-user">
-        <el-tag
-          v-if="aiProvider"
-          class="provider-tag"
-          size="small"
-          :type="aiProvider === 'deepseek' ? 'primary' : 'warning'"
-          effect="dark"
-        >
-          {{ aiProvider === 'deepseek' ? 'DeepSeek' : 'Mock AI' }}
-        </el-tag>
+    <div class="workspace-account-tools">
+      <button class="header-action" type="button" title="打开意见反馈" aria-label="打开意见反馈" @click="feedback.openDrawer">
+        <Message aria-hidden="true" /><span class="header-action-label">反馈</span>
+      </button>
 
-        <button class="header-action" type="button" :aria-label="aiTaskBadgeText" @click="aiTaskCenter.openDrawer">
-          <el-icon><Cpu /></el-icon>
-          <span class="header-action-label">AI 任务</span>
-          <span v-if="aiTaskBadgeCount" class="header-action-badge">{{ aiTaskBadgeCount }}</span>
-        </button>
-        <button class="header-action" type="button" aria-label="打开意见反馈" @click="feedback.openDrawer">
-          <el-icon><Message /></el-icon>
-          <span class="header-action-label">反馈</span>
-        </button>
-        <button class="header-action header-action-icon" type="button" aria-label="刷新当前页面" @click="$emit('refresh')">
-          <el-icon><Refresh /></el-icon>
-        </button>
-
-        <el-dropdown trigger="click" @command="handleCommand">
+      <PopoverRoot v-model:open="menuOpen">
+        <PopoverTrigger as-child>
           <button class="account-trigger" type="button" aria-label="打开账号菜单">
             <span class="account-avatar">
-              <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" />
+              <img v-if="avatarUrl" :src="avatarUrl" alt="" />
               <span v-else>{{ avatarText }}</span>
             </span>
             <span class="account-meta">
               <strong>{{ displayName }}</strong>
-              <small>{{ accountSubtext }}</small>
+              <small>账号设置</small>
             </span>
-            <el-icon><ArrowDown /></el-icon>
           </button>
-          <template #dropdown>
-            <el-dropdown-menu class="account-dropdown">
-              <div class="account-card">
-                <span class="account-card-avatar">
-                  <img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" />
-                  <span v-else>{{ avatarText }}</span>
-                </span>
-                <div>
-                  <strong>{{ displayName }}</strong>
-                  <p>{{ auth.user?.email || '未绑定邮箱' }}</p>
-                </div>
-              </div>
-              <el-dropdown-item command="profile">
-                <el-icon><User /></el-icon>
-                <span>个人中心</span>
-              </el-dropdown-item>
-              <el-dropdown-item v-if="showAdminEntry" command="admin">
-                <el-icon><Setting /></el-icon>
-                <span>管理后台</span>
-              </el-dropdown-item>
-              <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverContent
+            class="workspace-account-popover"
+            aria-label="账号菜单"
+            :side="layout === 'top' ? 'bottom' : 'top'"
+            align="start"
+            :side-offset="8"
+            :collision-padding="12"
+          >
+            <button class="account-option" type="button" @click="go('/user/center')"><User />个人中心</button>
+            <button class="account-option" type="button" @click="openSettings"><Setting />外观设置</button>
+            <button v-if="adminHome" class="account-option" type="button" @click="go(adminHome)"><Monitor />管理后台</button>
+            <div class="quick-appearance" role="group" aria-label="外观">
+              <span class="quick-appearance-label"><Sunny />外观</span>
+              <button v-for="choice in modes" :key="choice.value" type="button" class="account-option"
+                :aria-pressed="mode === choice.value" @click="switchMode(choice.value)">
+                <component :is="choice.icon" />{{ choice.label }}
+                <Check v-if="mode === choice.value" class="mode-check" />
+              </button>
+            </div>
+            <button class="account-option" type="button" @click="logout"><SwitchButton />退出登录</button>
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
     </div>
-  </header>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, Cpu, Message, Refresh, Setting, User } from '@element-plus/icons-vue'
-import brandLogo from '@/assets/brand-logo-optimized.png'
+import { Check, Cpu, Message, Monitor, Moon, Refresh, Setting, Sunny, SwitchButton, User } from '@element-plus/icons-vue'
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { getAiProviderApi } from '@/api/health'
+import { adminNavGroups } from '@/config/navigation'
+import type { Layout, Mode } from '@/composables/useAppearance'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
 
-defineEmits<{ refresh: [] }>()
+withDefaults(defineProps<{ layout?: Layout; mode?: Mode }>(), { layout: 'left', mode: 'light' })
+const emit = defineEmits<{ refresh: []; settings: []; mode: [value: Mode] }>()
 
 const router = useRouter()
 const auth = useAuthStore()
 const aiTaskCenter = useAiTaskCenterStore()
 const feedback = useFeedbackStore()
+const menuOpen = ref(false)
+const controls = ref<HTMLElement>()
 const aiTaskBadgeCount = computed(() => aiTaskCenter.badgeCount + aiTaskCenter.cancelledTasks.length)
 const aiTaskBadgeText = computed(() => {
   if (aiTaskCenter.runningTasks.length) return `AI 任务 ${aiTaskCenter.runningTasks.length} 个进行中`
@@ -98,54 +87,42 @@ const aiTaskBadgeText = computed(() => {
   return 'AI 任务中心'
 })
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '已登录用户')
-const avatarUrl = computed(() => resolveAvatarUrl(auth.user?.avatarUrl))
-const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase())
-const accountSubtext = computed(() => {
-  if (auth.user?.email) return auth.user.email
-  if (auth.user?.roles?.length) return auth.user.roles.join(' / ')
-  return '账号设置'
-})
-const adminPermissionKeys = ['admin:dashboard', 'user:read', 'role:read', 'permission:read', 'operation-log:read', 'rag:read', 'feedback:read']
-const showAdminEntry = computed(() => adminPermissionKeys.some((key) => auth.hasPermission(key)))
-const aiProvider = ref('')
-
-function resolveAvatarUrl(url?: string) {
+const avatarUrl = computed(() => {
+  const url = auth.user?.avatarUrl
   if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
-  return `${baseUrl}${url}`
-}
+  return /^https?:\/\//i.test(url) ? url : `${import.meta.env.VITE_API_BASE_URL || ''}${url}`
+})
+const avatarText = computed(() => String(displayName.value).slice(0, 1).toUpperCase())
+const adminHome = computed(() => adminNavGroups.flatMap(group => group.items).find(item => auth.hasPermission(item.permission))?.path)
+const aiProvider = ref('')
+const modes = [
+  { value: 'light', label: '浅色', icon: Sunny },
+  { value: 'dark', label: '深色', icon: Moon },
+  { value: 'system', label: '跟随系统', icon: Monitor }
+] as const
 
-function handleCommand(command: string) {
-  if (command === 'profile') {
-    router.push('/user/center')
-    return
-  }
-  if (command === 'admin') {
-    router.push(resolveAdminHome())
-    return
-  }
-  if (command === 'logout') {
-    auth.logout()
-    router.push('/login')
-  }
+function go(path: string) {
+  menuOpen.value = false
+  void router.push(path)
 }
-
-function resolveAdminHome() {
-  if (auth.hasPermission('admin:dashboard')) return '/admin/dashboard'
-  if (auth.hasPermission('user:read')) return '/admin/users'
-  if (auth.hasPermission('role:read')) return '/admin/roles'
-  if (auth.hasPermission('permission:read')) return '/admin/permissions'
-  if (auth.hasPermission('operation-log:read')) return '/admin/operation-logs'
-  if (auth.hasPermission('rag:read')) return '/admin/rag-knowledge'
-  if (auth.hasPermission('feedback:read')) return '/admin/feedback'
-  return '/403'
+function logout() {
+  auth.logout()
+  go('/login')
 }
+function switchMode(mode: Mode) {
+  emit('mode', mode)
+  menuOpen.value = false
+}
+function openSettings() {
+  menuOpen.value = false
+  emit('settings')
+}
+defineExpose({ focusAccount: () => controls.value?.querySelector<HTMLButtonElement>('.account-trigger')?.focus({ preventScroll: true }) })
 
 onMounted(async () => {
   try {
-    const res: any = await getAiProviderApi()
-    aiProvider.value = res?.provider || ''
+    const response: any = await getAiProviderApi()
+    aiProvider.value = response?.provider || ''
   } catch {
     aiProvider.value = ''
   }
@@ -153,271 +130,48 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.app-header-inner {
-  display: flex;
-  width: min(1480px, 100%);
-  min-width: 0;
-  height: 100%;
-  margin: 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+.workspace-controls, .workspace-tools, .workspace-account-tools { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.header-action, .account-trigger {
+  display: flex; align-items: center; gap: 10px; min-width: 36px; min-height: 40px; padding: 6px 9px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--color-text); font: inherit; cursor: pointer;
 }
-
-.header-brand {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text);
+.header-action:hover, .account-trigger:hover { background: var(--color-primary-subtle); }
+.header-action svg { width: 17px; height: 17px; flex: none; }
+.header-action:focus-visible, .account-trigger:focus-visible, .account-option:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+.header-action-badge { margin-left: auto; padding: 2px 5px; background: var(--color-primary-subtle); color: var(--color-primary-hover); border-radius: 5px; font-size: 12px; font-weight: 700; }
+.provider-tag { white-space: nowrap; border-radius: 5px; padding: 3px 6px; background: var(--color-primary-subtle); color: var(--color-primary-hover); font-size: 11px; }
+.account-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex: none; background: var(--color-primary-subtle); color: var(--color-primary-hover); border-radius: 9px; overflow: hidden; font-weight: 700; }
+.account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.account-meta { display: grid; text-align: start; min-width: 0; line-height: 1.3; }
+.account-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-meta small { color: var(--color-text-muted); font-size: 11px; }
+:global(.workspace-account-popover) {
+  z-index: 2040; padding: 6px; width: min(220px, calc(100vw - 24px));
+  border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface);
+  color: var(--color-text); box-shadow: var(--shadow-floating);
 }
-
-.header-brand img {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-.header-brand strong {
-  font-size: 16px;
-  letter-spacing: -0.02em;
-}
-
-.header-user {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.provider-tag {
-  flex: 0 0 auto;
-}
-
-.header-action {
-  position: relative;
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast),
-    background-color var(--motion-fast);
-}
-
-.header-action:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
-}
-
-.header-action:focus-visible,
-.account-trigger:focus-visible,
-.header-brand:focus-visible {
-  outline: 2px solid var(--color-primary-hover);
-  outline-offset: 2px;
-}
-
-.header-action-icon {
-  width: 38px;
-  justify-content: center;
-  padding: 0;
-}
-
-.header-action-badge {
-  display: grid;
-  min-width: 18px;
-  height: 18px;
-  place-items: center;
-  padding: 0 var(--space-1);
-  border-radius: 999px;
-  background: var(--color-danger);
-  color: var(--color-surface);
-  font-size: 10px;
-}
-
-.account-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  max-width: 220px;
-  height: 40px;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast),
-    border-color var(--motion-fast);
-}
-
-.account-trigger:hover {
-  border-color: var(--color-primary);
-  background: var(--color-surface-muted);
-}
-
-.account-avatar,
-.account-card-avatar {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-surface);
-  font-weight: 700;
-}
-
-.account-avatar {
-  width: 30px;
-  height: 30px;
-  font-size: 13px;
-}
-
-.account-card-avatar {
-  width: 40px;
-  height: 40px;
-  font-size: 16px;
-}
-
-.account-avatar img,
-.account-card-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.account-meta {
-  display: grid;
-  min-width: 0;
-  text-align: left;
-  line-height: 1.2;
-}
-
-.account-meta strong,
-.account-meta small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-meta strong {
-  max-width: 112px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.account-meta small {
-  max-width: 112px;
-  margin-top: 2px;
-  color: var(--color-text-muted);
-  font-size: 11px;
-}
-
-.account-card {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  width: 240px;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.account-card strong,
-.account-card p {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-card strong {
-  display: block;
-}
-
-.account-card p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.account-dropdown :deep(.el-dropdown-menu__item) {
-  gap: var(--space-2);
-  height: 38px;
-}
-
-@media (max-width: 1320px) {
-  .provider-tag,
-  .header-action-label,
-  .account-meta {
-    display: none;
-  }
-
-  .header-action {
-    width: 38px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .header-action-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-  }
-
-  .account-trigger {
-    width: 40px;
-    justify-content: center;
-    padding: var(--space-1);
-  }
-
-  .account-trigger > .el-icon {
-    display: none;
-  }
-}
+.account-option, .quick-appearance-label { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 5px 8px; font: inherit; color: inherit; text-align: start; }
+.account-option { border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+.account-option:hover, .account-option[aria-pressed=true] { background: var(--color-primary-subtle); }
+.account-option svg, .quick-appearance-label svg { width: 15px; height: 15px; flex: none; }
+.mode-check { margin-left: auto; }
+.quick-appearance { border-block: 1px solid var(--color-border); padding-block: 4px; }
+.quick-appearance-label { font-weight: 650; }
+.quick-appearance .account-option { padding-inline-start: 21px; }
 
 @media (min-width: 1024px) {
-  .app-header-inner {
-    justify-content: flex-end;
-  }
-
-  .header-brand {
-    display: none;
-  }
+  :global(.user-app-shell:not([data-layout=top]) .workspace-controls) { flex: 1; flex-direction: column; align-items: stretch; margin-top: 16px; min-height: 0; }
+  :global(.user-app-shell:not([data-layout=top]) .workspace-tools), :global(.user-app-shell:not([data-layout=top]) .workspace-account-tools) { flex-direction: column; align-items: stretch; border-top: 1px solid var(--color-border); padding-top: 8px; }
+  :global(.user-app-shell:not([data-layout=top]) .workspace-account-tools) { margin-top: auto; }
+  :global(.user-app-shell:not([data-layout=top]) .provider-tag) { align-self: start; margin-left: 36px; }
+  :global(.user-app-shell[data-layout=compact] :is(.account-meta, .provider-tag, .header-action-label)) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  :global(.user-app-shell[data-layout=compact] .header-action) { justify-content: center; padding-inline: 4px; gap: 2px; }
+  :global(.user-app-shell[data-layout=compact] .account-trigger) { padding-inline: 4px; justify-content: center; }
+  :global(.user-app-shell[data-layout=top] .account-meta) { display: none; }
+  :global(.user-app-shell[data-layout=top] .header-action-label) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
-
-@media (max-width: 420px) {
-  .header-brand img {
-    width: 32px;
-    height: 32px;
-  }
-
-  .header-user {
-    gap: var(--space-1);
-  }
-
-  .header-action,
-  .account-trigger {
-    width: 36px;
-    min-height: 36px;
-    height: 36px;
-  }
-
-  .account-avatar {
-    width: 28px;
-    height: 28px;
-  }
+@media (max-width: 1023px) {
+  .header-action-label, .account-meta, .provider-tag { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .header-action, .account-trigger { min-width: 40px; justify-content: center; padding-inline: 6px; }
 }
 </style>

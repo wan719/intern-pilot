@@ -1,18 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getCurrentUserApi } from '@/api/auth'
+import { saveAdminTabSession } from '@/utils/adminTabSession'
 import { getToken, removeToken, setToken } from '@/utils/token'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(getToken())
   const user = ref(null as any)
+  const loginGeneration = ref(0)
 
   const isLoggedIn = computed(() => !!token.value && !!user.value)
 
   function setLogin(newToken: string, newUser: any) {
+    saveAdminTabSession(newUser?.userId ?? newUser?.id ?? null, [])
     token.value = newToken
     user.value = newUser
     setToken(newToken)
+    loginGeneration.value += 1
   }
 
   function setUser(newUser: any) {
@@ -34,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    saveAdminTabSession(user.value?.userId ?? user.value?.id ?? null, [])
     token.value = null
     user.value = null
     removeToken()
@@ -43,6 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isLoggedIn,
+    loginGeneration,
     setLogin,
     setUser,
     fetchCurrentUser,

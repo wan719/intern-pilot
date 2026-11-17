@@ -3,12 +3,19 @@
     <template #hero>
       <header class="dashboard-heading">
         <h1>工作台</h1>
+        <p>{{ todayLabel }}</p>
+      </header>
+
+      <div class="dashboard-overview">
+        <section class="dashboard-next" aria-labelledby="dashboard-next-heading">
+          <h2 id="dashboard-next-heading">需要处理</h2>
+
         <div class="dashboard-focus">
           <div class="dashboard-focus__copy" aria-live="polite">
             <span v-if="!loading && !interviewLoading" class="dashboard-focus__label">
               {{ primaryAction.key === 'complete' ? '求职进度' : '当前阶段' }}
             </span>
-            <strong v-if="!loading && !interviewLoading">{{ primaryAction.stageTitle }}</strong>
+            <strong v-if="!loading && !interviewLoading">{{ focusTitle }}</strong>
             <p>{{ heroNextStep }}</p>
           </div>
           <Button
@@ -24,7 +31,43 @@
             {{ loading ? '正在确认下一步' : interviewLoading ? '正在确认面试阶段' : primaryAction.label }}
           </Button>
         </div>
-      </header>
+        </section>
+
+        <section class="dashboard-upcoming" aria-labelledby="dashboard-upcoming-heading">
+          <h2 id="dashboard-upcoming-heading">即将到来</h2>
+          <div class="dashboard-schedule">
+            <p v-if="loading || scheduleLoading" role="status">正在加载面试日程</p>
+            <p v-else-if="loadError || scheduleError">暂时无法加载面试日程</p>
+            <el-button v-if="!loading && !loadError && scheduleError" link @click="loadSchedule">重试日程</el-button>
+            <p v-if="!loading && !scheduleLoading && !loadError && !scheduleError && !upcoming.length">暂无即将到来的面试</p>
+            <RouterLink v-for="item in upcoming" :key="item.applicationId" to="/applications" class="dashboard-schedule-row">
+              <span class="dashboard-date-box" aria-hidden="true">
+                <small>{{ calendarMonth(item.interviewDate) }}</small><b>{{ calendarDay(item.interviewDate) }}</b>
+              </span>
+              <span>
+                <time :datetime="item.interviewDate" :aria-label="formatDateTime(item.interviewDate)">{{ interviewTime(item.interviewDate) }}</time>
+                <strong>{{ item.companyName || '未知公司' }} · {{ item.jobTitle || '未知岗位' }}</strong>
+              </span>
+              <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+            </RouterLink>
+            <RouterLink v-if="!loading" class="dashboard-schedule-link" to="/applications">查看投递记录</RouterLink>
+          </div>
+        </section>
+
+        <section class="dashboard-continue" aria-labelledby="dashboard-continue-heading">
+          <h2 id="dashboard-continue-heading">从上次中断处继续</h2>
+          <p v-if="loading" role="status">正在加载简历和匹配报告</p>
+          <p v-else-if="loadError">暂时无法加载最近资料</p>
+          <p v-else-if="!continueItems.length">创建简历或生成匹配报告后，可以在这里继续。</p>
+          <RouterLink v-for="item in continueItems" :key="item.kind" :to="item.path" class="dashboard-continue-row">
+            <span class="dashboard-document-icon"><el-icon aria-hidden="true"><component :is="item.icon" /></el-icon></span>
+            <span><strong>{{ item.title }}</strong><small>{{ item.kind }} · {{ formatDateTime(item.createdAt) }}</small></span>
+            <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+          </RouterLink>
+        </section>
+      </div>
+
+
     </template>
 
     <section
@@ -213,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { init, use } from 'echarts/core'
@@ -241,14 +284,20 @@ import { getAnalysisReportsApi } from '@/api/analysis'
 import { getInterviewQuestionReportsApi } from '@/api/interviewQuestion'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
+import { newestWorkspaceItem, upcomingInterviews } from './workspaceContent'
 import { formatDateTime, statusLabels, statusTypes } from '@/utils/format'
 
 const summary = reactive({ resumes: 0, jobs: 0, reports: 0, applications: 0 })
 const interviewReportCount = ref<number | null>(null)
 const interviewLoading = ref(false)
 const interviewError = ref('')
+const resumeRecords = ref<any[]>([])
 const reports = ref<any[]>([])
 const applications = ref<any[]>([])
+const scheduleRecords = ref<any[]>([])
+const applicationPageSize = ref(100)
+const scheduleLoading = ref(false)
+const scheduleError = ref(false)
 const loading = ref(true)
 const loadError = ref('')
 const statusChartRef = ref<HTMLDivElement>()
@@ -327,6 +376,34 @@ const currentStageKey = computed(() => {
 const completedStageCount = computed(() => journeyStages.value.filter((item) => item.done === true).length)
 const recentReports = computed(() => reports.value.slice(0, 4))
 const recentApplications = computed(() => applications.value.slice(0, 5))
+const now = ref(Date.now())
+const todayLabel = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(now.value))
+const upcoming = computed(() => loading.value || loadError.value || scheduleLoading.value || scheduleError.value ? [] : upcomingInterviews(scheduleRecords.value, now.value))
+const monthFormatter = new Intl.DateTimeFormat('zh-CN', { month: 'numeric' })
+const dayFormatter = new Intl.DateTimeFormat('zh-CN', { day: 'numeric' })
+const interviewFormatter = new Intl.DateTimeFormat('zh-CN', { weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false })
+const calendarMonth = (date: string) => monthFormatter.format(new Date(date))
+const calendarDay = (date: string) => dayFormatter.format(new Date(date)).replace('日', '')
+const interviewTime = (date: string) => interviewFormatter.format(new Date(date))
+const focusTitle = computed(() => primaryAction.value.key === 'interview' && upcoming.value[0]?.companyName
+  ? '准备' + upcoming.value[0].companyName + '的面试'
+  : primaryAction.value.stageTitle)
+const continueItems = computed(() => {
+  if (loading.value || loadError.value) return []
+  const resume = newestWorkspaceItem(resumeRecords.value)
+  const report = newestWorkspaceItem(reports.value)
+  const links = []
+  if (resume?.resumeId) links.push({
+    kind: '简历', title: resume.resumeName || resume.originalFileName || '简历',
+    createdAt: resume.createdAt, path: `/resumes/${resume.resumeId}/versions`, icon: Document,
+  })
+  if (report?.reportId) links.push({
+    kind: '匹配报告', title: `${report.companyName || '未知公司'} · ${report.jobTitle || '未知岗位'}`,
+    createdAt: report.createdAt, path: { path: '/analysis/reports', query: { reportId: String(report.reportId) } }, icon: Tickets,
+  })
+  return links
+})
+
 const statusSummary = computed(() => {
   const counts = applications.value.reduce<Record<string, number>>((acc, item) => {
     acc[item.status] = (acc[item.status] || 0) + 1
@@ -335,7 +412,37 @@ const statusSummary = computed(() => {
   return Object.entries(counts).map(([status, count]) => ({ status, count }))
 })
 
+let dashboardRequest = 0
+let scheduleRequest = 0
+async function loadSchedule() {
+  const request = ++scheduleRequest
+  scheduleLoading.value = true
+  scheduleError.value = false
+  const firstPage = applications.value
+  const pageSize = applicationPageSize.value
+  try {
+    const rows = new Map(firstPage.map(item => [item.applicationId, item]))
+    const pageCount = Math.ceil(summary.applications / pageSize)
+    for (let pageNum = 2; pageNum <= pageCount; pageNum++) {
+      const result: any = await getApplicationListApi({ pageNum, pageSize })
+      if (request !== scheduleRequest) return
+      for (const item of result.records ?? []) {
+        if (!rows.has(item.applicationId)) rows.set(item.applicationId, item)
+      }
+    }
+    scheduleRecords.value = [...rows.values()]
+  } catch {
+    if (request === scheduleRequest) scheduleError.value = true
+  } finally {
+    if (request === scheduleRequest) scheduleLoading.value = false
+  }
+}
+
 async function loadDashboard() {
+  const request = ++dashboardRequest
+  scheduleRequest += 1
+  scheduleLoading.value = false
+  scheduleError.value = false
   loading.value = true
   loadError.value = ''
   const interviewRequest = loadInterviewReportCount()
@@ -347,18 +454,22 @@ async function loadDashboard() {
       getApplicationListApi({ pageNum: 1, pageSize: 100 })
     ])
 
+    if (request !== dashboardRequest) return
     summary.resumes = resumeRes.total ?? resumeRes.records?.length ?? 0
     summary.jobs = jobRes.total ?? jobRes.records?.length ?? 0
     summary.reports = reportRes.total ?? reportRes.records?.length ?? 0
     summary.applications = appRes.total ?? appRes.records?.length ?? 0
+    resumeRecords.value = resumeRes.records || []
     reports.value = reportRes.records || []
     applications.value = appRes.records || []
+    applicationPageSize.value = Number(appRes.size) > 0 ? Number(appRes.size) : 100
+    void loadSchedule()
     await nextTick()
     renderCharts()
   } catch {
-    loadError.value = '请检查网络连接后重新加载；已有功能入口仍可继续使用。'
+    if (request === dashboardRequest) loadError.value = '请检查网络连接后重新加载；已有功能入口仍可继续使用。'
   } finally {
-    loading.value = false
+    if (request === dashboardRequest) loading.value = false
   }
   await interviewRequest
 }
@@ -387,10 +498,40 @@ function handlePrimaryAction() {
   router.push(primaryAction.value.path)
 }
 
+const charts = new Map<HTMLElement, ReturnType<typeof init>>()
+const chartResize = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+  for (const { target } of entries) charts.get(target as HTMLElement)?.resize()
+}) : null
+const chartTheme = new MutationObserver(renderCharts)
+
+function chartFor(element: HTMLElement) {
+  const existing = charts.get(element)
+  if (existing) return existing
+  const chart = init(element)
+  charts.set(element, chart)
+  chartResize?.observe(element)
+  return chart
+}
+
 function renderCharts() {
+  const elements = [statusChartRef.value, scoreChartRef.value]
+  for (const [element, chart] of charts) {
+    if (elements.includes(element as HTMLDivElement)) continue
+    chartResize?.unobserve(element)
+    chart.dispose()
+    charts.delete(element)
+  }
+  const theme = getComputedStyle(document.documentElement)
+  const token = (name: string, fallback: string) => theme.getPropertyValue(name).trim() || fallback
+  const labelColor = token('--color-text-muted', '#64748b')
+  const tooltipColors = {
+    backgroundColor: token('--color-surface', '#fff'),
+    borderColor: token('--color-border', '#dfe6ee'),
+    textStyle: { color: token('--color-text', '#1e293b') },
+  }
   if (statusChartRef.value && applications.value.length) {
-    init(statusChartRef.value).setOption({
-      color: ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#64748b'], tooltip: { trigger: 'item' },
+    chartFor(statusChartRef.value).setOption({
+      color: ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#64748b'], tooltip: { trigger: 'item', ...tooltipColors },
       series: [{
         type: 'pie', radius: ['52%', '74%'], label: { show: false },
         data: statusSummary.value.map((item) => ({ name: statusLabels[item.status] || item.status, value: item.count }))
@@ -400,10 +541,10 @@ function renderCharts() {
 
   if (scoreChartRef.value && reports.value.length) {
     const data = reports.value.slice(0, 8).reverse()
-    init(scoreChartRef.value).setOption({
-      color: ['#2563eb'], tooltip: { trigger: 'axis' }, grid: { left: 36, right: 16, top: 24, bottom: 48 },
-      xAxis: { type: 'category', data: data.map((item) => item.companyName || `#${item.reportId}`), axisLabel: { interval: 0, rotate: 24 } },
-      yAxis: { type: 'value', max: 100 },
+    chartFor(scoreChartRef.value).setOption({
+      color: [token('--workspace-action', '#2563eb')], tooltip: { trigger: 'axis', ...tooltipColors }, grid: { left: 36, right: 16, top: 24, bottom: 48 },
+      xAxis: { type: 'category', data: data.map((item) => item.companyName || `#${item.reportId}`), axisLabel: { interval: 0, rotate: 24, color: labelColor } },
+      yAxis: { type: 'value', max: 100, axisLabel: { color: labelColor } },
       series: [{ type: 'line', smooth: true, symbolSize: 8, areaStyle: { opacity: 0.12 }, data: data.map((item) => Number(item.matchScore || 0)) }]
     })
   }
@@ -423,7 +564,20 @@ function scoreLabel(score: number) {
   return '需优化'
 }
 
-onMounted(loadDashboard)
+onMounted(() => {
+  chartTheme.observe(document.documentElement, {
+    attributes: true, attributeFilter: ['data-workspace-tone', 'data-workspace-accent']
+  })
+  void loadDashboard()
+})
+onBeforeUnmount(() => {
+  chartTheme.disconnect()
+  chartResize?.disconnect()
+  for (const chart of charts.values()) chart.dispose()
+  charts.clear()
+  dashboardRequest += 1
+  scheduleRequest += 1
+})
 </script>
 
 <style scoped>
@@ -738,4 +892,51 @@ onMounted(loadDashboard)
     transition: none;
   }
 }
+.dashboard-heading h1 { margin: 0 0 5px; font-size: clamp(32px, 4vw, 46px); line-height: 1.25; letter-spacing: -.045em; }
+.dashboard-heading p { margin: 0; color: var(--color-text-muted); }
+.dashboard-overview { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 30px 34px; margin-top: 34px; }
+.dashboard-overview section { min-width: 0; }
+.dashboard-overview h2 { margin: 0 0 13px; color: var(--color-text); line-height: 1.35; font-size: 21px; }
+.dashboard-focus, .dashboard-schedule { min-height: 210px; border-radius: 19px; border: 1px solid var(--color-border); }
+.dashboard-focus { align-content: center; position: relative; isolation: isolate; overflow: hidden; background: var(--workspace-feature); }
+.dashboard-focus__copy strong { font-size: clamp(22px, 2.4vw, 28px); }
+.dashboard-focus__copy p { margin-top: 7px; }
+.dashboard-primary { background: var(--workspace-action); color: white; }
+.dashboard-primary:hover { background: color-mix(in srgb, var(--workspace-action) 86%, black); }
+:global([data-workspace-preset=clario] .dashboard-focus::after) {
+  content: ''; position: absolute; inset: 0 0 0 52%; z-index: -1; pointer-events: none;
+  background: repeating-radial-gradient(ellipse at 108% 60%, transparent 0 14px, color-mix(in srgb, var(--workspace-action) 22%, transparent) 15px, transparent 17px 25px);
+  mask-image: linear-gradient(to right, transparent, black);
+}
+:global([data-workspace-preset=liquid] .user-app-shell :is(.dashboard-focus, .dashboard-schedule)) {
+  background: var(--workspace-glass); border-color: var(--workspace-glass-edge); box-shadow: var(--workspace-glass-shadow);
+}
+@supports (backdrop-filter: blur(1px)) {
+  :global([data-workspace-preset=liquid] .user-app-shell :is(.dashboard-focus, .dashboard-schedule)) {
+    background: var(--workspace-glass-tint); backdrop-filter: blur(17px) saturate(110%);
+  }
+}
+.dashboard-schedule { padding: 10px 15px; background: var(--color-surface); }
+.dashboard-schedule p, .dashboard-continue p { color: var(--color-text-muted); }
+.dashboard-schedule-row, .dashboard-continue-row {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 9px;
+  min-height: 55px; padding-block: 9px; border-bottom: 1px solid var(--color-border); color: var(--color-text);
+}
+.dashboard-schedule-row strong, .dashboard-continue-row strong { display: block; overflow-wrap: anywhere; }
+.dashboard-schedule-row time, .dashboard-continue-row small { font-size: 12px; color: var(--color-text-muted); }
+.dashboard-schedule-link { display: inline-block; margin-top: 10px; color: var(--color-primary-hover); }
+.dashboard-continue-row { grid-template-columns: 39px minmax(0, 1fr) 16px; min-height: 65px; }
+.dashboard-continue-row:first-of-type { border-top: 1px solid var(--color-border); }
+.dashboard-continue-row:hover, .dashboard-schedule-row:hover { color: var(--color-primary-hover); }
+.dashboard-document-icon { display: grid; place-items: center; height: 38px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface); }
+@media (max-width: 800px) {
+  .dashboard-overview { grid-template-columns: minmax(0, 1fr); gap: 22px; margin-top: 22px; }
+  .dashboard-schedule { min-height: 95px; }
+}
+
+.dashboard-schedule-row { grid-template-columns: 44px minmax(0, 1fr) 16px; }
+.dashboard-date-box { display: grid; min-height: 42px; place-content: center; text-align: center; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-muted); }
+.dashboard-date-box small { font-size: 11px; color: var(--color-text-muted); }
+.dashboard-date-box b { line-height: 1.2; font-variant-numeric: tabular-nums; }
+:global([data-workspace-preset=clario] .dashboard-schedule) { border-color: transparent; border-top-color: var(--color-border); border-radius: 0; background: transparent; padding-inline: 0; }
 </style>

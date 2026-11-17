@@ -20,7 +20,7 @@ vi.mock('@/api/interviewQuestion', () => ({ getInterviewQuestionReportsApi: vi.f
 vi.mock('@/api/job', () => ({ getJobListApi: vi.fn() }))
 vi.mock('@/api/resume', () => ({ getResumeListApi: vi.fn() }))
 vi.mock('echarts/core', () => ({
-  init: vi.fn(() => ({ setOption: vi.fn() })),
+  init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
   use: vi.fn()
 }))
 
@@ -32,7 +32,7 @@ const mockedResumes = vi.mocked(getResumeListApi)
 
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: [{ path: '/', component: { template: '<div />' } }]
+  routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }]
 })
 
 function listResult(total = 0, records: any[] = []) {
@@ -63,10 +63,44 @@ async function mountDashboard() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockedApplications.mockReset()
   setResults()
 })
 
 describe('career action workspace', () => {
+  it('includes a sooner interview from a later page of the existing applications API', async () => {
+    mockedApplications.mockResolvedValueOnce(listResult(101, [
+      { applicationId: 1, companyName: '稍晚公司', interviewDate: '2099-11-20T15:00:00' },
+    ]) as any).mockResolvedValueOnce(listResult(101, [
+      { applicationId: 2, companyName: '较早公司', interviewDate: '2099-11-18T14:00:00' },
+    ]) as any)
+    const wrapper = await mountDashboard()
+    expect(mockedApplications).toHaveBeenLastCalledWith({ pageNum: 2, pageSize: 100 })
+    expect(wrapper.findAll('.dashboard-schedule-row').map(row => row.get('strong').text()))
+      .toEqual(['较早公司 · 未知岗位', '稍晚公司 · 未知岗位'])
+  })
+
+  it('renders upcoming interviews and links to the most recent resume and report', async () => {
+    mockedResumes.mockResolvedValue(listResult(2, [
+      { resumeId: 2, resumeName: '上周简历', createdAt: '2026-11-10T12:00:00' },
+      { resumeId: 4, resumeName: '最新简历', createdAt: '2026-11-16T12:00:00' },
+    ]) as any)
+    mockedReports.mockResolvedValue(listResult(1, [
+      { reportId: 13, companyName: '样例公司', jobTitle: '实习生', createdAt: '2026-11-17T12:00:00' },
+    ]) as any)
+    mockedApplications.mockResolvedValue(listResult(2, [
+      { applicationId: 1, companyName: '即将面试', jobTitle: '实习生', interviewDate: '2099-11-17T15:00:00', status: 'FIRST_INTERVIEW' },
+      { applicationId: 2, companyName: '已关闭', jobTitle: '实习生', interviewDate: '2099-11-17T14:00:00', status: 'GIVEN_UP' },
+    ]) as any)
+
+    const wrapper = await mountDashboard()
+    expect(wrapper.get('.dashboard-upcoming').text()).toContain('即将面试')
+    expect(wrapper.get('.dashboard-upcoming').text()).not.toContain('已关闭')
+    expect(wrapper.findAll('.dashboard-continue-row').map(link => link.attributes('href')))
+      .toEqual(['/resumes/4/versions', '/analysis/reports?reportId=13'])
+    expect(wrapper.get('.dashboard-continue').text()).toContain('最新简历')
+  })
+
   it('places the current stage before the journey and groups recent analysis with recent applications', async () => {
     const wrapper = await mountDashboard()
 

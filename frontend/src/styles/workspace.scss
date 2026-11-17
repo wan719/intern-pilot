@@ -1,0 +1,172 @@
+/* Theme variables live on the active workspace root so teleported overlays
+   receive the same colors. The layout clears the attributes on exit. */
+:root[data-workspace] {
+  --workspace-action: #a94518;
+  --color-primary: var(--workspace-action);
+  --color-primary-hover: color-mix(in srgb, var(--workspace-action) 86%, black);
+  --color-primary-subtle: color-mix(in srgb, var(--workspace-action) 11%, var(--color-surface));
+  --color-primary-soft: var(--color-primary-subtle);
+  --color-primary-border: color-mix(in srgb, var(--workspace-action) 38%, var(--color-border));
+  --workspace-background: var(--color-bg);
+  --workspace-rail: var(--color-surface);
+  --workspace-glass: #edf2f5;
+  --workspace-glass-tint: rgba(245, 250, 253, .58);
+  --workspace-glass-edge: rgba(255, 255, 255, .92);
+  --workspace-glass-shadow: inset 0 1px 1px var(--workspace-glass-edge), 0 8px 23px rgba(38, 62, 80, .12);
+  --workspace-feature: color-mix(in srgb, var(--workspace-action) 12%, var(--color-surface));
+  --el-color-primary: var(--workspace-action);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--workspace-action) 83%, black);
+  --el-color-primary-light-3: color-mix(in srgb, var(--workspace-action) 75%, var(--color-surface));
+  --el-color-primary-light-5: color-mix(in srgb, var(--workspace-action) 48%, var(--color-surface));
+  --el-color-primary-light-7: color-mix(in srgb, var(--workspace-action) 30%, var(--color-surface));
+  --el-color-primary-light-8: color-mix(in srgb, var(--workspace-action) 19%, var(--color-surface));
+  --el-color-primary-light-9: var(--color-primary-subtle);
+}
+:root[data-workspace=consumer] {
+  --color-bg: #faf8f3;
+  --color-surface: #fffdfa;
+  --color-surface-muted: #f4f0e8;
+  --color-border: #e3ddd3;
+  --workspace-rail: #efede7;
+}
+:root[data-workspace=consumer][data-workspace-preset=liquid] {
+  --color-bg: #eef3f5;
+  --color-surface: #f9fcfd;
+  --color-surface-muted: #eaf1f5;
+  --color-border: #d4e0e6;
+  --workspace-rail: #edf3f6;
+  --workspace-background: radial-gradient(ellipse at 20% 24%, #c5d7e3, transparent 55%), radial-gradient(ellipse at 83% 24%, #d5e0e7, transparent 52%), var(--color-bg);
+}
+:root[data-workspace=admin] {
+  --color-bg: #f1f4f8;
+  --color-surface-muted: #f6f8fc;
+  --color-border: #e0e7ef;
+  --workspace-rail: #fbfcfe;
+}
+:root[data-workspace-accent=teal] { --workspace-action: #0f766e; }
+:root[data-workspace-accent=clay] { --workspace-action: #a94518; }
+:root[data-workspace-accent=blue] { --workspace-action: #285cc8; }
+:root[data-workspace-accent=violet] { --workspace-action: #6947bb; }
+:root[data-workspace-accent=orange] { --workspace-action: #a84618; }
+:root[data-workspace-accent=rose] { --workspace-action: #a33868; }
+:root[data-workspace-accent=graphite] { --workspace-action: #475569; }
+
+:root[data-workspace][data-workspace-tone=dark] {
+  color-scheme: dark;
+  --color-bg: #171d28;
+  --color-surface: #242d3a;
+  --color-surface-muted: #202837;
+  --color-border: #374457;
+  --color-border-strong: #53627a;
+  --color-text: #e5ecf7;
+  --color-text-muted: #acbbd1;
+  --color-primary: color-mix(in srgb, var(--workspace-action) 42%, #e3f2ff);
+  --color-primary-hover: color-mix(in srgb, var(--workspace-action) 31%, #edf6ff);
+  --color-primary-subtle: color-mix(in srgb, var(--workspace-action) 29%, var(--color-surface));
+  --color-info: #a9c7ff;
+  --color-success: #a3dfb3;
+  --color-warning: #f5ce90;
+  --color-danger: #ffb4ac;
+  --workspace-rail: #1b202b;
+  --workspace-glass: #293745;
+  --workspace-glass-tint: rgba(40, 54, 66, .72);
+  --workspace-glass-edge: rgba(182, 208, 227, .38);
+  --workspace-feature: color-mix(in srgb, var(--workspace-action) 15%, var(--color-surface));
+  --el-bg-color: var(--color-surface);
+  --el-bg-color-page: var(--color-bg);
+  --el-bg-color-overlay: var(--color-surface);
+  --el-fill-color-blank: var(--color-surface);
+  --el-fill-color: #303a4b;
+  --el-fill-color-light: #2b3545;
+  --el-fill-color-lighter: #293344;
+  --el-fill-color-dark: #374354;
+  --el-fill-color-darker: #404c5d;
+  --el-text-color-primary: var(--color-text);
+  --el-text-color-regular: #c9d5e6;
+  --el-text-color-secondary: var(--color-text-muted);
+  --el-text-color-placeholder: #9aaac0;
+  --el-text-color-disabled: #8f9eb1;
+  --el-border-color: var(--color-border);
+  --el-border-color-light: #425065;
+  --el-border-color-lighter: #354258;
+  --el-border-color-extra-light: #303d50;
+  --el-disabled-bg-color: #293344;
+  --el-disabled-text-color: #8f9eb1;
+  --el-mask-color: rgba(15, 21, 30, .88);
+  --el-mask-color-extra-light: rgba(15, 21, 30, .58);
+}
+:root[data-workspace=consumer][data-workspace-tone=dark][data-workspace-preset=clario] {
+  --color-bg: #211d1a;
+  --color-surface: #2b2521;
+  --color-surface-muted: #302924;
+  --color-border: #4a3e35;
+  --workspace-rail: #29231f;
+}
+:root[data-workspace=consumer][data-workspace-tone=dark][data-workspace-preset=liquid] {
+  --workspace-background: radial-gradient(ellipse at 25% 20%, #27394b, transparent 65%), var(--color-bg);
+}
+.workspace-storage-warning { margin: 0; padding: 8px 16px; background: var(--color-primary-subtle); color: var(--color-text); }
+.workspace-settings.el-drawer { background: var(--color-surface); color: var(--color-text); }
+.workspace-settings .el-drawer__header { margin-bottom: 0; padding-bottom: 14px; border-bottom: 1px solid var(--color-border); }
+.workspace-settings .el-drawer__title { color: var(--color-text); font-size: 20px; font-weight: 700; }
+.workspace-settings .el-drawer__footer { border-top: 1px solid var(--color-border); }
+
+:root[data-workspace=admin] {
+  --admin-menu-background: var(--workspace-rail);
+  --admin-menu-title: var(--color-text);
+  --admin-menu-text: var(--color-text-muted);
+  --admin-menu-muted: var(--color-text-muted);
+  --admin-menu-border: var(--color-border);
+  --admin-menu-hover: var(--color-surface-muted);
+  --admin-menu-active: var(--color-primary-subtle);
+  --admin-menu-active-text: var(--color-primary-hover);
+}
+[data-menu-tone=light] {
+  --admin-menu-background: #fbfcfe;
+  --admin-menu-title: #202a3b;
+  --admin-menu-text: #43516a;
+  --admin-menu-muted: #596984;
+  --admin-menu-border: #e1e7f0;
+  --admin-menu-hover: #edf2f8;
+  --admin-menu-active: color-mix(in srgb, var(--workspace-action) 12%, #fff);
+  --admin-menu-active-text: color-mix(in srgb, var(--workspace-action) 88%, #092237);
+}
+[data-menu-tone=dark] {
+  --admin-menu-background: #1b202b;
+  --admin-menu-title: #f0f5ff;
+  --admin-menu-text: #d2dbe7;
+  --admin-menu-muted: #adbbcf;
+  --admin-menu-border: #374558;
+  --admin-menu-hover: #29354a;
+  --admin-menu-active: color-mix(in srgb, var(--workspace-action) 59%, #263246);
+  --admin-menu-active-text: #f0f5ff;
+}
+[data-menu-tone=design] {
+  --admin-menu-background: color-mix(in srgb, var(--workspace-action) 7%, var(--color-surface));
+}
+.admin-navigation-drawer [data-menu-tone] {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--admin-menu-background);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .user-app-shell[data-menu=frosted] .workspace-sidebar,
+  [data-workspace-preset=liquid] :is(.dashboard-focus,.dashboard-schedule) {
+    backdrop-filter: none !important;
+    background: var(--workspace-glass) !important;
+  }
+}
+
+
+@media (min-width: 1280px) {
+  .workspace-settings-mask { background-color: transparent; }
+  .user-app-shell.appearance-preview .user-app-main { padding-right: 352px; }
+  .admin-shell.appearance-preview .admin-workspace { padding-right: 352px; }
+  .workspace-settings-admin.el-drawer { top: 98px; height: calc(100% - 98px); }
+}
+:root[data-workspace][data-workspace-tone=dark] {
+  --el-color-warning-light-9: #493824;
+  --el-color-success-light-9: #273c32;
+  --el-color-danger-light-9: #492d36;
+  --el-color-info-light-9: #283951;
+}

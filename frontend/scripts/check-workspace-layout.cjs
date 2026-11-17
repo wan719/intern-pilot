@@ -6,7 +6,7 @@ const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-c
 const origin = 'http://127.0.0.1:' + (process.env.INTERNPILOT_PREVIEW_PORT || '5184')
 const output = path.resolve(process.env.INTERNPILOT_EVIDENCE || 'dist/workspace-evidence')
 const viewports = [
-  { width: 1440, height: 960 },
+  { width: 1440, height: 900 },
   { width: 768, height: 1024 },
   { width: 375, height: 812 }
 ]
@@ -52,7 +52,7 @@ const batch = { batchId: 11, title: '合成岗位推荐', createdAt: date, jobCo
   items: [{ ...job, recommendationScore: 82 }] }
 const application = {
   ...job, applicationId: 17, status: 'APPLIED', priority: 'HIGH', resumeId: 1,
-  applyDate: '2026-11-16', resumeName: resume.resumeName
+  applyDate: '2026-11-16', resumeName: resume.resumeName, interviewDate: new Date(Date.now() + 86400000).toISOString()
 }
 const counted = (...records) => ({ records, total: records.length })
 const fixtures = new Map(Object.entries({
@@ -66,7 +66,7 @@ const fixtures = new Map(Object.entries({
   '/api/interview-questions': counted(interview), '/api/interview-questions/41': interview,
   '/api/job-recommendations': counted(batch), '/api/job-recommendations/11': batch,
   '/api/applications': counted(application), '/api/applications/17': application,
-  '/api/admin/dashboard/summary': {}, '/api/admin/users': counted(user),
+  '/api/admin/dashboard/summary': { userCount: 1248, resumeCount: 2816, jobCount: 1572, analysisReportCount: 986, interviewQuestionReportCount: 348, applicationCount: 735, todayNewUserCount: 24, failedOperationCount: 3 }, '/api/admin/users': counted(user),
   '/api/admin/roles': [{ roleId: 2, roleCode: 'USER', roleName: '普通用户', enabled: 1 }],
   '/api/admin/permissions': counted(), '/api/admin/rag/knowledge': counted(),
   '/api/admin/operation-logs': counted(), '/api/admin/feedback': counted()
@@ -86,7 +86,7 @@ async function verifyRoute(page, route, viewport) {
   assert(sizes.scroll <= sizes.client + 1, `${route} at ${viewport.width}px: ${sizes.scroll} > ${sizes.client}`)
 
   if (workspacePaths.includes(route)) {
-    assert.equal(await page.locator('.workspace-sidebar').isVisible(), viewport.width >= 1024)
+    assert.equal(await page.getByRole('navigation', { name: '求职旅程', exact: true }).isVisible(), viewport.width >= 1024)
     assert.equal(await page.getByRole('navigation', { name: '移动端求职旅程' }).isVisible(), viewport.width < 1024)
   }
   if (route === '/') {
@@ -108,6 +108,139 @@ async function verifyRoute(page, route, viewport) {
     await page.screenshot({ path: path.join(output, `${key}-${viewport.width}.png`), animations: 'disabled' })
   }
   return { route, width: viewport.width, heading: await page.getByRole('heading', { level: 1 }).first().textContent() }
+}
+
+
+async function verifyAppearance(page) {
+  await page.goto(origin + '/dashboard')
+  await page.getByRole('heading', { name: '即将到来' }).waitFor()
+  await page.evaluate(() => sessionStorage.removeItem('internpilot:admin-work-tabs:v1:17'))
+  const root = page.locator('html')
+  const shell = page.locator('.user-app-shell')
+  const drawer = page.locator('.workspace-settings')
+  const account = page.getByRole('button', { name: '打开账号菜单' })
+  const option = (group, label) => drawer.getByRole('group', { name: group, exact: true }).getByRole('button', { name: label, exact: true })
+  const visible = async (selector, expected) => assert.equal(await page.locator(selector).isVisible(), expected, selector)
+  const shot = name => page.screenshot({ path: path.join(output, 'appearance-' + name + '.png'), animations: 'disabled' })
+
+  await page.getByText('合成公司 · 前端实习生', { exact: true }).first().waitFor()
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'clario')
+  await account.press('Enter')
+  await page.getByRole('button', { name: '外观设置', exact: true }).waitFor()
+  await shot('consumer-account-menu')
+  await page.getByRole('button', { name: '外观设置', exact: true }).click()
+  await drawer.waitFor()
+  await shot('consumer-clario')
+  await option('主题风格', 'LiquidGlass').click()
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'liquid')
+  assert.notEqual(await page.locator('.dashboard-schedule').evaluate(node => getComputedStyle(node).backdropFilter), 'none')
+  await shot('consumer-liquidglass')
+  await option('系统主题色', '紫色').click()
+  await drawer.getByText('自定义', { exact: true }).waitFor()
+  await option('菜单布局', '紧凑侧栏').click()
+  assert.equal(await shell.getAttribute('data-layout'), 'compact')
+  assert.equal(await page.getByRole('navigation', { name: '求职旅程', exact: true }).getByRole('link').count(), 6)
+  await option('菜单布局', '顶部').click()
+  assert.equal(await shell.getAttribute('data-layout'), 'top')
+  await page.keyboard.press('Escape')
+  await drawer.waitFor({ state: 'hidden' })
+  assert.equal(await shell.getAttribute('data-layout'), 'left')
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'clario')
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '打开账号菜单')
+
+  async function openConsumerSettings() {
+    await account.click()
+    await page.getByRole('button', { name: '外观设置', exact: true }).click()
+    await drawer.waitFor()
+  }
+  await openConsumerSettings()
+  await option('主题风格', 'LiquidGlass').click()
+  await page.mouse.click(600, 130)
+  await drawer.waitFor({ state: 'hidden' })
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'clario')
+  await openConsumerSettings()
+  await option('主题风格', 'LiquidGlass').click()
+  await option('系统外观', '跟随系统').click()
+  await drawer.getByRole('button', { name: '保存设置', exact: true }).click()
+  await drawer.waitFor({ state: 'hidden' })
+  await page.reload()
+  await account.waitFor()
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'liquid')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.waitForFunction(() => document.documentElement.dataset.workspaceTone === 'dark')
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.waitForFunction(() => document.documentElement.dataset.workspaceTone === 'light')
+
+  await account.click()
+  await page.getByRole('button', { name: '管理后台', exact: true }).click()
+  await page.waitForURL(origin + '/admin/dashboard')
+  await page.getByRole('heading', { name: '后台看板', exact: true, level: 1 }).waitFor()
+  assert.equal(await root.getAttribute('data-workspace'), 'admin')
+  assert.equal(await page.locator('.admin-sidebar').getAttribute('data-menu-tone'), 'light')
+  const adminNav = page.locator('.admin-sidebar')
+  const tabs = page.getByRole('navigation', { name: '工作页签' })
+  await adminNav.getByRole('link', { name: '用户管理', exact: true }).click()
+  await page.waitForURL(origin + '/admin/users')
+  await adminNav.getByRole('link', { name: '操作日志', exact: true }).click()
+  await page.waitForURL(origin + '/admin/operation-logs')
+  await tabs.getByRole('link', { name: '后台看板', exact: true }).click()
+  await page.waitForURL(origin + '/admin/dashboard')
+  await page.getByRole('button', { name: '外观设置', exact: true }).click()
+  await drawer.waitFor()
+  await shot('admin-light')
+  for (const [label, value] of [['顶部', 'top'], ['混合', 'mixed'], ['双列', 'dual']]) {
+    await option('菜单布局', label).click()
+    assert.equal(await page.locator('.admin-shell').getAttribute('data-layout'), value)
+  }
+  await option('菜单风格', '深色').click()
+  assert.equal(await adminNav.getAttribute('data-menu-tone'), 'dark')
+  await drawer.locator('.el-drawer__close-btn').click()
+  await drawer.waitFor({ state: 'hidden' })
+  assert.equal(await adminNav.getAttribute('data-menu-tone'), 'light')
+  await page.getByRole('button', { name: '切换到深色', exact: true }).click()
+  assert.equal(await root.getAttribute('data-workspace-tone'), 'dark')
+  assert.equal(await adminNav.getAttribute('data-menu-tone'), 'dark')
+  await shot('admin-dark')
+  await page.reload()
+  await tabs.getByRole('link', { name: '操作日志', exact: true }).waitFor()
+  assert.equal(await root.getAttribute('data-workspace-tone'), 'dark')
+  await tabs.getByRole('link', { name: '用户管理', exact: true }).click()
+  await page.waitForURL(origin + '/admin/users')
+  await tabs.getByRole('button', { name: '关闭用户管理', exact: true }).press('Enter')
+  await page.waitForURL(origin + '/admin/operation-logs')
+  await tabs.getByRole('button', { name: '关闭用户管理', exact: true }).waitFor({ state: 'hidden' })
+  await page.waitForFunction(() => document.activeElement?.textContent === '操作日志')
+  await page.getByRole('button', { name: '返回用户工作台', exact: true }).click()
+  await page.waitForURL(origin + '/dashboard')
+  await account.waitFor()
+  assert.equal(await root.getAttribute('data-workspace-preset'), 'liquid')
+  await page.evaluate(url => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(url), printPath)
+  await page.locator('.print-page').waitFor()
+  assert.equal(await root.getAttribute('data-workspace'), null)
+
+  const original = page.viewportSize()
+  for (const width of [1024, 1023, 375]) {
+    await page.setViewportSize({ width, height: 850 })
+    await page.goto(origin + '/dashboard')
+    await account.waitFor()
+    await visible('nav[aria-label="求职旅程"]', width >= 1024)
+    await visible('nav[aria-label="移动端求职旅程"]', width < 1024)
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+  }
+  await openConsumerSettings()
+  assert.equal(await option('主题风格', 'LiquidGlass').getAttribute('aria-pressed'), 'true')
+  await page.keyboard.press('Escape')
+  await drawer.waitFor({ state: 'hidden' })
+  for (const width of [901, 900, 375]) {
+    await page.setViewportSize({ width, height: 850 })
+    await page.goto(origin + '/admin/operation-logs')
+    await tabs.getByRole('link', { name: '操作日志' }).waitFor()
+    await visible('.admin-sidebar', width > 900)
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+  }
+  await page.getByRole('button', { name: '打开后台导航', exact: true }).click()
+  await page.getByRole('dialog', { name: '后台导航' }).getByRole('link', { name: '后台看板' }).waitFor()
+  await page.setViewportSize(original)
 }
 
 async function verifyViewport(browser, viewport) {
@@ -145,7 +278,34 @@ async function verifyViewport(browser, viewport) {
         results.push(await verifyRoute(page, '/dashboard', { width }))
       }
     }
+    if (viewport.width === 1440) await verifyAppearance(page)
     return { results, pageErrors, missing: [...missing] }
+  } finally {
+    await context.close()
+  }
+}
+
+
+async function verifyRestrictedAdminTabs(browser) {
+  const context = await browser.newContext({ viewport: viewports[0] })
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem('internpilot_token', 'synthetic-restricted-session')
+      sessionStorage.setItem('internpilot:admin-work-tabs:v1:17', JSON.stringify(['/admin/dashboard', '/admin/users']))
+    })
+    await context.route(origin + '/api/**', route => {
+      const key = new URL(route.request().url()).pathname
+      const data = key === '/api/user/me' ? { ...user, permissions: ['operation-log:read'] } : fixtures.get(key)
+      return route.fulfill({ json: { code: 200, data } })
+    })
+    const page = await context.newPage()
+    await page.goto(origin + '/admin/operation-logs')
+    const tabs = page.getByRole('navigation', { name: '工作页签' })
+    await tabs.getByRole('link', { name: '操作日志', exact: true }).waitFor()
+    assert.deepEqual(await tabs.getByRole('link').allTextContents(), ['操作日志'])
+    await page.goto(origin + '/admin/users')
+    await page.waitForURL(origin + '/403')
+    assert.equal(await page.locator('html').getAttribute('data-workspace'), null)
   } finally {
     await context.close()
   }
@@ -215,6 +375,7 @@ async function main() {
       reports.push(await verifyViewport(browser, viewport))
       await verifyAnonymousLanding(browser, viewport)
     }
+    await verifyRestrictedAdminTabs(browser)
     await writeFile(path.join(output, 'layout-results.json'), JSON.stringify({ browser: browser.version(), reports }, null, 2))
     const failures = reports.flatMap(({ results, pageErrors, missing }) => [
       ...results.filter((result) => result.error), ...pageErrors, ...missing
