@@ -1,7 +1,7 @@
 <template>
-  <PageContainer title="投递追踪" description="查看投递状态、面试安排和下一步跟进事项。">
+  <PageContainer title="投递追踪" description="查看投递状态、面试安排和下一步跟进事项。" width="wide">
     <template #actions>
-      <el-button type="primary" :icon="Plus" @click="openCreate">创建投递</el-button>
+      <Button type="button" class="ip:min-h-11" @click="openCreate"><el-icon aria-hidden="true"><Plus /></el-icon>创建投递</Button>
     </template>
 
     <section v-if="planState === 'LOADING'" class="panel flat" role="status">正在核对报告与已有投递计划…</section>
@@ -296,6 +296,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, Briefcase, Calendar, CircleCheck, CircleClose, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { Button } from '@/components/ui/button'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'
 import { createApplicationApi, createApplicationFromReportApi, deleteApplicationApi, getApplicationDetailApi, getApplicationListApi, getApplicationPlanContextApi, updateApplicationNoteApi, updateApplicationStatusApi, updateApplicationPriorityApi, type ApplicationPriority, type ApplicationPlanContext } from '@/api/application'

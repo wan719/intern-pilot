@@ -26,7 +26,9 @@ defineProps<{
 .admin-metric-group h2 {
   margin: 0 0 var(--space-2);
   padding-inline: var(--space-2);
-  font-size: 14px;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .admin-metric-group__grid {
@@ -48,6 +50,7 @@ defineProps<{
 .admin-metric-group__grid :deep(.stat-card strong) {
   margin-top: var(--space-1);
   font-size: 22px;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 

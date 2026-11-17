@@ -5,11 +5,8 @@
         <img :src="brandLogo" alt="" />
         <span>
           <strong>InternPilot</strong>
-          <small>求职旅程</small>
         </span>
       </RouterLink>
-
-      <JourneyNav :items="journeyItems" />
 
       <div class="header-user">
         <el-tag
@@ -82,11 +79,9 @@ import { useRouter } from 'vue-router'
 import { ArrowDown, Cpu, Message, Refresh, Setting, User } from '@element-plus/icons-vue'
 import brandLogo from '@/assets/brand-logo-optimized.png'
 import { getAiProviderApi } from '@/api/health'
-import { journeyItems } from '@/config/navigation'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedbackStore } from '@/stores/feedback'
-import JourneyNav from './JourneyNav.vue'
 
 defineEmits<{ refresh: [] }>()
 
@@ -165,7 +160,8 @@ onMounted(async () => {
   height: 100%;
   margin: 0 auto;
   align-items: center;
-  gap: var(--space-5);
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .header-brand {
@@ -173,7 +169,7 @@ onMounted(async () => {
   flex: 0 0 auto;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .header-brand img {
@@ -183,26 +179,9 @@ onMounted(async () => {
   object-fit: cover;
 }
 
-.header-brand span,
-.header-brand strong,
-.header-brand small {
-  display: block;
-}
-
 .header-brand strong {
-  font-size: 15px;
-  letter-spacing: 0.01em;
-}
-
-.header-brand small {
-  margin-top: 2px;
-  color: var(--color-border-strong);
-  font-size: 11px;
-}
-
-.journey-nav {
-  flex: 1 1 auto;
-  justify-content: center;
+  font-size: 16px;
+  letter-spacing: -0.02em;
 }
 
 .header-user {
@@ -223,10 +202,10 @@ onMounted(async () => {
   align-items: center;
   gap: var(--space-1);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-nav-soft);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-nav-soft);
-  color: var(--color-surface);
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -238,13 +217,14 @@ onMounted(async () => {
 
 .header-action:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-hover);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
 }
 
 .header-action:focus-visible,
 .account-trigger:focus-visible,
 .header-brand:focus-visible {
-  outline: 2px solid var(--color-primary-border);
+  outline: 2px solid var(--color-primary-hover);
   outline-offset: 2px;
 }
 
@@ -273,10 +253,10 @@ onMounted(async () => {
   max-width: 220px;
   height: 40px;
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
-  border: 1px solid var(--color-nav-soft);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-surface);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
   transition:
     background-color var(--motion-fast),
@@ -285,7 +265,7 @@ onMounted(async () => {
 
 .account-trigger:hover {
   border-color: var(--color-primary);
-  background: var(--color-nav-soft);
+  background: var(--color-surface-muted);
 }
 
 .account-avatar,
@@ -342,7 +322,7 @@ onMounted(async () => {
 .account-meta small {
   max-width: 112px;
   margin-top: 2px;
-  color: var(--color-border-strong);
+  color: var(--color-text-muted);
   font-size: 11px;
 }
 
@@ -408,25 +388,17 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 900px) {
+@media (min-width: 1024px) {
   .app-header-inner {
-    gap: var(--space-2);
-  }
-
-  .journey-nav {
-    display: none;
+    justify-content: flex-end;
   }
 
   .header-brand {
-    margin-right: auto;
+    display: none;
   }
 }
 
 @media (max-width: 420px) {
-  .header-brand small {
-    display: none;
-  }
-
   .header-brand img {
     width: 32px;
     height: 32px;

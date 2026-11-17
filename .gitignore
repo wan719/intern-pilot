@@ -48,10 +48,19 @@ Thumbs.db
 !/docs/frontend.md
 !/docs/git.md
 !/docs/test.md
-!/docs/design/
-!/docs/design/frontend-ui-resume-g2/
-!/docs/design/frontend-ui-resume-g2/resumes-1440.png
-!/docs/design/frontend-ui-resume-g2/resumes-375.png
+!/docs/requirements/
+!/docs/architecture-overview/
+!/docs/detailed-design-modeling/
+!/docs/architecture-overview/05-frontend-ui-redesign-outline.md
+!/docs/detailed-design-modeling/34-frontend-ui-redesign-modeling.md
+!/docs/detailed-design-modeling/35-frontend-ui-rollout-p2.md
+!/docs/detailed-design-modeling/36-frontend-ui-rollout-p3.md
+!/docs/detailed-design-modeling/37-frontend-ui-rollout-p4.md
+!/docs/detailed-design-modeling/38-frontend-ui-rollout-p5.md
+!/docs/detailed-design-modeling/39-frontend-ui-rollout-p6.md
+!/docs/detailed-design-modeling/40-frontend-ui-rollout-p7.md
+!/docs/requirements/06-frontend-ui-redesign-requirements.md
+/.local-evidence/
 
 # Local test helper output
 /gradle_result.txt

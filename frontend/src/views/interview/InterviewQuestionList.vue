@@ -1,15 +1,15 @@
 <template>
-  <PageContainer class="analysis-workspace" title="练好下一场面试" width="wide">
+  <PageContainer class="analysis-workspace" title="面试准备" width="wide">
     <template #hero>
       <PageHero
-        eyebrow="求职旅程 · 面试准备"
-        title="练好下一场面试"
+        title="面试准备"
         description="按岗位查找题单，先独立作答，再看参考答案和追问。"
       >
         <template #actions>
-          <el-button type="primary" :icon="Plus" :disabled="!canGenerate || generating" @click="openGenerate">
+          <Button type="button" class="ip:min-h-11" :disabled="!canGenerate || generating" @click="openGenerate">
+            <el-icon aria-hidden="true"><Plus /></el-icon>
             生成面试题
-          </el-button>
+          </Button>
         </template>
       </PageHero>
     </template>
@@ -299,6 +299,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { Button } from '@/components/ui/button'
 import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import FilterBar from '@/components/common/FilterBar.vue'

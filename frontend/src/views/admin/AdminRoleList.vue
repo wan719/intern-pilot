@@ -1,12 +1,5 @@
 <template>
   <PageContainer width="wide" title="角色管理" description="查看系统角色，并维护角色拥有的权限集合。">
-    <AdminMetricGroup class="list-metrics" label="列表概览">
-      <StatCard label="角色总数" :value="loadError ? '—' : roles.length" :icon="User" :loading="loading" />
-      <StatCard label="启用角色" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="停用角色" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
-      <StatCard label="权限点" :value="loadError ? '—' : permissions.length" :icon="Files" :loading="loading" />
-    </AdminMetricGroup>
-
     <div v-if="canReadPermissions && canUpdateRoles && permissionOptionsState === 'error'" class="auxiliary-error" data-role-permission-options-error>
       <el-alert title="权限选项加载失败，暂时无法分配权限" type="error" :closable="false" show-icon />
       <el-button @click="loadPermissions">重试权限选项</el-button>
@@ -21,6 +14,14 @@
       empty-title="暂无角色"
       empty-hint="当前没有可展示的角色数据；请确认后台初始化数据和当前账号权限。"
     >
+      <template #summary>
+        <AdminMetricGroup class="list-metrics" label="列表概览">
+          <StatCard label="角色总数" :value="loadError ? '—' : roles.length" :icon="User" :loading="loading" />
+          <StatCard label="启用角色" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
+          <StatCard label="停用角色" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
+          <StatCard label="权限点" :value="loadError ? '—' : permissions.length" :icon="Files" :loading="loading" />
+        </AdminMetricGroup>
+      </template>
       <el-table-column prop="roleId" label="ID" width="80" />
       <el-table-column label="角色" min-width="190">
         <template #default="{ row }">

@@ -235,6 +235,16 @@ onMounted(loadReport)
   margin: 0 auto 16px;
 }
 
+@media screen {
+  .print-shell {
+    background: var(--color-bg);
+  }
+
+  .print-toolbar {
+    max-width: 210mm;
+  }
+}
+
 .print-page {
   width: 210mm;
   max-width: 100%;

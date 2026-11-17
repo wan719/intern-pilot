@@ -403,7 +403,6 @@ onMounted(async () => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
 }
 
 .identity-section {
@@ -429,6 +428,7 @@ onMounted(async () => {
 
 .identity-copy {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .identity-copy h2 {

@@ -1,36 +1,46 @@
 <template>
-  <PageContainer width="wide" title="用户管理" description="查询用户、查看账号状态，并维护用户角色。后台默认展示昵称，账号唯一性以 ID 为准。">
-    <FilterBar class="user-filters" @reset="resetQuery">
-      <template #filters>
-        <el-input v-model="query.keyword" aria-label="用户关键词" placeholder="昵称 / 用户名 / 邮箱" clearable @keyup.enter="search" />
-        <el-input v-model="query.roleCode" aria-label="角色编码" placeholder="角色编码，例如 ADMIN" clearable @keyup.enter="search" />
-        <el-select v-model="query.enabled" aria-label="账号状态" placeholder="状态" clearable>
-          <el-option label="启用" :value="1" />
-          <el-option label="禁用" :value="0" />
-        </el-select>
-      </template>
-      <template #actions>
-        <el-button type="primary" :loading="loading" @click="search">查询</el-button>
-      </template>
-    </FilterBar>
-
-    <div v-if="canReadRoles && canUpdateUsers && roleOptionsState === 'error'" class="auxiliary-error" data-user-role-options-error>
-      <el-alert title="角色选项加载失败，暂时无法分配角色" type="error" :closable="false" show-icon />
-      <el-button @click="loadRoles">重试角色选项</el-button>
-    </div>
-
-    <div v-if="listError" class="auxiliary-error" role="alert">
-      <el-alert title="用户列表加载失败" :description="listError" type="error" :closable="false" show-icon />
-      <el-button @click="loadList">重试用户列表</el-button>
-    </div>
-
-    <TableShell
-      v-else
+  <PageContainer width="wide" title="用户管理">
+    <AdminResultTable
+      label="用户列表"
+      :rows="users"
       :loading="loading"
-      :empty="users.length === 0"
+      :error="listError"
+      error-title="用户列表加载失败"
+      retry-label="重试用户列表"
       empty-title="暂无用户"
-      empty-hint="当前筛选条件下没有用户记录；可以重置筛选条件，或确认当前账号是否拥有用户读取权限。"
+      empty-hint="当前筛选条件下没有用户记录。"
+      @retry="loadList"
     >
+      <template #filters>
+        <FilterBar class="user-filters" @reset="resetQuery">
+          <template #filters>
+            <div class="user-filter-field user-filter-keyword">
+              <label for="admin-users-keyword">关键词</label>
+              <el-input id="admin-users-keyword" v-model="query.keyword" aria-label="用户关键词" placeholder="昵称 / 用户名 / 邮箱" clearable @keyup.enter="search" />
+            </div>
+            <div class="user-filter-field">
+              <label for="admin-users-role">角色</label>
+              <el-input id="admin-users-role" v-model="query.roleCode" aria-label="角色编码" placeholder="角色编码，例如 ADMIN" clearable @keyup.enter="search" />
+            </div>
+            <div class="user-filter-field user-filter-state">
+              <label for="admin-users-state">状态</label>
+              <el-select id="admin-users-state" v-model="query.enabled" aria-label="账号状态" placeholder="全部状态" clearable>
+                <el-option label="启用" :value="1" />
+                <el-option label="禁用" :value="0" />
+              </el-select>
+            </div>
+          </template>
+          <template #actions>
+            <el-button type="primary" :loading="loading" @click="search">查询</el-button>
+          </template>
+        </FilterBar>
+      </template>
+      <template #after-filters>
+        <div v-if="canReadRoles && canUpdateUsers && roleOptionsState === 'error'" class="auxiliary-error" data-user-role-options-error>
+          <el-alert title="角色选项加载失败，暂时无法分配角色" type="error" :closable="false" show-icon />
+          <el-button @click="loadRoles">重试角色选项</el-button>
+        </div>
+      </template>
       <template #toolbar>
         <dl class="compact-stats" aria-label="用户筛选结果">
           <div><dt>筛选结果</dt><dd>{{ loading ? '—' : total }}</dd></div>
@@ -39,43 +49,45 @@
           <div><dt>角色数量</dt><dd>{{ roleOptionsState === 'success' ? roles.length : '—' }}</dd></div>
         </dl>
       </template>
-      <p class="table-scroll-hint">横向滚动查看全部字段和操作。</p>
-      <el-table class="admin-data-table" aria-label="用户列表" size="small" :data="users" :scrollbar-tabindex="0" scrollbar-always-on>
-        <el-table-column prop="userId" label="ID" width="80" />
-        <el-table-column label="用户" min-width="210">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <strong>{{ row.nickname || row.username || '-' }}</strong>
-              <span v-if="row.username && row.nickname !== row.username">用户名：{{ row.username }}</span>
-              <span v-if="row.email">{{ row.email }}</span>
+      <el-table-column prop="userId" label="ID" width="64" />
+      <el-table-column label="用户" min-width="144">
+        <template #default="{ row }">
+          <div class="user-cell">
+            <span class="user-initial" aria-hidden="true">{{ firstLetter(row.nickname || row.username || row.email) }}</span>
+            <div class="user-cell-name">
+              <strong :title="row.nickname || row.username">{{ row.nickname || row.username || '-' }}</strong>
+              <span v-if="row.username && row.nickname !== row.username" :title="row.username">{{ row.username }}</span>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="school" label="学校" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="major" label="专业" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="grade" label="年级" width="100" show-overflow-tooltip />
-        <el-table-column label="角色" min-width="190">
-          <template #default="{ row }">
-            <div class="role-tags">
-              <el-tag v-for="role in row.roles || []" :key="role" :type="role === 'ADMIN' ? 'warning' : 'primary'" effect="plain">
-                {{ role }}
-              </el-tag>
-              <span v-if="!(row.roles || []).length" class="muted">暂无角色</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <StatusTag :status="row.enabled" :label="row.enabled === 1 ? '启用' : '禁用'" size="small" />
-          </template>
-        </el-table-column>
-        <el-table-column label="注册时间" width="170">
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="214">
-          <template #default="{ row }">
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="email" label="邮箱" min-width="164" show-overflow-tooltip />
+      <el-table-column prop="school" label="学校" min-width="94" show-overflow-tooltip />
+      <el-table-column prop="major" label="专业" min-width="94" show-overflow-tooltip />
+      <el-table-column prop="grade" label="年级" width="62" show-overflow-tooltip />
+      <el-table-column label="角色" min-width="102">
+        <template #default="{ row }">
+          <div class="role-tags">
+            <el-tag v-for="role in row.roles || []" :key="role" :type="role === 'ADMIN' ? 'warning' : 'primary'" effect="plain" size="small">
+              {{ role }}
+            </el-tag>
+            <span v-if="!(row.roles || []).length" class="muted">暂无角色</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="74">
+        <template #default="{ row }">
+          <StatusTag class="user-status" :status="row.enabled" :label="row.enabled === 1 ? '启用' : '禁用'" size="small" />
+        </template>
+      </el-table-column>
+      <el-table-column label="注册时间" width="158">
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="166">
+        <template #default="{ row }">
+          <div class="user-row-actions">
             <el-button link type="primary" @click="showDetail(row.userId)">详情</el-button>
-            <el-button v-if="canAssignRoles" link type="warning" @click="openRoleDialog(row)">分配角色</el-button>
+            <el-button v-if="canAssignRoles" link type="primary" @click="openRoleDialog(row)">分配角色</el-button>
             <el-button
               v-if="hasPermission('user:update') && row.enabled === 1"
               link
@@ -90,26 +102,26 @@
               :loading="pendingUserIds.has(row.userId)"
               @click="changeEnabled(row, true)"
             >启用</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-config-provider :locale="zhCn">
-        <el-pagination
-          v-if="total > 0"
-          class="pager"
-          background
-          layout="total, sizes, prev, pager, next"
-          :pager-count="5"
-          :total="total"
-          :current-page="query.pageNum"
-          :page-size="query.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          @current-change="handlePageChange"
-          @size-change="handleSizeChange"
-        />
-      </el-config-provider>
-    </TableShell>
+          </div>
+        </template>
+      </el-table-column>
+      <template v-if="total > 0" #pagination>
+        <el-config-provider :locale="zhCn">
+          <el-pagination
+            class="pager"
+            background
+            layout="total, sizes, ->, prev, pager, next"
+            :pager-count="5"
+            :total="total"
+            :current-page="query.pageNum"
+            :page-size="query.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
+          />
+        </el-config-provider>
+      </template>
+    </AdminResultTable>
 
     <el-drawer v-model="detailVisible" title="用户详情" :size="detailDrawerSize" @closed="invalidateDetail">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
@@ -187,7 +199,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import FilterBar from '@/components/common/FilterBar.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
-import TableShell from '@/components/common/TableShell.vue'
+import AdminResultTable from './AdminResultTable.vue'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAuthStore } from '@/stores/auth'
@@ -389,18 +401,48 @@ onBeforeUnmount(() => {
 <style scoped>
 .compact-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
 .compact-stats div { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.compact-stats dt, .table-scroll-hint { color: var(--color-text-muted); font-size: 12px; }
+.compact-stats dt { color: var(--color-text-muted); font-size: 12px; }
 .compact-stats dd { margin: 0; color: var(--color-text); font-weight: 700; font-variant-numeric: tabular-nums; }
-.table-scroll-hint { margin: var(--space-2) var(--space-3); }
-.user-filters { margin-bottom: var(--space-3); }
-:deep(.admin-data-table .el-scrollbar__wrap:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-:deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: min(230px, 100%); }
-.user-cell { display: grid; min-width: 0; gap: 4px; }
-.user-cell strong, .user-cell span { overflow-wrap: anywhere; }
-.user-cell span, .muted { color: var(--color-text-soft); font-size: 12px; }
+.user-filter-field {
+  display: flex;
+  flex: 1 1 190px;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+.user-filter-keyword { flex-basis: 240px; }
+.user-filter-state { flex-basis: 140px; }
+.user-filter-field label { flex: none; color: var(--color-text); font-size: 13px; font-weight: 650; }
+.user-filter-field :is(.el-input, .el-select) { min-width: 0; }
+.user-cell { display: flex; min-width: 0; align-items: center; gap: var(--space-2); }
+.user-cell-name { display: grid; min-width: 0; gap: 2px; }
+.user-cell-name > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-cell-name span, .muted { color: var(--color-text-soft); font-size: 12px; }
+.user-initial {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  font-weight: 700;
+}
 .role-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.user-row-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2); }
+.user-row-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .detail-tags { margin-bottom: var(--space-3); }
-.pager { justify-content: flex-end; padding: var(--space-3); border-top: 1px solid var(--color-border-soft); }
+.user-status {
+  border-color: transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  color: var(--color-success);
+}
+.user-status.status-tag--info {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
 .profile-head { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; }
 .profile-head h2, .panel-header h2 { margin: 0; font-size: 16px; }
 .profile-head span { color: var(--color-text-muted); overflow-wrap: anywhere; }
@@ -417,15 +459,12 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .compact-stats, .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .user-filters :deep(.filter-bar__filters) { flex-basis: auto; }
+  .user-filter-field label { min-width: 42px; }
 }
 
 @media (max-width: 520px) {
-  :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: 100%; }
   .profile-head { grid-template-columns: 48px minmax(0, 1fr); }
   .profile-head .status-tag { grid-column: 2; justify-self: start; }
   .auxiliary-error { align-items: stretch; flex-direction: column; }
-  .pager { flex-wrap: wrap; justify-content: flex-start; }
-  .pager :deep(.el-pagination__sizes) { width: 115px; }
 }
 </style>

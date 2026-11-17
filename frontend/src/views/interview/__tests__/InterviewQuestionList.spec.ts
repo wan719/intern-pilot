@@ -542,7 +542,7 @@ describe('interview preparation queue redesign', () => {
     const wrapper = await mountPage()
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.get('h1').text()).toBe('练好下一场面试')
+    expect(wrapper.get('h1').text()).toBe('面试准备')
     expect(wrapper.findComponent({ name: 'FilterBar' }).exists()).toBe(true)
     expect(wrapper.find('[aria-label="按题目分类筛选"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="按难度筛选"]').exists()).toBe(true)

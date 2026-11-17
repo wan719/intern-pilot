@@ -105,7 +105,7 @@ watch(() => route.fullPath, closeDrawer)
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (width < 1024px) {
   .mobile-bottom-nav {
     position: fixed;
     right: 0;

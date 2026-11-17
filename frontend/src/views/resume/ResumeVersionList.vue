@@ -8,99 +8,124 @@
       <PageHero class="version-heading" title="简历版本" description="管理当前简历版本，查看和对比历次修改。">
         <template #actions>
           <el-button :icon="MagicStick" @click="openOptimize" :disabled="versions.length === 0">AI 优化</el-button>
-          <el-button type="primary" :icon="Plus" @click="openCreate">创建版本</el-button>
+          <Button class="version-create-action" type="button" @click="openCreate">
+            <el-icon aria-hidden="true"><Plus /></el-icon>
+            创建版本
+          </Button>
         </template>
       </PageHero>
     </template>
 
-    <section v-if="!loading && !loadError && versions.length" class="version-current" aria-labelledby="version-current-heading">
-      <span class="version-current__icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
-      <div>
-        <h2 id="version-current-heading">当前版本</h2>
-        <strong>{{ currentVersion ? displayVersionName(currentVersion) : '尚未设置' }}</strong>
-      </div>
-      <div v-if="currentVersion" class="version-current__meta">
-        <span>{{ versionTypeLabel(currentVersion.versionType) }} · 版本 #{{ currentVersion.versionId }}</span>
-        <time v-if="currentVersion.createdAt" :datetime="currentVersion.createdAt">{{ formatDateTime(currentVersion.createdAt) }}</time>
-      </div>
-    </section>
-
-    <section class="version-content" aria-labelledby="version-history-heading" :aria-busy="loading">
-      <header class="version-history-heading">
-        <h2 id="version-history-heading">版本历史</h2>
-        <span v-if="!loading && !loadError">{{ versions.length }} 个版本</span>
-      </header>
-      <div v-if="loading" class="version-loading" aria-live="polite" aria-label="正在加载简历版本">
-        <el-skeleton :rows="6" animated />
-      </div>
-
-      <div v-else-if="loadError" class="version-error" role="alert">
-        <div>
-          <strong>版本列表暂时无法加载</strong>
-          <span>请稍后重试。</span>
-        </div>
-        <el-button data-version-retry type="primary" plain @click="loadData">重新加载</el-button>
-      </div>
-
-      <AppEmpty
-        v-else-if="!sortedVersions.length"
-        title="还没有可管理的简历版本"
-        description="创建第一个版本，开始维护针对不同岗位的简历内容。"
-        hint="后续可以编辑、对比或使用 AI 生成岗位定制版本。"
-      >
-        <el-button data-version-empty-action type="primary" @click="openCreate">创建第一个版本</el-button>
-      </AppEmpty>
-
-      <ol v-else class="version-timeline" role="list" aria-label="简历版本时间线">
-        <li
-          v-for="row in sortedVersions"
-          :key="row.versionId"
-          class="version-timeline__item"
-          :class="{ 'version-timeline__item--current': row.isCurrent === 1 }"
-        >
-          <div class="version-timeline__rail" aria-hidden="true">
-            <span></span>
+    <div class="version-columns" :class="{ 'version-columns--split': isWide && versions.length && !loadError }">
+      <div class="version-history">
+        <section v-if="!loading && !loadError && versions.length" class="version-current" aria-labelledby="version-current-heading">
+          <span class="version-current__icon" aria-hidden="true"><el-icon><Document /></el-icon></span>
+          <div>
+            <h2 id="version-current-heading">当前版本</h2>
+            <strong>{{ currentVersion ? displayVersionName(currentVersion) : '尚未设置' }}</strong>
           </div>
-          <article class="version-card">
-            <header class="version-card__header">
-              <div class="version-card__title">
-                <div class="version-card__tags">
-                  <el-tag v-if="row.isCurrent === 1" type="success">当前版本</el-tag>
-                  <el-tag effect="plain">{{ versionTypeLabel(row.versionType) }}</el-tag>
-                </div>
-                <h3>{{ displayVersionName(row) }}</h3>
-                <div class="version-card__identity">
-                  <span>版本 #{{ row.versionId }}</span>
-                  <time :datetime="row.createdAt">{{ formatDateTime(row.createdAt) }}</time>
-                </div>
+          <div v-if="currentVersion" class="version-current__meta">
+            <span>{{ versionTypeLabel(currentVersion.versionType) }} · 版本 #{{ currentVersion.versionId }}</span>
+            <time v-if="currentVersion.createdAt" :datetime="currentVersion.createdAt">{{ formatDateTime(currentVersion.createdAt) }}</time>
+          </div>
+        </section>
+
+        <section class="version-content" aria-labelledby="version-history-heading" :aria-busy="loading">
+          <header class="version-history-heading">
+            <h2 id="version-history-heading">版本历史</h2>
+            <span v-if="!loading && !loadError">{{ versions.length }} 个版本</span>
+          </header>
+          <div v-if="loading" class="version-loading" aria-live="polite" aria-label="正在加载简历版本">
+            <el-skeleton :rows="6" animated />
+          </div>
+
+          <div v-else-if="loadError" class="version-error" role="alert">
+            <div>
+              <strong>版本列表暂时无法加载</strong>
+              <span>请稍后重试。</span>
+            </div>
+            <el-button data-version-retry type="primary" plain @click="loadData">重新加载</el-button>
+          </div>
+
+          <AppEmpty
+            v-else-if="!sortedVersions.length"
+            title="还没有可管理的简历版本"
+            description="创建第一个版本，开始维护针对不同岗位的简历内容。"
+            hint="后续可以编辑、对比或使用 AI 生成岗位定制版本。"
+          >
+            <el-button data-version-empty-action type="primary" @click="openCreate">创建第一个版本</el-button>
+          </AppEmpty>
+
+          <ol v-else class="version-timeline" role="list" aria-label="简历版本时间线">
+            <li
+              v-for="row in sortedVersions"
+              :key="row.versionId"
+              class="version-timeline__item"
+              :class="{
+                'version-timeline__item--current': row.isCurrent === 1,
+                'version-timeline__item--selected': isWide && selectedVersion?.versionId === row.versionId
+              }"
+            >
+              <div class="version-timeline__rail" aria-hidden="true">
+                <span></span>
               </div>
-              <div class="version-actions" role="group" :aria-label="`${displayVersionName(row)}操作`">
-                <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-                <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-                <el-button link type="primary" :disabled="row.isCurrent === 1" @click="setCurrent(row)">设当前</el-button>
-                <el-button link type="primary" @click="prepareCompare(row)">对比</el-button>
-                <el-button
-                  link
-                  type="danger"
-                  :disabled="row.isCurrent === 1 || row.versionType === 'ORIGINAL'"
-                  @click="removeVersion(row)"
-                >删除</el-button>
-              </div>
-            </header>
-            <dl class="version-card__facts">
-              <div>
-                <dt>目标岗位</dt>
-                <dd>{{ row.targetJobTitle ? `${row.targetCompanyName || ''} ${row.targetJobTitle}` : '未指定' }}</dd>
-              </div>
-              <div>
-                <dt>内容摘要</dt>
-                <dd>{{ row.contentSummary || '暂无摘要' }}</dd>
-              </div>
-            </dl>
-          </article>
-        </li>
-      </ol>
-    </section>
+              <article class="version-card">
+                <header class="version-card__header">
+                  <div class="version-card__title">
+                    <div class="version-card__tags">
+                      <el-tag v-if="row.isCurrent === 1" type="success">当前版本</el-tag>
+                      <el-tag effect="plain">{{ versionTypeLabel(row.versionType) }}</el-tag>
+                    </div>
+                    <h3>{{ displayVersionName(row) }}</h3>
+                    <div class="version-card__identity">
+                      <span>版本 #{{ row.versionId }}</span>
+                      <time :datetime="row.createdAt">{{ formatDateTime(row.createdAt) }}</time>
+                    </div>
+                  </div>
+                  <div class="version-actions" role="group" :aria-label="`${displayVersionName(row)}操作`">
+                    <el-button
+                      link
+                      type="primary"
+                      :aria-controls="isWide ? 'version-preview-panel' : undefined"
+                      :aria-pressed="isWide ? selectedVersion?.versionId === row.versionId : undefined"
+                      @click="openDetail(row)"
+                    >详情</el-button>
+                    <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+                    <el-button link type="primary" :disabled="row.isCurrent === 1" @click="setCurrent(row)">设当前</el-button>
+                    <el-button link type="primary" @click="prepareCompare(row)">对比</el-button>
+                    <el-button
+                      link
+                      type="danger"
+                      :disabled="row.isCurrent === 1 || row.versionType === 'ORIGINAL'"
+                      @click="removeVersion(row)"
+                    >删除</el-button>
+                  </div>
+                </header>
+                <dl class="version-card__facts">
+                  <div>
+                    <dt>目标岗位</dt>
+                    <dd>{{ row.targetJobTitle ? `${row.targetCompanyName || ''} ${row.targetJobTitle}` : '未指定' }}</dd>
+                  </div>
+                  <div>
+                    <dt>内容摘要</dt>
+                    <dd>{{ row.contentSummary || '暂无摘要' }}</dd>
+                  </div>
+                </dl>
+              </article>
+            </li>
+          </ol>
+        </section>
+      </div>
+      <aside
+        v-if="isWide && versions.length && !loadError"
+        id="version-preview-panel"
+        class="version-detail"
+        aria-label="版本详情"
+      >
+        <h2>版本详情</h2>
+        <ResumeVersionPreview v-bind="preview" @retry="retryDetail" />
+      </aside>
+    </div>
 
     <el-dialog v-model="editVisible" :title="editingVersionId ? '编辑版本' : '创建版本'" :width="editDialogWidth">
       <el-form :model="editForm" label-position="top">
@@ -124,16 +149,8 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="版本详情" :size="detailDrawerSize">
-      <div v-if="detail" class="detail-stack">
-        <el-descriptions :column="isMobile ? 1 : 2" border>
-          <el-descriptions-item label="版本名称">{{ displayVersionName(detail) }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ versionTypeLabel(detail.versionType) }}</el-descriptions-item>
-          <el-descriptions-item label="目标岗位">{{ detail.targetJobTitle || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="当前">{{ detail.isCurrent === 1 ? '是' : '否' }}</el-descriptions-item>
-        </el-descriptions>
-        <el-input v-model="detail.content" type="textarea" :rows="18" readonly />
-      </div>
+    <el-drawer v-if="!isWide" v-model="detailVisible" title="版本详情" :size="detailDrawerSize">
+      <ResumeVersionPreview v-bind="preview" @retry="retryDetail" />
     </el-drawer>
 
     <el-dialog v-model="compareVisible" title="版本对比" :width="compareDialogWidth">
@@ -219,6 +236,9 @@ import { ArrowLeft, Document, MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
+import { Button } from '@/components/ui/button'
+import ResumeVersionPreview from './ResumeVersionPreview.vue'
+import '@/styles/resume-utilities.css'
 import { getJobListApi } from '@/api/job'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import {
@@ -250,12 +270,17 @@ const editVisible = ref(false)
 const detailVisible = ref(false)
 const compareVisible = ref(false)
 const optimizeVisible = ref(false)
-const { isMobile, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const { isMobile, isTablet, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
+const isWide = computed(() => !isMobile.value && !isTablet.value)
 const editDialogWidth = responsiveDialogWidth('min(720px, calc(100vw - 28px))')
 const compareDialogWidth = responsiveDialogWidth('min(880px, calc(100vw - 28px))')
 const optimizeDialogWidth = responsiveDialogWidth('620px')
 const detailDrawerSize = responsiveDrawerSize('52%')
 const detail = ref<any>(null)
+const selectedVersion = ref<{ versionId: number }>()
+const detailLoading = ref(false)
+const detailError = ref(false)
+let detailRequest = 0
 const comparing = ref(false)
 const compareError = ref(false)
 interface VersionComparison {
@@ -291,6 +316,20 @@ const sortedVersions = computed(() => {
   })
 })
 
+const preview = computed(() => {
+  const row = detail.value
+  const summary = versions.value.find((item) => item.versionId === selectedVersion.value?.versionId)
+  return {
+    name: row ? displayVersionName(row) : undefined,
+    type: row ? versionTypeLabel(row.versionType) : undefined,
+    jobTitle: row?.targetJobTitle,
+    current: (summary || row)?.isCurrent === 1,
+    content: row?.content,
+    loading: detailLoading.value,
+    failed: detailError.value
+  }
+})
+
 async function loadData() {
   loading.value = true
   loadError.value = false
@@ -303,6 +342,15 @@ async function loadData() {
     versions.value = versionRes || []
     jobs.value = jobRes.records || []
     analysisReports.value = analysisRes.records || []
+    if (selectedVersion.value && !versions.value.some((row) => row.versionId === selectedVersion.value?.versionId)) {
+      detailRequest++
+      selectedVersion.value = undefined
+      detail.value = null
+      detailLoading.value = false
+      detailError.value = false
+      detailVisible.value = false
+    }
+    if (!selectedVersion.value && !openVersionFromQuery()) loadDefaultDetail()
   } catch {
     versions.value = []
     jobs.value = []
@@ -315,11 +363,18 @@ async function loadData() {
 
 function openVersionFromQuery() {
   const versionId = Number(route.query.versionId)
-  if (!Number.isFinite(versionId) || versionId <= 0) return
+  if (!Number.isFinite(versionId) || versionId <= 0) return false
   const row = versions.value.find((item) => item.versionId === versionId)
   if (row) {
-    openDetail(row)
+    void openDetail(row)
+    return true
   }
+  return false
+}
+
+function loadDefaultDetail() {
+  const first = currentVersion.value || sortedVersions.value[0]
+  if (isWide.value && !selectedVersion.value && first) void openDetail(first)
 }
 
 function openCreate() {
@@ -330,9 +385,25 @@ function openCreate() {
   editVisible.value = true
 }
 
-async function openDetail(row: any) {
-  detail.value = await getResumeVersionDetailApi(resumeId, row.versionId)
-  detailVisible.value = true
+async function openDetail(row: { versionId: number }) {
+  const request = ++detailRequest
+  selectedVersion.value = row
+  detail.value = null
+  detailError.value = false
+  detailLoading.value = true
+  if (!isWide.value) detailVisible.value = true
+  try {
+    const result = await getResumeVersionDetailApi(resumeId, row.versionId)
+    if (request === detailRequest) detail.value = result
+  } catch {
+    if (request === detailRequest) detailError.value = true
+  } finally {
+    if (request === detailRequest) detailLoading.value = false
+  }
+}
+
+function retryDetail() {
+  if (selectedVersion.value) void openDetail(selectedVersion.value)
 }
 
 async function openEdit(row: any) {
@@ -362,6 +433,9 @@ async function saveVersion() {
     ElMessage.success('保存成功')
     editVisible.value = false
     await loadData()
+    if (editingVersionId.value && selectedVersion.value?.versionId === editingVersionId.value && (isWide.value || detailVisible.value)) {
+      retryDetail()
+    }
   } finally {
     saving.value = false
   }
@@ -497,18 +571,63 @@ watch(
   () => openVersionFromQuery()
 )
 
-onMounted(async () => {
-  await loadData()
-  openVersionFromQuery()
+watch(isWide, (wide) => {
+  if (!wide) return
+  detailVisible.value = false
+  loadDefaultDetail()
 })
+
+onMounted(loadData)
 </script>
 
 <style scoped>
 .version-workspace {
-  --version-workspace-bg: #f8f7f3;
-  max-width: 1184px;
-  background: var(--version-workspace-bg);
+  background: var(--color-bg);
   color: var(--color-text);
+}
+
+.version-columns {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.version-columns--split {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.version-history,
+.version-detail {
+  min-width: 0;
+}
+
+.version-detail {
+  min-height: 320px;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.version-detail h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 20px;
+}
+
+.version-columns--split .version-current {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.version-columns--split .version-current__meta {
+  grid-column: 2;
+}
+
+.version-columns--split .version-card__header {
+  flex-wrap: wrap;
+}
+
+.version-columns--split .version-actions {
+  justify-content: flex-start;
 }
 
 .version-back {
@@ -547,7 +666,14 @@ onMounted(async () => {
   margin-left: 0;
 }
 
+.version-create-action {
+  min-height: 44px;
+  border: 0;
+  cursor: pointer;
+}
+
 .version-back:focus-visible,
+.version-create-action:focus-visible,
 .version-heading :deep(.el-button:focus-visible),
 .version-actions :deep(.el-button:focus-visible) {
   outline: 2px solid var(--color-primary-hover);
@@ -714,6 +840,11 @@ onMounted(async () => {
   border-color: var(--color-primary-border);
 }
 
+.version-timeline__item--selected .version-card {
+  border-color: var(--color-primary-hover);
+  background: color-mix(in srgb, var(--color-primary-soft) 18%, var(--color-surface));
+}
+
 .version-card__header {
   display: flex;
   align-items: flex-start;
@@ -786,11 +917,6 @@ onMounted(async () => {
   color: var(--color-text);
   line-height: 1.6;
   overflow-wrap: anywhere;
-}
-
-.detail-stack {
-  display: grid;
-  gap: var(--space-4);
 }
 
 .compare-picker {

@@ -1,14 +1,14 @@
 <template>
   <nav class="journey-nav" aria-label="求职旅程">
     <RouterLink
-      v-for="(item, index) in items"
+      v-for="item in items"
       :key="item.key"
       class="journey-nav-link"
       :class="{ 'is-active': item.key === activeKey }"
       :to="item.path"
       :aria-current="item.key === activeKey ? 'page' : undefined"
     >
-      <span class="journey-nav-step" aria-hidden="true">{{ index + 1 }}</span>
+      <el-icon aria-hidden="true"><component :is="icons[item.key]" /></el-icon>
       <span>{{ item.label }}</span>
     </RouterLink>
   </nav>
@@ -17,9 +17,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { House, Document, Suitcase, MagicStick, ChatDotRound, Promotion } from '@element-plus/icons-vue'
 import { resolveJourneyKey, type JourneyItem } from '@/config/navigation'
 
 defineProps<{ items: JourneyItem[] }>()
+
+const icons = {
+  dashboard: House,
+  resumes: Document,
+  jobs: Suitcase,
+  analysis: MagicStick,
+  interview: ChatDotRound,
+  applications: Promotion
+}
 
 const route = useRoute()
 const activeKey = computed(() => resolveJourneyKey(route.path))
@@ -27,62 +37,41 @@ const activeKey = computed(() => resolveJourneyKey(route.path))
 
 <style scoped>
 .journey-nav {
-  display: flex;
-  min-width: 0;
-  align-items: center;
+  display: grid;
   gap: var(--space-1);
 }
 
 .journey-nav-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 40px;
+  gap: var(--space-3);
+  min-height: 44px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
-  color: var(--color-border-strong);
-  font-size: 13px;
+  border-inline-start: 3px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
-  transition:
-    background-color var(--motion-fast),
-    color var(--motion-fast);
+  transition: background-color var(--motion-fast), color var(--motion-fast);
+}
+
+.journey-nav-link .el-icon {
+  font-size: 18px;
 }
 
 .journey-nav-link:hover {
-  background: var(--color-nav-soft);
-  color: var(--color-surface);
-}
-
-.journey-nav-link:focus-visible {
-  outline: 2px solid var(--color-primary-border);
-  outline-offset: 2px;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .journey-nav-link.is-active {
-  background: var(--color-primary-hover);
-  color: var(--color-surface);
+  border-inline-start-color: var(--color-primary-hover);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary-hover);
 }
 
-.journey-nav-step {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 11px;
-  line-height: 1;
-}
-
-@media (max-width: 1100px) {
-  .journey-nav-link {
-    padding-right: var(--space-2);
-    padding-left: var(--space-2);
-  }
-
-  .journey-nav-step {
-    display: none;
-  }
+.journey-nav-link:focus-visible {
+  outline: 2px solid var(--color-primary-hover);
+  outline-offset: 2px;
 }
 </style>

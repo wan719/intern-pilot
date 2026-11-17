@@ -1,9 +1,14 @@
 <template>
   <div class="admin-results">
     <slot name="filters" />
+    <slot name="summary" />
+    <slot name="after-filters" />
     <div v-if="error && !loading" class="admin-result-error" role="alert">
-      <strong>{{ error }}</strong>
-      <el-button plain @click="emit('retry')">重新加载</el-button>
+      <div>
+        <strong>{{ errorTitle }}</strong>
+        <p>{{ error }}</p>
+      </div>
+      <el-button plain @click="emit('retry')">{{ retryLabel }}</el-button>
     </div>
 
     <TableShell
@@ -13,6 +18,9 @@
       :empty-title="emptyTitle"
       :empty-hint="emptyHint"
     >
+      <template v-if="$slots.toolbar" #toolbar>
+        <slot name="toolbar" />
+      </template>
       <template v-if="$slots['empty-actions']" #empty-actions>
         <slot name="empty-actions" />
       </template>
@@ -27,7 +35,9 @@
       >
         <slot />
       </el-table>
-      <slot name="pagination" />
+      <div v-if="$slots.pagination" class="admin-pagination">
+        <slot name="pagination" />
+      </div>
     </TableShell>
   </div>
 </template>
@@ -35,14 +45,19 @@
 <script setup lang="ts">
 import TableShell from '@/components/common/TableShell.vue'
 
-defineProps<{
+withDefaults(defineProps<{
   label: string
   rows: unknown[]
   loading: boolean
   emptyTitle: string
   emptyHint: string
   error: string
-}>()
+  errorTitle?: string
+  retryLabel?: string
+}>(), {
+  errorTitle: '列表加载失败',
+  retryLabel: '重新加载'
+})
 
 const emit = defineEmits<{
   retry: []
@@ -55,7 +70,19 @@ const emit = defineEmits<{
 }
 
 .admin-results :deep(.filter-bar) {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.admin-results :deep(.table-shell) {
+  min-width: 0;
+}
+
+.admin-results :deep(.filter-bar .el-button--primary) {
+  --el-button-bg-color: var(--color-primary-hover);
+  --el-button-border-color: var(--color-primary-hover);
+  --el-button-hover-bg-color: color-mix(in srgb, var(--color-primary-hover) 88%, var(--color-nav));
+  --el-button-hover-border-color: var(--el-button-hover-bg-color);
 }
 
 .admin-result-error {
@@ -71,6 +98,12 @@ const emit = defineEmits<{
   color: var(--color-danger);
 }
 
+.admin-result-error p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .admin-table-scroll-hint {
   display: none;
   margin: var(--space-2) var(--space-3);
@@ -84,7 +117,33 @@ const emit = defineEmits<{
 }
 
 .admin-data-table :deep(.el-table__cell) {
-  padding-block: 7px;
+  padding-block: 8px;
+}
+
+.admin-data-table {
+  font-size: 13px;
+  --el-table-header-bg-color: var(--color-bg);
+  --el-table-header-text-color: var(--color-text);
+  --el-table-border-color: var(--color-border);
+  --el-table-row-hover-bg-color: var(--color-surface-muted);
+}
+
+.admin-data-table :deep(.el-table__header .cell) {
+  font-weight: 700;
+}
+
+.admin-data-table :deep(.el-button--primary.is-link) {
+  --el-button-text-color: var(--color-primary-hover);
+}
+
+.admin-pagination :deep(.el-pagination) {
+  justify-content: flex-end;
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-pagination:empty {
+  display: none;
 }
 
 @media (max-width: 900px) {
@@ -108,6 +167,23 @@ const emit = defineEmits<{
 @media (max-width: 520px) {
   .admin-results :deep(.filter-bar__filters) {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-pagination :deep(.el-pagination) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: var(--space-2);
+  }
+
+  .admin-pagination :deep(.el-pagination__rightwrapper) {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-pagination :deep(.el-pagination__sizes) {
+    width: 115px;
   }
 }
 </style>

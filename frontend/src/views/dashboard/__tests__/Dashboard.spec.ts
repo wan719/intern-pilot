@@ -67,6 +67,18 @@ beforeEach(() => {
 })
 
 describe('career action workspace', () => {
+  it('places the current stage before the journey and groups recent analysis with recent applications', async () => {
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.get('h1').text()).toBe('工作台')
+    const stage = wrapper.get('.dashboard-focus')
+    const journey = wrapper.get('ol[aria-labelledby="journey-progress-title"]')
+    expect(stage.element.compareDocumentPosition(journey.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(wrapper.get('.dashboard-grid').findAll('h3').map((heading) => heading.text())).toEqual([
+      '最近分析', '最近投递'
+    ])
+  })
+
   it('starts all existing dashboard requests and the interview count request together', async () => {
     let release!: () => void
     const pending = new Promise<any>((resolve) => {
@@ -233,7 +245,7 @@ describe('career action workspace', () => {
     const current = journey.get('[aria-current="step"]')
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.findAll('button.el-button--primary:not(.is-link)')).toHaveLength(1)
+    expect(wrapper.findAll('button[data-primary-action], button.el-button--primary:not(.is-link)')).toHaveLength(1)
     expect(wrapper.get('.dashboard-focus').text()).toContain('当前阶段匹配分析')
     expect(primary.element.compareDocumentPosition(journey.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(current.text()).toContain('匹配分析')

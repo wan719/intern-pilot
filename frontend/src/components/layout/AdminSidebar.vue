@@ -57,7 +57,7 @@ const visibleGroups = computed(() =>
 .admin-sidebar-nav {
   display: grid;
   align-content: start;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .admin-nav-group {
@@ -68,9 +68,9 @@ const visibleGroups = computed(() =>
 .admin-nav-group-label {
   margin: 0;
   padding: 0 var(--space-3);
-  color: color-mix(in srgb, var(--color-surface) 78%, transparent);
-  font-size: 12px;
-  font-weight: 700;
+  color: #a9b9cb;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.08em;
 }
 
@@ -83,7 +83,7 @@ const visibleGroups = computed(() =>
   display: flex;
   min-height: 44px;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   border-radius: var(--radius-sm);
   color: color-mix(in srgb, var(--color-surface) 90%, transparent);
   font-size: 14px;
@@ -92,6 +92,11 @@ const visibleGroups = computed(() =>
   padding: var(--space-2) var(--space-3);
   text-decoration: none;
   transition: background-color var(--motion-fast), color var(--motion-fast);
+}
+
+.admin-nav-item .el-icon {
+  flex: none;
+  font-size: 17px;
 }
 
 .admin-nav-item:hover {

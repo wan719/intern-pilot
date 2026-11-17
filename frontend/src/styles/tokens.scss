@@ -2,6 +2,7 @@
   --color-primary: #0f9f8f;
   --color-primary-hover: #0f766e;
   --color-primary-soft: #ccfbf1;
+  --color-primary-subtle: #e6f3f1;
   --color-primary-border: #99f6e4;
   --color-nav: #111827;
   --color-nav-soft: #1f2937;
@@ -16,16 +17,20 @@
   --color-success: #15803d;
   --color-warning: #d97706;
   --color-danger: #dc2626;
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --workspace-sidebar-width: 220px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-8: 32px;
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --shadow-floating: 0 18px 42px rgba(15, 23, 42, 0.12);
+  --focus-ring: 2px solid var(--color-primary-hover);
   --motion-fast: 150ms;
   --motion-base: 200ms;
 

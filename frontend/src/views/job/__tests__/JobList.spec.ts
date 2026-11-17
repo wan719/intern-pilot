@@ -184,7 +184,7 @@ describe('job opportunity redesign', () => {
     const wrapper = await mountPage([{ ...jobs[0], companyName: longCompany }])
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.get('h1').text()).toBe('锁定目标岗位')
+    expect(wrapper.get('h1').text()).toBe('岗位管理')
     expect(wrapper.findComponent({ name: 'FilterBar' }).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'TableShell' }).exists()).toBe(true)
     expect(wrapper.get(`[title="${longCompany}"]`).text()).toBe(longCompany)

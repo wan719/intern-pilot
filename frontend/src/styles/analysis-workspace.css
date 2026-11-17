@@ -1,5 +1,5 @@
 .analysis-workspace {
-  --analysis-paper: #f8f7f3;
+  --analysis-paper: var(--color-bg);
   max-width: 1184px;
   margin-inline: auto;
   background: var(--analysis-paper);

@@ -4,7 +4,7 @@ const path = require('node:path')
 const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-core')
 
 const origin = 'http://127.0.0.1:' + (process.env.INTERNPILOT_PREVIEW_PORT || '15206')
-const output = path.resolve('dist/ui-p6-evidence')
+const output = path.resolve(process.env.INTERNPILOT_ADMIN_EVIDENCE || '../.local-evidence/frontend-rebuild/admin-users')
 const account = {
   userId: 1, nickname: '合成运营账号',
   permissions: ['user:read', 'user:update', 'role:read'],
@@ -18,6 +18,16 @@ const user = {
 const roles = [
   { roleId: 2, roleCode: 'USER', roleName: '普通用户', enabled: 1 },
   { roleId: 3, roleCode: 'ADMIN', roleName: '管理员', enabled: 1 },
+]
+const sampleRows = [
+  user,
+  { ...user, userId: 18, nickname: '李同学', username: 'sample-li', email: 'li@example.invalid', roles: ['ADMIN'] },
+  { ...user, userId: 19, nickname: '周同学', username: 'sample-zhou', email: 'zhou@example.invalid', enabled: 0 },
+  { ...user, userId: 20, nickname: '许同学', username: 'sample-xu', email: 'xu@example.invalid' },
+  {
+    ...user, userId: 21, nickname: '一位用于检查表格窄屏和长账号名称的合成用户', username: 'sample-long-name',
+    email: 'a-very-long-synthetic-email-for-layout-testing@example.invalid',
+  },
 ]
 
 async function exercise(browser, viewport) {
@@ -42,7 +52,7 @@ async function exercise(browser, viewport) {
           failList = false
           return route.fulfill({ status: 503, json: { code: 503, message: '合成读取失败' } })
         }
-        return result({ records: [user], total: 32 })
+        return result({ records: url.searchParams.get('keyword') ? [user] : sampleRows, total: 32 })
       }
     }
     unexpected.push(request.method() + ' ' + url.pathname)
@@ -69,27 +79,49 @@ async function exercise(browser, viewport) {
     assert.equal(requests.at(-1).pageNum, '1')
 
     const scroll = table.locator('.el-scrollbar__wrap[tabindex="0"]')
-    assert(await scroll.evaluate((element) => element.scrollWidth > element.clientWidth))
-    await scroll.focus()
-    await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => document.activeElement.scrollLeft > 0)
-    await table.getByRole('button', { name: '详情', exact: true }).focus()
+    const tableOverflows = await scroll.evaluate((element) => element.scrollWidth > element.clientWidth)
+    if (viewport.width <= 900) assert(tableOverflows, 'narrow table should scroll within its container')
+    if (tableOverflows) {
+      await scroll.focus()
+      await page.keyboard.press('ArrowRight')
+      await page.waitForFunction(() => document.activeElement.scrollLeft > 0)
+    }
+    const userRow = table.getByRole('row').filter({ hasText: user.nickname })
+    await userRow.getByRole('button', { name: '详情', exact: true }).focus()
     await page.keyboard.press('Enter')
     await page.getByRole('dialog', { name: '用户详情' }).getByText('登录用户名', { exact: true }).waitFor()
     await page.keyboard.press('Escape')
     await page.getByRole('dialog', { name: '用户详情' }).waitFor({ state: 'hidden' })
 
-    await table.getByRole('button', { name: '分配角色' }).click()
+    await userRow.getByRole('button', { name: '分配角色' }).click()
     const roleDialog = page.getByRole('dialog', { name: '分配角色' })
     await roleDialog.getByText('ADMIN - 管理员').waitFor()
     await roleDialog.getByRole('button', { name: '取消', exact: true }).click()
     await roleDialog.waitFor({ state: 'hidden' })
 
-    await table.getByRole('button', { name: '禁用', exact: true }).click()
+    await userRow.getByRole('button', { name: '禁用', exact: true }).click()
     const confirmation = page.getByRole('dialog', { name: '确认操作' })
     await confirmation.getByText('确认禁用用户 陈同学？').waitFor()
     await page.keyboard.press('Escape')
     await confirmation.waitFor({ state: 'hidden' })
+
+    const nextPage = page.waitForRequest((request) => {
+      const url = new URL(request.url())
+      return url.pathname === '/api/admin/users' && url.searchParams.get('pageNum') === '2'
+    })
+    await page.getByRole('button', { name: '下一页' }).click()
+    await nextPage
+    await table.getByText(user.nickname, { exact: true }).waitFor()
+    await page.locator('.pager .el-select__wrapper').click()
+    await Promise.all([
+      page.waitForRequest((request) => {
+        const url = new URL(request.url())
+        return url.pathname === '/api/admin/users'
+          && url.searchParams.get('pageSize') === '20'
+          && url.searchParams.get('pageNum') === '1'
+      }),
+      page.getByRole('option', { name: /^20/ }).click(),
+    ])
 
     if (viewport.width <= 900) {
       const trigger = page.getByRole('button', { name: '打开后台导航' })
@@ -109,7 +141,7 @@ async function exercise(browser, viewport) {
       assert.equal(await sidebar.getByRole('link', { name: '权限管理' }).count(), 0)
     }
     assert.deepEqual(unexpected, [])
-    return { viewport, listQueries: requests, writesAfterCancellation: 0 }
+    return { viewport, tableOverflows, listQueries: requests, writesAfterCancellation: 0 }
   } finally {
     await context.close()
   }
@@ -120,7 +152,10 @@ async function main() {
   const browser = await chromium.launch({ channel: 'msedge' })
   try {
     const checks = []
-    for (const viewport of [{ width: 1440, height: 960 }, { width: 375, height: 812 }]) {
+    for (const viewport of [
+      { width: 1440, height: 960 }, { width: 768, height: 900 }, { width: 375, height: 812 },
+      { width: 900, height: 900 }, { width: 901, height: 900 },
+    ]) {
       checks.push(await exercise(browser, viewport))
       console.log(viewport.width + '×' + viewport.height + ': admin user workflow PASS')
     }

@@ -5,7 +5,7 @@ const path = require('node:path')
 const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-core')
 
 const origin = 'http://127.0.0.1:' + (process.env.INTERNPILOT_PREVIEW_PORT || '15205')
-const output = path.resolve('dist/ui-p5-evidence')
+const output = path.resolve(process.env.INTERNPILOT_ANALYSIS_EVIDENCE || '../.local-evidence/frontend-rebuild/analysis-p5')
 const date = '2026-11-16T09:30:00'
 const resume = { resumeId: 3, resumeName: '合成前端简历', originalFileName: 'sample.pdf', parseStatus: 'SUCCESS', isDefault: true }
 const job = { jobId: 7, companyName: '样例公司', jobTitle: '前端实习生', jdContent: '构建可访问界面。', skillRequirements: 'Vue, TypeScript' }
@@ -77,7 +77,7 @@ async function capture(browser, viewport) {
   }
   try {
     await page.goto(origin + '/analysis/match')
-    await page.getByRole('heading', { name: '确认这次 AI 匹配', exact: true }).waitFor()
+    await page.getByRole('heading', { name: '确认输入并生成报告', exact: true }).waitFor()
     await page.locator('[data-options-loading]').waitFor({ state: 'hidden' })
     assert.equal(await page.locator('.progress-panel').count(), 0)
     await page.goto(origin + '/analysis/match?taskNo=P5-SAMPLE')

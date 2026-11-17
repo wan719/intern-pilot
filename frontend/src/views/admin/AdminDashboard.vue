@@ -1,5 +1,5 @@
 <template>
-  <PageContainer width="wide" title="后台看板" description="查看系统规模、今日动态和运营异常。">
+  <PageContainer width="wide" title="后台看板">
     <div v-if="loadState === 'error'" class="dashboard-error" data-admin-dashboard-error>
       <el-alert title="数据不可用" :description="loadError" type="error" :closable="false" show-icon />
       <el-button type="primary" @click="loadData">重试</el-button>
@@ -184,8 +184,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .dashboard-metrics {
   display: grid;
-  grid-template-columns: 2fr minmax(0, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
@@ -198,20 +198,20 @@ onBeforeUnmount(() => {
 .dashboard-loading strong, .dashboard-loading span { display: block; }
 .dashboard-loading span { margin-top: var(--space-1); color: var(--color-text-muted); }
 .admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.admin-panel { margin: 0; }
+.admin-panel { min-width: 0; margin: 0; }
 .admin-panel-wide { grid-column: 1 / -1; }
 .admin-panel h2 { margin: 0; font-size: 17px; }
 .health-status { flex: none; white-space: nowrap; }
 .health-list, .activity-list { display: grid; gap: var(--space-2); }
 .health-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-2); border-bottom: 1px solid var(--color-border-soft); }
 .health-item:last-child { border-bottom: 0; }
-.health-item .el-icon { color: var(--color-primary); font-size: 20px; }
+.health-item .el-icon { color: var(--color-primary-hover); font-size: 20px; }
 .health-item strong, .health-item span { display: block; }
 .health-item span { margin-top: var(--space-1); color: var(--color-text-muted); font-size: 13px; }
 .activity-item > div:first-child { display: flex; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
 .activity-item span { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 .activity-track { height: 9px; overflow: hidden; border-radius: 999px; background: var(--color-surface-muted); }
-.activity-track span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); }
+.activity-track span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary-hover); }
 .quick-admin-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));

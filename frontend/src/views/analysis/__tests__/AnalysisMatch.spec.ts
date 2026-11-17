@@ -392,7 +392,7 @@ describe('analysis match redesign', () => {
     const wrapper = await mountPage()
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.get('h1').text()).toBe('确认这次 AI 匹配')
+    expect(wrapper.get('h1').text()).toBe('AI 匹配分析')
     expect(wrapper.findAll('.setup-step')).toHaveLength(3)
     expect(wrapper.get('[data-setup-step="resume"]').text()).toContain('1')
     expect(wrapper.get('[data-setup-step="resume"]').text()).toContain('选择简历')

@@ -25,4 +25,4 @@ Edge 在 1440×1000、375×812 检查一个主操作、五个阶段、两张图�
 
 本轮浏览器使用合成数据。真实后端、WebSocket、其他浏览器与生产环境未验证。
 
-[工作台页面](../../../frontend/src/views/dashboard/Dashboard.vue) · [组件测试](../../../frontend/src/views/dashboard/__tests__/Dashboard.spec.ts)
+[工作台页面](../../frontend/src/views/dashboard/Dashboard.vue) · [组件测试](../../frontend/src/views/dashboard/__tests__/Dashboard.spec.ts)

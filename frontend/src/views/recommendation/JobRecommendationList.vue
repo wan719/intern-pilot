@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="发现更值得投入的岗位" description="根据简历和岗位库生成推荐，比较匹配理由与风险。">
+  <PageContainer title="岗位推荐" description="根据简历和岗位库生成推荐，比较匹配理由与风险。" width="wide">
     <div class="recommendation-grid">
       <section class="panel generator-panel" :aria-busy="optionsLoading">
         <div class="panel-header">

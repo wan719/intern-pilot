@@ -1,12 +1,5 @@
 <template>
   <PageContainer width="wide" title="操作日志" description="查看系统关键操作、执行结果、请求来源和耗时，辅助定位后台风险。">
-    <AdminMetricGroup class="list-metrics" label="列表概览">
-      <StatCard label="当前结果总数" :value="loadError ? '—' : total" :icon="Files" :loading="loading" />
-      <StatCard label="本页成功" :value="loadError ? '—' : successCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="本页失败" :value="loadError ? '—' : failureCount" :icon="Warning" :loading="loading" />
-      <StatCard label="平均耗时" :value="loadError ? '—' : averageCostText" :icon="Clock" :loading="loading" />
-    </AdminMetricGroup>
-
     <AdminResultTable
       label="操作日志列表"
       :rows="logs"
@@ -35,6 +28,14 @@
             <el-button type="primary" :loading="loading" @click="search">查询</el-button>
           </template>
         </FilterBar>
+      </template>
+      <template #summary>
+        <AdminMetricGroup class="list-metrics" label="列表概览">
+          <StatCard label="当前结果总数" :value="loadError ? '—' : total" :icon="Files" :loading="loading" />
+          <StatCard label="本页成功" :value="loadError ? '—' : successCount" :icon="CircleCheck" :loading="loading" />
+          <StatCard label="本页失败" :value="loadError ? '—' : failureCount" :icon="Warning" :loading="loading" />
+          <StatCard label="平均耗时" :value="loadError ? '—' : averageCostText" :icon="Clock" :loading="loading" />
+        </AdminMetricGroup>
       </template>
       <el-table-column prop="logId" label="ID" width="80" />
       <el-table-column prop="operatorUsername" label="操作人" width="140" show-overflow-tooltip />
@@ -73,7 +74,7 @@
           v-if="total > 0"
           class="pager"
           background
-          :layout="isMobile ? 'total, sizes, ->, prev, pager, next' : 'total, sizes, prev, pager, next'"
+          layout="total, sizes, ->, prev, pager, next"
           :pager-count="isMobile ? 5 : 7"
           :total="total"
           :current-page="query.pageNum"
@@ -262,23 +263,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .list-metrics { margin-bottom: var(--space-4); }
 :deep(.filter-bar__filters .el-input), :deep(.filter-bar__filters .el-select) { width: min(200px, 100%); }
-.pager { justify-content: flex-end; padding: var(--space-3); border-top: 1px solid var(--color-border-soft); }
 .request-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 13px; }
 .slow { color: var(--color-warning); font-weight: 700; }
 .panel h2 { margin: 0; font-size: 16px; }
 .log-text { max-height: 260px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--color-text); line-height: 1.6; }
 .log-text.error { color: var(--color-danger); }
 
-@media (max-width: 520px) {
-  .pager {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    row-gap: var(--space-2);
-  }
-
-  .pager :deep(.el-pagination__rightwrapper) {
-    flex: 1 1 100%;
-    justify-content: flex-start;
-  }
-}
 </style>

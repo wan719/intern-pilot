@@ -2,7 +2,7 @@
   <PageContainer class="analysis-workspace" title="面试题深度练习" width="wide">
     <template #hero>
       <PageHero
-        eyebrow="面试准备 · 深度练习"
+        eyebrow="面试准备"
         :title="detail?.title || '面试题深度练习'"
         description="先独立组织答案，再按题目、参考答案、关键要点和追问的顺序校准表达。"
       >
@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
 .question-nav button.active { border-color: var(--color-primary-border); background: var(--color-primary-soft); color: var(--color-primary-hover); }
 .question-nav button:focus-visible, .question-actions .el-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary) 34%, transparent); outline-offset: 2px; }
 .question-stage { display: grid; gap: var(--space-4); min-width: 0; }
-.stage-header, .question-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-card); }
+.stage-header, .question-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .stage-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
 .eyebrow { color: var(--color-primary); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .stage-header h2 { margin: var(--space-1) 0; color: var(--color-text); font-size: 20px; }

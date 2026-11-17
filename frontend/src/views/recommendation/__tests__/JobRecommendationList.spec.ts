@@ -236,7 +236,7 @@ describe('job recommendation list redesign', () => {
     const wrapper = await mountPage()
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.get('h1').text()).toBe('发现更值得投入的岗位')
+    expect(wrapper.get('h1').text()).toBe('岗位推荐')
     expect(wrapper.findComponent({ name: 'TableShell' }).exists()).toBe(true)
     expect(wrapper.get('.recommendation-library').attributes('aria-label')).toBe('岗位推荐批次')
   })

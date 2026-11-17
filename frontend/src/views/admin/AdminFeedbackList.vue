@@ -1,12 +1,5 @@
 <template>
   <PageContainer width="wide" title="用户反馈" description="查看、处理和回复用户在系统内提交的问题与建议。">
-    <AdminMetricGroup class="list-metrics" label="列表概览">
-      <StatCard label="反馈总数" :value="loadError ? '—' : feedbacks.length" :icon="Message" :loading="loading" />
-      <StatCard label="待处理" :value="loadError ? '—' : statusCount.PENDING" :icon="Warning" :loading="loading" />
-      <StatCard label="处理中" :value="loadError ? '—' : statusCount.PROCESSING" :icon="Clock" :loading="loading" />
-      <StatCard label="已解决" :value="loadError ? '—' : statusCount.RESOLVED" :icon="CircleCheck" :loading="loading" />
-    </AdminMetricGroup>
-
     <AdminResultTable
       label="反馈列表"
       :rows="feedbacks"
@@ -30,6 +23,14 @@
             <el-button type="primary" :loading="loading" @click="loadData">筛选</el-button>
           </template>
         </FilterBar>
+      </template>
+      <template #summary>
+        <AdminMetricGroup class="list-metrics" label="列表概览">
+          <StatCard label="反馈总数" :value="loadError ? '—' : feedbacks.length" :icon="Message" :loading="loading" />
+          <StatCard label="待处理" :value="loadError ? '—' : statusCount.PENDING" :icon="Warning" :loading="loading" />
+          <StatCard label="处理中" :value="loadError ? '—' : statusCount.PROCESSING" :icon="Clock" :loading="loading" />
+          <StatCard label="已解决" :value="loadError ? '—' : statusCount.RESOLVED" :icon="CircleCheck" :loading="loading" />
+        </AdminMetricGroup>
       </template>
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="反馈" min-width="280">

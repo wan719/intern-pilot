@@ -67,6 +67,18 @@ describe('AppLayout journey shell', () => {
     expect(mounted.wrapper.findComponent(FeedbackDrawer).exists()).toBe(true)
   })
 
+  it('provides a desktop workspace navigation with a current destination', async () => {
+    const { wrapper } = await mountLayout()
+    const sidebar = wrapper.get('aside.workspace-sidebar')
+    const links = sidebar.get('nav[aria-label="求职旅程"]').findAll('a')
+
+    expect(links.map((link) => link.attributes('href'))).toEqual([
+      '/dashboard', '/resumes', '/jobs', '/analysis/match', '/interview-questions', '/applications'
+    ])
+    expect(links.filter((link) => link.attributes('aria-current') === 'page')).toHaveLength(1)
+    expect(links[0].attributes('aria-current')).toBe('page')
+  })
+
   it('loads the current user and initializes stored AI tasks', async () => {
     localStorage.setItem(
       'internpilot:ai-task-center',

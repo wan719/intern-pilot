@@ -12,13 +12,38 @@ verification: RESUMES_G2_LOCAL_AND_REAL_BACKEND
 production_authorization: NONE
 ---
 
-# InternPilot 前端 UI 重设计｜设计与实施方案 V1.0
+# 05 InternPilot 前端 UI 重设计概要设计
 
-> 需求、业务保持边界及验收编号见[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md)。2026-11-16 用户通过简历原型并批准 G2 接入。当前试点的实现和本地验证见[第 11 节](#11-resumes-g2-接入与验收)。
+> 需求、业务保持边界及验收编号见[需求与验收基线](../requirements/06-frontend-ui-redesign-requirements.md)。2026-11-16 用户通过简历原型并批准 G2 接入。当前试点的实现和本地验证见[第 11 节](#11-resumes-g2-接入与验收)。
+
+## 当前架构与组件分工
+
+改版基于 `7b0a47fc7df8c85d1048312afce4e660c2a73609`。C 端与后台共用一个 Vue 3、Vite 和 TypeScript 应用。`AppLayout` 在 1024px 起采用浅色侧栏，较窄视口保留底部导航。`AdminLayout` 使用深色权限侧栏，在 900px 及以下通过抽屉显示。报告打印使用独立路由。C 端参考 Reactive Resume 的文档工作区，后台参考 Art Design Pro 的导航分组和表格层级。
+
+C 端的主要操作复用 shadcn-vue Button，上传表单、抽屉和确认操作沿用 Element Plus。后台继续由 Element Plus、局部 SCSS 和公共表格组件承载。两端共享 `tokens.scss` 中的语义变量。C 端布局按路由加载 Tailwind CSS v4，由 `@theme inline` 对接，使用 `ip:` 前缀和显式 `@source`，保持 Preflight 关闭。Element Plus 通过 `--el-*` 变量对接。
+
+页面与状态流见[详细设计与建模](../detailed-design-modeling/34-frontend-ui-redesign-modeling.md)，开发约定见[前端指南](../frontend.md)。下方编号章节保留 V1.0 的历史方案、回退条件和对应提交的验收证据。
+
+## 本次整体验收
+
+2026-11-17，Windows，Node `20.20.2`、npm `11.12.1`、Edge `157.0.4341.60`。验证对象为基于上述提交的本地改版工作树。浏览器使用生产构建的本地预览和合成 API 数据，后端授权验证使用隔离测试配置。
+
+| 工作目录与命令 | 结果与覆盖范围 |
+| --- | --- |
+| `frontend/` · `npm ci --offline --no-audit --no-fund` | 退出 0，按锁文件安装 284 个包。 |
+| `frontend/` · `npm run test:run -- --maxWorkers=1 --reporter=dot` | 退出 0，36 个文件、333 项通过，0 跳过。覆盖账号流程、投递状态更新、AI 任务状态与轮询、权限入口和页面行为。 |
+| `frontend/` · `npm run type-check`、`npm run build` | 均退出 0。生产构建保留一个 HTML 入口。Vite 仍提示 `vendor-element` 分包超过 500 kB。 |
+| `frontend/` · `node scripts/check-workspace-layout.cjs` | 退出 0，77 个检查通过。25 个入口在 1440、768、375px 各检查一次，另检查 C 端导航的 1023/1024px 边界。检查标题、跳转、文档宽度、版本深链接预览和未预期的 API 或脚本错误。 |
+| `frontend/` · `node scripts/check-resume-g2.cjs`、`node scripts/check-analysis-p5.cjs`、`node scripts/check-admin-users-p6.cjs` | 均退出 0。覆盖简历加载、空列表、长名称、上传失败重试、删除取消、会话和样式隔离。分析脚本覆盖任务恢复、失败重试和键盘查看答案。后台覆盖筛选、分页、受限导航、抽屉焦点和取消操作。直接访问和经 C 端切换后的打印产物逐页对比一致，简历脚本同时检查两页 A4。 |
+| `backend/` · `./gradlew.bat test --tests '*AdminSecurityTest' --tests '*ResumeControllerSecurityTest' --tests '*FeedbackSecurityTest' --no-daemon --max-workers=1 --offline` | 退出 0，18 项通过，0 跳过。Spring Security 与控制器在 test profile 下执行，业务服务使用 mock。 |
+
+浏览器脚本从 `frontend/` 运行。先启动 `npm run preview -- --host 127.0.0.1 --port 5184 --strictPort`，将 `INTERNPILOT_PREVIEW_PORT` 设为 `5184`，`INTERNPILOT_PLAYWRIGHT` 指向本机的 `playwright-core` 模块。打印核验需要 PATH 中有 `pdfinfo` 与 `pdftoppm`。这次将 `INTERNPILOT_EVIDENCE` 和 `INTERNPILOT_ADMIN_EVIDENCE` 分别指向 `.local-evidence/frontend-rebuild/` 下的 `layout` 与 `admin-final`。其余浏览器回执也保存在该本地证据目录。
+
+首次并行浏览器检查使开发服务器内存不足退出。改为逐项检查生产构建后复验。真实 AI、邮件、浏览器与真实业务数据全链路以及生产部署未纳入本次验证。
 
 ## 00. 决策摘要
 
-**设计输入**：以[需求文档](../requirements/frontend-ui-redesign-requirements.md)的 REQ-C01～C05、REQ-A01～A02、REQ-X01、REQ-N01～N05 为交付边界。本文件负责技术方案、具体页面布局与实施顺序；新增需求必须先更新需求文档。
+**设计输入**：以[需求文档](../requirements/06-frontend-ui-redesign-requirements.md)的 REQ-C01～C05、REQ-A01～A02、REQ-X01、REQ-N01～N05 为交付边界。本文件负责技术方案、具体页面布局与实施顺序；新增需求必须先更新需求文档。
 
 **技术方案**
 - 继续使用 **Vue 3 + TypeScript + Vite** 的单一 `frontend/` 工程，保持现有 Vue Router、Pinia、Axios、ECharts、SockJS/STOMP。
@@ -29,7 +54,7 @@ production_authorization: NONE
 
 组件试验支持为简历首批接入选择关闭 Preflight 的 Tailwind CSS v4 和 shadcn-vue Button。业务弹窗仍用 Element Plus。若后续出现无法隔离的跨页样式回归，使用 Element Plus 和局部 Sass 回退。
 
-## 01. 只读源码核验基线
+## 01. 试点前源码核验基线
 
 仓库：`wan719/intern-pilot` `main` @ `1aabf181f2d4707272512694a56ce968e807da14`，2026-11-16。该 SHA 只描述本次审阅输入，不代表下一轮实施时的最新版本。
 
@@ -137,7 +162,7 @@ frontend/src/
 
 ## 05. 页面改造顺序与需求追踪
 
-此处是技术实施的批次顺序，产品范围与验收状态以[需求文档](../requirements/frontend-ui-redesign-requirements.md)为准。
+此处是技术实施的批次顺序，产品范围与验收状态以[需求文档](../requirements/06-frontend-ui-redesign-requirements.md)为准。
 
 | 批次 | 路由/模块 | 主要体验目标 | 保留的关键行为 |
 |---|---|---|---|
@@ -208,7 +233,7 @@ frontend/src/
 
 ## 09. 验收映射与测试计划
 
-**唯一的需求与验收状态表**在[需求与验收基线](../requirements/frontend-ui-redesign-requirements.md#四验收矩阵保留旧设计稿中的编号)。原有 `UI-01`、`UI-02`、`FUN-01`、`FUN-02`、`UX-01`、`UX-02`、`SEC-01`、`ENG-01`、`ADM-01` 编号保持不变，不应在此处复制另一份 PASS/FAIL 状态表。
+**唯一的需求与验收状态表**在[需求与验收基线](../requirements/06-frontend-ui-redesign-requirements.md#四验收矩阵保留旧设计稿中的编号)。原有 `UI-01`、`UI-02`、`FUN-01`、`FUN-02`、`UX-01`、`UX-02`、`SEC-01`、`ENG-01`、`ADM-01` 编号保持不变，不应在此处复制另一份 PASS/FAIL 状态表。
 
 - `frontend/src/views/resume/__tests__/ResumeList.spec.ts`、`ResumeVersionList.spec.ts`：针对 REQ-C02/C03/C04，验收 FUN-01、FUN-02。
 - `frontend/src/views/admin/__tests__/AdminCrudPages.spec.ts`、`AdminHandlerPermissions.spec.ts` 及后台守卫测试：针对 REQ-A01/A02，验收 SEC-01、ADM-01。
@@ -220,7 +245,7 @@ frontend/src/
 
 ## 10. 待验证的技术方案与下一合法动作
 
-产品范围、简历实时编辑和信息架构的决策以[需求文档](../requirements/frontend-ui-redesign-requirements.md#五变更管理与待确认问题)为准；此处只列尚未验证的技术事项。
+产品范围、简历实时编辑和信息架构的决策以[需求文档](../requirements/06-frontend-ui-redesign-requirements.md#五变更管理与待确认问题)为准；此处只列尚未验证的技术事项。
 
 - **组件方案**：shadcn-vue + Tailwind v4 是**候选架构**，只有隔离试点证明兼容后才升级为全站规范；失败优先回退已有 Element Plus/Sass。
 - **生产边界**：现有生产服务版本、备份和上线策略不由本设计文档声明；此处完全没有发布/生产执行授权。
@@ -237,7 +262,7 @@ frontend/src/
 
 ### 证据与复现
 
-- [1440×960 桌面截图](frontend-ui-resume-g2/resumes-1440.png) · [375×812 移动截图](frontend-ui-resume-g2/resumes-375.png)。使用合成 API 数据，移动截图包含整页长名称示例，底栏固定在首个视口底部。
+- [1440×960 桌面截图](https://github.com/wan719/intern-pilot/blob/7b0a47fc7df8c85d1048312afce4e660c2a73609/docs/design/frontend-ui-resume-g2/resumes-1440.png) · [375×812 移动截图](https://github.com/wan719/intern-pilot/blob/7b0a47fc7df8c85d1048312afce4e660c2a73609/docs/design/frontend-ui-resume-g2/resumes-375.png)。使用合成 API 数据，移动截图包含整页长名称示例，底栏固定在首个视口底部。
 - Windows / Node `20.20.2` / npm `11.12.1` / Edge `157.0.4341.60`。在本分支的 `frontend/` 使用 `npm ci --offline --no-audit --no-fund`、`npm run test:run -- --reporter=dot`、`npm run type-check`、`npm run build`。命令均退出 `0`。Vitest 共 36 个文件、318 例通过，无跳过。生产构建只有 `dist/index.html` 一个 HTML 入口。Element Plus 分包仍有 Vite 的 500 kB 告警。
 - 在 `frontend/` 执行 `npm run preview -- --host 127.0.0.1 --port 5184 --strictPort`。另开 PowerShell，将 `INTERNPILOT_PLAYWRIGHT` 设为临时安装的 `playwright-core@1.65.1` 模块绝对路径，并保证 `pdfinfo`、`pdftoppm` 在 PATH 中。用 Node 20 执行 [浏览器脚本](../../frontend/scripts/check-resume-g2.cjs)，退出 `0`，结果写入 `frontend/dist/resume-g2-evidence/`。
 - 两种视口覆盖加载、空列表、读取失败重试、四种解析状态、长名称、上传失败保留文件并成功重试、菜单键盘操作、删除取消、弹窗焦点与滚动锁、无会话及 401/403。额外核对 940px/941px 的卡片和列表切换。后台和打印各对比直接访问与加载简历 CSS 后的同会话 SPA 导航。后台抽样样式一致，打印项目符号保留且两页 A4 的逐页像素一致。

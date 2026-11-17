@@ -1,12 +1,5 @@
 <template>
   <PageContainer width="wide" title="权限管理" description="只读查看系统权限点，帮助理解后台菜单、按钮和接口权限的对应关系。">
-    <AdminMetricGroup class="list-metrics" label="列表概览">
-      <StatCard label="权限总数" :value="loadError ? '—' : permissions.length" :icon="Files" :loading="loading" />
-      <StatCard label="启用权限" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="停用权限" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
-      <StatCard label="资源类型" :value="loadError ? '—' : resourceTypes.length" :icon="DataBoard" :loading="loading" />
-    </AdminMetricGroup>
-
     <AdminResultTable
       label="权限列表"
       :rows="permissions"
@@ -27,6 +20,14 @@
             <el-button type="primary" :loading="loading" @click="loadData">筛选</el-button>
           </template>
         </FilterBar>
+      </template>
+      <template #summary>
+        <AdminMetricGroup class="list-metrics" label="列表概览">
+          <StatCard label="权限总数" :value="loadError ? '—' : permissions.length" :icon="Files" :loading="loading" />
+          <StatCard label="启用权限" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
+          <StatCard label="停用权限" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
+          <StatCard label="资源类型" :value="loadError ? '—' : resourceTypes.length" :icon="DataBoard" :loading="loading" />
+        </AdminMetricGroup>
       </template>
       <el-table-column prop="permissionId" label="ID" width="80" />
       <el-table-column label="权限" min-width="270">

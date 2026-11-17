@@ -137,6 +137,7 @@ describe('shared admin page structure', () => {
   })
 
   it.each([
+    [AdminUserList, '/admin/users'],
     [AdminRoleList, '/admin/roles'],
     [AdminPermissionList, '/admin/permissions'],
     [AdminRagKnowledgeList, '/admin/rag-knowledge'],

@@ -2,8 +2,7 @@
   <PageContainer class="analysis-workspace" title="" width="wide">
     <template #hero>
       <PageHero
-        eyebrow="AI 匹配分析"
-        title="确认这次 AI 匹配"
+        title="AI 匹配分析"
         description="选择简历与目标岗位。提交后可以离开本页，在 AI 任务中心继续查看进度。"
       >
         <ol class="setup-sequence" aria-label="AI 匹配设置步骤">

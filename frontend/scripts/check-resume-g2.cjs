@@ -5,7 +5,7 @@ const path = require('node:path')
 const { chromium } = require(process.env.INTERNPILOT_PLAYWRIGHT || 'playwright-core')
 
 const origin = 'http://127.0.0.1:5184'
-const output = path.resolve('dist/resume-g2-evidence')
+const output = path.resolve(process.env.INTERNPILOT_RESUME_EVIDENCE || '../.local-evidence/frontend-rebuild/resume-g2')
 const sizes = [{ width: 1440, height: 960 }, { width: 375, height: 812 }]
 const longName = '模拟样例长名称'.repeat(12) + '.pdf'
 const resumes = ['SUCCESS', 'PROCESSING', 'PENDING', 'FAILED'].map((parseStatus, index) => ({

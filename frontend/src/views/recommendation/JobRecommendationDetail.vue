@@ -1,5 +1,5 @@
 <template>
-  <PageContainer :title="detail ? detail.title || '推荐批次 #' + detail.batchId : '推荐详情'">
+  <PageContainer :title="detail ? detail.title || '推荐批次 #' + detail.batchId : '推荐详情'" width="wide">
     <template #actions>
       <el-button @click="router.push('/job-recommendations')">返回列表</el-button>
     </template>
@@ -376,7 +376,7 @@ onMounted(loadDetail)
   margin-bottom: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
 }
 
 .hero-meta,

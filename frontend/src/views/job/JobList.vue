@@ -1,8 +1,8 @@
 <template>
-  <PageContainer title="锁定目标岗位" description="按公司、岗位类型或地点查找目标岗位。">
+  <PageContainer title="岗位管理" description="按公司、岗位类型或地点查找目标岗位。" width="wide">
     <template #actions>
       <el-button v-if="auth.hasPermission('analysis:read')" @click="viewRecommendations">查看岗位推荐</el-button>
-      <el-button type="primary" :icon="Plus" @click="openCreate">新建岗位</el-button>
+      <Button type="button" class="ip:min-h-11" @click="openCreate"><el-icon aria-hidden="true"><Plus /></el-icon>新建岗位</Button>
     </template>
 
     <FilterBar class="job-filters" @reset="resetQuery">
@@ -181,6 +181,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { Button } from '@/components/ui/button'
 import FilterBar from '@/components/common/FilterBar.vue'
 import TableShell from '@/components/common/TableShell.vue'
 import router from '@/router'

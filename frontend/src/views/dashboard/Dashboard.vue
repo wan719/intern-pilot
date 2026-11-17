@@ -2,7 +2,7 @@
   <PageContainer title="职业行动工作台" width="wide">
     <template #hero>
       <header class="dashboard-heading">
-        <h1>{{ greeting }}，{{ displayName }}</h1>
+        <h1>工作台</h1>
         <div class="dashboard-focus">
           <div class="dashboard-focus__copy" aria-live="polite">
             <span v-if="!loading && !interviewLoading" class="dashboard-focus__label">
@@ -11,24 +11,18 @@
             <strong v-if="!loading && !interviewLoading">{{ primaryAction.stageTitle }}</strong>
             <p>{{ heroNextStep }}</p>
           </div>
-          <el-button
-            v-if="loading || interviewLoading"
+          <Button
+            class="dashboard-primary"
+            type="button"
             data-primary-action
-            type="primary"
-            loading
-            disabled
-          >
-            {{ loading ? '正在确认下一步' : '正在确认面试阶段' }}
-          </el-button>
-          <el-button
-            v-else
-            data-primary-action
-            type="primary"
-            :icon="primaryAction.icon"
+            :disabled="loading || interviewLoading"
+            :aria-busy="loading || interviewLoading"
             @click="handlePrimaryAction"
           >
-            {{ primaryAction.label }}
-          </el-button>
+            <el-icon v-if="loading || interviewLoading" class="is-loading" aria-hidden="true"><Loading /></el-icon>
+            <el-icon v-else aria-hidden="true"><ArrowRight /></el-icon>
+            {{ loading ? '正在确认下一步' : interviewLoading ? '正在确认面试阶段' : primaryAction.label }}
+          </Button>
         </div>
       </header>
     </template>
@@ -63,7 +57,7 @@
 
         <ol v-if="!loading" class="journey-steps" role="list" aria-labelledby="journey-progress-title">
           <li
-            v-for="(stage, index) in journeyStages"
+            v-for="stage in journeyStages"
             :key="stage.key"
             class="journey-step"
             :class="{ 'journey-step--complete': stage.done }"
@@ -72,7 +66,7 @@
             <button type="button" @click="router.push(stage.path)">
               <span class="journey-step__marker" aria-hidden="true">
                 <el-icon v-if="stage.done"><CircleCheckFilled /></el-icon>
-                <span v-else>{{ index + 1 }}</span>
+                <el-icon v-else><component :is="stage.icon" /></el-icon>
               </span>
               <span class="journey-step__copy">
                 <strong>{{ stage.title }}</strong>
@@ -109,13 +103,6 @@
         </div>
       </section>
 
-      <section class="stat-grid" aria-label="工作台数据概览">
-        <StatCard label="简历数量" :value="summary.resumes" :icon="Document" :loading="loading" hint="可用于岗位匹配" />
-        <StatCard label="目标岗位" :value="summary.jobs" :icon="Briefcase" :loading="loading" hint="已维护岗位 JD" tone="info" />
-        <StatCard label="分析报告" :value="summary.reports" :icon="Tickets" :loading="loading" hint="AI 匹配结果" tone="success" />
-        <StatCard label="投递记录" :value="summary.applications" :icon="List" :loading="loading" hint="持续跟进进展" tone="warning" />
-      </section>
-
       <section class="recent-results" aria-labelledby="recent-results-title">
         <h2 id="recent-results-title">近期结果</h2>
 
@@ -123,8 +110,7 @@
           <section class="panel">
             <div class="panel-header">
               <div>
-                <h3>最近 AI 分析报告</h3>
-                <span>优先查看最新匹配结果和优化建议</span>
+                <h3>最近分析</h3>
               </div>
               <el-button link type="primary" @click="router.push('/analysis/reports')">查看全部</el-button>
             </div>
@@ -153,6 +139,33 @@
           <section class="panel">
             <div class="panel-header">
               <div>
+                <h3>最近投递</h3>
+              </div>
+              <el-button link type="primary" @click="router.push('/applications')">查看全部</el-button>
+            </div>
+            <div v-if="recentApplications.length" class="application-list">
+              <article v-for="item in recentApplications" :key="item.applicationId" class="application-card">
+                <div class="result-copy">
+                  <strong>{{ item.companyName || '未知公司' }} - {{ item.jobTitle || '未知岗位' }}</strong>
+                  <span>{{ item.interviewDate ? `面试时间：${formatDateTime(item.interviewDate)}` : item.note || '暂无备注' }}</span>
+                </div>
+                <el-tag :type="statusTypes[item.status]" effect="plain">{{ statusLabels[item.status] || item.status }}</el-tag>
+              </article>
+            </div>
+            <AppEmpty
+              v-else-if="!loading"
+              title="暂无投递记录"
+              description="记录投递状态、面试时间和复盘内容"
+            >
+              <el-button @click="router.push('/applications')">添加投递记录</el-button>
+            </AppEmpty>
+          </section>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
                 <h3>投递状态概览</h3>
                 <span>查看当前投递记录的分布和待跟进情况</span>
               </div>
@@ -175,34 +188,6 @@
               <el-button @click="router.push('/applications')">记录第一次投递</el-button>
             </AppEmpty>
           </section>
-        </div>
-
-        <div class="dashboard-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <h3>最近投递记录</h3>
-                <span>把投递状态当成任务列表持续跟进</span>
-              </div>
-              <el-button link type="primary" @click="router.push('/applications')">查看全部</el-button>
-            </div>
-            <div v-if="recentApplications.length" class="application-list">
-              <article v-for="item in recentApplications" :key="item.applicationId" class="application-card">
-                <div class="result-copy">
-                  <strong>{{ item.companyName || '未知公司' }} - {{ item.jobTitle || '未知岗位' }}</strong>
-                  <span>{{ item.interviewDate ? `面试时间：${formatDateTime(item.interviewDate)}` : item.note || '暂无备注' }}</span>
-                </div>
-                <el-tag :type="statusTypes[item.status]" effect="plain">{{ statusLabels[item.status] || item.status }}</el-tag>
-              </article>
-            </div>
-            <AppEmpty
-              v-else-if="!loading"
-              title="暂无投递记录"
-              description="记录投递状态、面试时间和复盘内容"
-            >
-              <el-button @click="router.push('/applications')">添加投递记录</el-button>
-            </AppEmpty>
-          </section>
 
           <section class="panel">
             <div class="panel-header">
@@ -215,6 +200,13 @@
             <AppEmpty v-else-if="!loading" title="暂无匹配分数据" description="生成分析报告后会展示匹配分趋势" />
           </section>
         </div>
+      </section>
+
+      <section class="stat-grid" aria-label="工作台数据概览">
+        <StatCard label="简历数量" :value="summary.resumes" :icon="Document" :loading="loading" hint="可用于岗位匹配" />
+        <StatCard label="目标岗位" :value="summary.jobs" :icon="Briefcase" :loading="loading" hint="已维护岗位 JD" tone="info" />
+        <StatCard label="分析报告" :value="summary.reports" :icon="Tickets" :loading="loading" hint="AI 匹配结果" tone="success" />
+        <StatCard label="投递记录" :value="summary.applications" :icon="List" :loading="loading" hint="持续跟进进展" tone="warning" />
       </section>
     </section>
   </PageContainer>
@@ -232,6 +224,7 @@ import {
   CircleCheckFilled,
   Document,
   List,
+  Loading,
   MagicStick,
   QuestionFilled,
   Refresh,
@@ -241,16 +234,15 @@ import {
 import PageContainer from '@/components/common/PageContainer.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import StatCard from '@/components/common/StatCard.vue'
+import { Button } from '@/components/ui/button'
 import router from '@/router'
 import { getApplicationListApi } from '@/api/application'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getInterviewQuestionReportsApi } from '@/api/interviewQuestion'
 import { getJobListApi } from '@/api/job'
 import { getResumeListApi } from '@/api/resume'
-import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, statusLabels, statusTypes } from '@/utils/format'
 
-const auth = useAuthStore()
 const summary = reactive({ resumes: 0, jobs: 0, reports: 0, applications: 0 })
 const interviewReportCount = ref<number | null>(null)
 const interviewLoading = ref(false)
@@ -263,15 +255,6 @@ const statusChartRef = ref<HTMLDivElement>()
 const scoreChartRef = ref<HTMLDivElement>()
 
 use([PieChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
-
-const displayName = computed(() => auth.user?.nickname || auth.user?.username || auth.user?.email || '同学')
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 11) return '上午好'
-  if (hour < 14) return '中午好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
-})
 
 const journeyProgress = computed(() => ({
   resume: summary.resumes > 0,
@@ -444,18 +427,6 @@ onMounted(loadDashboard)
 </script>
 
 <style scoped>
-.dashboard-heading,
-.dashboard-workspace {
-  --dashboard-workspace-bg: #f8f7f3;
-}
-
-.dashboard-heading {
-  padding: var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--dashboard-workspace-bg);
-}
-
 .dashboard-heading h1 {
   margin: 0 0 var(--space-4);
   color: var(--color-text);
@@ -465,18 +436,20 @@ onMounted(loadDashboard)
 }
 
 .dashboard-focus {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  justify-items: start;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-primary-soft) 40%, var(--color-surface));
+  padding: clamp(16px, 3vw, 30px);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
 
 .dashboard-focus__label {
-  display: block;
+  display: inline-flex;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
   color: var(--color-primary-hover);
   font-size: 13px;
   font-weight: 700;
@@ -484,9 +457,10 @@ onMounted(loadDashboard)
 
 .dashboard-focus__copy strong {
   display: block;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
   color: var(--color-text);
-  font-size: 20px;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.2;
 }
 
 .dashboard-focus__copy p {
@@ -495,11 +469,9 @@ onMounted(loadDashboard)
   line-height: 1.55;
 }
 
-.dashboard-focus > .el-button {
+.dashboard-primary {
   min-height: 44px;
-  flex: none;
-  --el-button-bg-color: var(--color-primary-hover);
-  --el-button-border-color: var(--color-primary-hover);
+  font-weight: 700;
 }
 
 .dashboard-workspace,
@@ -599,7 +571,7 @@ onMounted(loadDashboard)
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--dashboard-workspace-bg);
+  background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
   text-align: left;
@@ -692,8 +664,8 @@ onMounted(loadDashboard)
   background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface));
 }
 
-.application-list, .report-list { display: grid; gap: var(--space-3); }
-.application-card, .report-card { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.application-list, .report-list { display: grid; }
+.application-card, .report-card { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; border-block-start: 1px solid var(--color-border); }
 .result-copy { min-width: 0; }
 .result-copy strong, .result-copy span { display: block; overflow-wrap: anywhere; }
 .result-copy strong { color: var(--color-text); }
@@ -730,16 +702,11 @@ onMounted(loadDashboard)
 }
 
 @media (max-width: 600px) {
-  .dashboard-heading {
-    padding: var(--space-4);
-  }
-
   .dashboard-focus {
     padding: var(--space-3);
   }
 
   .dashboard-error,
-  .dashboard-focus,
   .journey-inline-error,
   .application-card,
   .report-card {

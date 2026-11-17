@@ -323,10 +323,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .resume-center {
-  --resume-workspace-bg: #f8f7f3;
-  max-width: 1184px;
-  margin-inline: auto;
-  background: var(--resume-workspace-bg);
+  background: var(--color-bg);
   color: var(--color-text);
 }
 
@@ -402,6 +399,10 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+}
+
+.resume-list-shell {
+  container: resume-library / inline-size;
 }
 
 .resume-loading,
@@ -497,6 +498,18 @@ onBeforeUnmount(() => {
 .resume-row__actions :deep(.el-button:focus-visible) {
   outline: 2px solid var(--color-primary-hover);
   outline-offset: 2px;
+}
+
+@container resume-library (max-width: 800px) {
+  .resume-list-columns,
+  .resume-row {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.85fr) minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    padding-inline: var(--space-3);
+  }
+
+  .resume-row__metadata {
+    overflow-wrap: anywhere;
+  }
 }
 
 .upload-tip {

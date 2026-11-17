@@ -21,7 +21,11 @@
             aria-label="打开后台导航"
             @click="navigationDrawerVisible = true"
           />
-          <span class="admin-section-label">管理后台</span>
+          <div class="admin-location">
+            <span class="admin-section-label">运营后台</span>
+            <span v-if="route.meta.title" class="admin-location-divider" aria-hidden="true">/</span>
+            <span v-if="route.meta.title" class="admin-location-page">{{ route.meta.title }}</span>
+          </div>
         </div>
         <div class="admin-header-actions">
           <el-button :icon="Refresh" circle aria-label="刷新当前页面" @click="refreshPage" />
@@ -32,7 +36,9 @@
         </div>
       </header>
 
-      <router-view :key="refreshKey" />
+      <div class="admin-workspace">
+        <router-view :key="refreshKey" />
+      </div>
     </main>
 
     <el-drawer
@@ -88,7 +94,7 @@ onMounted(async () => {
 <style scoped>
 .admin-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 216px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--color-bg);
 }
@@ -99,7 +105,7 @@ onMounted(async () => {
   display: grid;
   height: 100dvh;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: var(--space-6);
+  gap: var(--space-5);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-5) var(--space-3);
@@ -120,7 +126,7 @@ onMounted(async () => {
 }
 
 .admin-brand strong {
-  font-size: 16px;
+  font-size: 19px;
 }
 
 .admin-brand span {
@@ -130,10 +136,10 @@ onMounted(async () => {
 }
 
 .brand-logo {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: var(--radius-sm);
   box-shadow: none;
   object-fit: cover;
 }
@@ -147,11 +153,11 @@ onMounted(async () => {
   top: 0;
   z-index: 10;
   display: flex;
-  min-height: 72px;
+  min-height: 60px;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 0 28px;
+  padding: 0 var(--space-6);
   border-bottom: 1px solid var(--color-border);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(10px);
@@ -168,10 +174,45 @@ onMounted(async () => {
   gap: var(--space-2);
 }
 
+.admin-location {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .admin-section-label {
+  flex: none;
+}
+
+.admin-location-page {
+  overflow: hidden;
   color: var(--color-text);
-  font-size: 16px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-workspace :deep(.page-container) {
+  padding: var(--space-5) var(--space-6) calc(var(--space-6) + var(--space-4));
+}
+
+.admin-workspace :deep(.app-page-header) {
+  margin-bottom: var(--space-5);
+}
+
+.admin-workspace :deep(.app-page-title h1) {
+  font-size: clamp(24px, 2.7vw, 34px);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.admin-workspace :deep(.app-page-title p) {
+  margin-top: var(--space-2);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .admin-header-actions {
@@ -243,6 +284,10 @@ onMounted(async () => {
     min-height: 60px;
     padding: 0 var(--space-4);
   }
+
+  .admin-workspace :deep(.page-container) {
+    padding-inline: var(--space-4);
+  }
 }
 
 @media (max-width: 480px) {
@@ -258,6 +303,11 @@ onMounted(async () => {
 
   .admin-workbench-button span {
     font-size: 12px;
+  }
+
+  .admin-location-divider,
+  .admin-location-page {
+    display: none;
   }
 }
 </style>

@@ -2,12 +2,11 @@
   <PageContainer class="analysis-workspace" title="" width="wide">
     <template #hero>
       <PageHero
-        eyebrow="AI 分析报告"
-        title="把匹配结果变成下一步行动"
+        title="分析报告"
         description="比较匹配分、优势和风险，再选择投递、优化简历或准备面试。"
       >
         <template #actions>
-          <el-button type="primary" :icon="MagicStick" @click="router.push('/analysis/match')">开始 AI 分析</el-button>
+          <Button type="button" class="ip:min-h-11" @click="router.push('/analysis/match')"><el-icon aria-hidden="true"><MagicStick /></el-icon>开始 AI 分析</Button>
         </template>
       </PageHero>
     </template>
@@ -246,6 +245,7 @@ import { MagicStick, Printer } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { Button } from '@/components/ui/button'
 import PageHero from '@/components/common/PageHero.vue'
 import AppEmpty from '@/components/common/AppEmpty.vue'
 import AiInsightPanel from '@/components/common/AiInsightPanel.vue'

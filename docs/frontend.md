@@ -1,8 +1,8 @@
 # 前端技术框架与开发约定
 
-> **UI 重设计试点**已接入 `/resumes`。逐批验收范围见 [UI 重设计需求与验收](requirements/frontend-ui-redesign-requirements.md) 与 [UI 设计与实施方案](design/frontend-ui-redesign-v1.md)。
+> **UI 重设计索引** · [需求与验收](requirements/06-frontend-ui-redesign-requirements.md) · [概要设计](architecture-overview/05-frontend-ui-redesign-outline.md) · [详细设计与建模](detailed-design-modeling/34-frontend-ui-redesign-modeling.md)
 
-`frontend/` 是 InternPilot 的单个 Vue 3 应用，使用同一套源码呈现桌面用户页面、移动端布局和管理后台。本文记录当前已实现的技术与开发约定；界面设计资料可用于理解历史意图，但实际行为以路由、组件、接口封装和实际验证结果为准。案例中的独立 H5/Web 工程、NFC、JetLinks、Nuxt UI 与 pnpm 均不属于本项目现状。
+`frontend/` 是 InternPilot 的单个 Vue 3 应用，使用同一套源码呈现桌面用户页面、移动端布局和管理后台。技术选型表记录当前实现，界面与状态约定指导后续开发。已上线功能的实际行为以目标提交的源码和对应环境的验证结果为准。
 
 ## 技术选型
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 框架 | Vue 3 单页应用 | 单文件组件和组合式 API；入口在 [main.ts](../frontend/src/main.ts)。 |
 | 构建与语言 | Vite、TypeScript、`vue-tsc` | 开发服务、模块处理、类型检查和生产构建。 |
-| 组件与样式 | Element Plus、Sass；简历试点使用 Tailwind CSS v4 与 shadcn-vue Button | Element Plus 负责表单、表格和弹窗。简历上传入口使用按路由加载的前缀样式。 |
+| 组件与样式 | Element Plus、Sass、Tailwind CSS v4、shadcn-vue Button | C 端页面用 shadcn-vue Button 承载简单的主要操作。Element Plus 负责现有表单、表格、上传和弹窗，后台继续使用 Element Plus 与局部 SCSS。 |
 | 路由 | Vue Router | History 路由、登录检查和带权限标记的页面跳转。 |
 | 共享状态 | Pinia | 当前用户、AI 任务中心和反馈状态。 |
 | 接口请求 | Axios | 基础地址、Bearer token、超时、业务响应解包与通用错误提示。 |
@@ -31,7 +31,7 @@ CI 和 Docker 构建使用 Node.js 20；`package.json` 尚未用 `engines` 锁�
 | 手机浏览器 | 与用户端共用路由和数据 | 底部导航、窄屏表单、触控操作、抽屉及长内容适配；不是独立安装包或独立 API。 |
 | 打印页面 | `/analysis/reports/:id/print` | 独立报告呈现和打印布局，变更报告时需单独检查。 |
 
-用户端导航由 [navigation.ts](../frontend/src/config/navigation.ts) 定义，`AppLayout.vue`、`JourneyNav.vue` 和 `MobileBottomNav.vue` 负责对应布局；管理端使用 `AdminLayout.vue` 与 `AdminSidebar.vue`。本地保留的 UI 设计文档是历史设计基线，公开开发约定以本节和当前代码为准。修改布局时同时检查桌面与手机的加载、空数据、失败、权限受限和键盘操作状态。
+用户端导航由 [navigation.ts](../frontend/src/config/navigation.ts) 定义。`AppLayout.vue` 在 1024px 起显示浅色侧栏，在更窄的视口使用底部导航。管理端使用 `AdminLayout.vue` 与 `AdminSidebar.vue`，在 900px 及以下通过抽屉打开权限导航。修改布局时同时检查桌面与手机的加载、空数据、失败、权限受限和键盘操作状态。
 
 ## 系统对接方式
 
@@ -98,8 +98,19 @@ token 目前由 [token.ts](../frontend/src/utils/token.ts) 存在浏览器 `loca
 
 ## 界面与状态约定
 
+### 两端的组件选型
+
+- **C 端**借鉴 Reactive Resume 的内容层级和文档工作区。新开发的按钮、标签、页签等基础组件优先采用 shadcn-vue，使用 Reka UI 提供的交互原语和 Tailwind CSS v4。现有 Element Plus 上传、表单、抽屉和确认弹窗按需迁移，替换时检查键盘操作、焦点恢复和错误反馈。参考 [Reactive Resume](https://github.com/reactive-resume/reactive-resume)。
+- **管理后台**借鉴 Art Design Pro 的分组导航、紧凑筛选区和表格布局。筛选、表格、分页、表单和弹窗统一使用 Element Plus 配合局部 SCSS，优先复用后台已有公共组件。参考 [Art Design Pro](https://github.com/Daymychen/art-design-pro) 和现有 [AdminResultTable.vue](../frontend/src/views/admin/AdminResultTable.vue)。
+
+### 主题与样式
+
+- 两端共用 `tokens.scss` 中的品牌色、状态色、间距和圆角等 CSS 变量。管理后台可按需调整侧栏配色和表格密度。Tailwind 通过 `@theme inline` 引用共享变量，Element Plus 通过 `element.scss` 中的 `--el-*` 变量对接。参见 [tokens.scss](../frontend/src/styles/tokens.scss)、[resume-utilities.css](../frontend/src/styles/resume-utilities.css) 和 [element.scss](../frontend/src/styles/element.scss)。
+- C 端布局按路由加载 Tailwind 主题与工具类，使用 `ip:` 前缀和显式 `@source`，保持 Preflight 关闭。扫描范围覆盖 C 端业务页面和 Button。扩展后，在同一个浏览器标签页从 C 端切换到后台和报告打印页，并与直接打开时的表现对比，检查样式是否串页。
+
+### 页面行为
+
 - 新页面沿用 Vue 单文件组件和现有 `<script setup lang="ts">` 写法；接口数据定义 TypeScript 类型，页面内短暂状态用 Vue 响应式能力，跨页面共享状态再进入 Pinia。
-- 使用 Element Plus 和 `src/styles/` 的设计 token 维护颜色、间距与组件状态。`/resumes` 通过 `resume-utilities.css` 按路由加载 `ip:` utilities，扫描范围限简历页与 Button，关闭 Preflight。扩展时运行简历页到后台和打印页的 SPA 对比。
 - 用户端保持工作台、简历、岗位、分析、面试和投递的现有导航语义；管理端保持权限驱动的侧栏分组。调整导航时同时检查桌面、窄屏和直接访问路径。
 - 页面至少处理加载、空数据、失败和权限受限状态。表单、表格、抽屉、对话框、长文本与打印页面应分别检查键盘焦点、标签、窄屏滚动和触控可用性。
 - AI 任务中心在本地持久化部分任务展示状态；修改恢复逻辑时要区分浏览器保存的展示状态与后端权威任务状态，避免刷新后重复完成或丢失失败提示。

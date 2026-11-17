@@ -4,13 +4,6 @@
       <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>
     </template>
 
-    <AdminMetricGroup class="list-metrics" label="列表概览">
-      <StatCard label="知识文档" :value="loadError ? '—' : documents.length" :icon="Document" :loading="loading" />
-      <StatCard label="启用中" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
-      <StatCard label="停用" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
-      <StatCard label="文本切片" :value="loadError ? '—' : chunkTotal" :icon="Files" :loading="loading" />
-    </AdminMetricGroup>
-
     <AdminResultTable
       label="知识文档列表"
       :rows="documents"
@@ -37,6 +30,14 @@
             <el-button :icon="Search" @click="openSearch">测试检索</el-button>
           </template>
         </FilterBar>
+      </template>
+      <template #summary>
+        <AdminMetricGroup class="list-metrics" label="列表概览">
+          <StatCard label="知识文档" :value="loadError ? '—' : documents.length" :icon="Document" :loading="loading" />
+          <StatCard label="启用中" :value="loadError ? '—' : enabledCount" :icon="CircleCheck" :loading="loading" />
+          <StatCard label="停用" :value="loadError ? '—' : disabledCount" :icon="Warning" :loading="loading" />
+          <StatCard label="文本切片" :value="loadError ? '—' : chunkTotal" :icon="Files" :loading="loading" />
+        </AdminMetricGroup>
       </template>
       <template #empty-actions>
         <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新增知识</el-button>

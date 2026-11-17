@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ResumeVersionList from '@/views/resume/ResumeVersionList.vue'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
@@ -93,6 +93,10 @@ async function mountPage(query = '') {
       plugins: [router],
       stubs: {
         teleport: true,
+        ElDrawer: {
+          props: ['modelValue', 'title'],
+          template: '<div v-if="modelValue" role="dialog" :aria-label="title"><slot /></div>'
+        },
         ElDialog: {
           props: ['modelValue'],
           template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
@@ -122,6 +126,36 @@ beforeEach(() => {
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as any)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('resume version preview', () => {
+  it('shows the current version alongside the history on wide screens', async () => {
+    vi.stubGlobal('innerWidth', 1440)
+    const { wrapper } = await mountPage()
+
+    const preview = wrapper.get('aside[aria-label="版本详情"]')
+    expect(preview.text()).toContain('version 101')
+
+    await button(wrapper, '详情', 1).trigger('click')
+    await flushPromises()
+    expect(preview.text()).toContain('version 202')
+
+    wrapper.unmount()
+  })
+
+  it('opens the requested preview in a drawer on narrow screens', async () => {
+    vi.stubGlobal('innerWidth', 375)
+    const { wrapper } = await mountPage('?versionId=202')
+
+    expect(wrapper.find('aside[aria-label="版本详情"]').exists()).toBe(false)
+    expect(wrapper.get('[role="dialog"]').text()).toContain('version 202')
+
+    wrapper.unmount()
+  })
 })
 
 describe('resume version legacy behavior', () => {

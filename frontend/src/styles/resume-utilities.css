@@ -2,6 +2,15 @@
 @import "tailwindcss/theme.css" layer(theme) prefix(ip);
 @import "tailwindcss/utilities.css" layer(utilities) prefix(ip) source(none);
 @source "../views/resume/ResumeList.vue";
+@source "../views/resume/ResumeVersionList.vue";
+@source "../views/dashboard";
+@source "../views/job";
+@source "../views/recommendation";
+@source "../views/analysis/AnalysisMatch.vue";
+@source "../views/analysis/AnalysisReportList.vue";
+@source "../views/interview";
+@source "../views/application";
+@source "../views/user";
 @source "../components/ui/button";
 
 @theme inline {
