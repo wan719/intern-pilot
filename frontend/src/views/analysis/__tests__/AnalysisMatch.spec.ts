@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AnalysisMatch from '@/views/analysis/AnalysisMatch.vue'
 import { createAnalysisTaskApi, getAnalysisTaskDetailApi } from '@/api/analysisTask'
 import { getJobDetailApi, getJobListApi } from '@/api/job'
-import { getResumeListApi } from '@/api/resume'
+import { getResumeDetailApi, getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import { createAnalysisSocket } from '@/utils/analysisSocket'
 
@@ -25,7 +25,7 @@ vi.mock('@/api/analysisTask', () => ({
   getAnalysisTaskDetailApi: vi.fn()
 }))
 vi.mock('@/api/job', () => ({ getJobDetailApi: vi.fn(), getJobListApi: vi.fn() }))
-vi.mock('@/api/resume', () => ({ getResumeListApi: vi.fn() }))
+vi.mock('@/api/resume', () => ({ getResumeDetailApi: vi.fn(), getResumeListApi: vi.fn() }))
 vi.mock('@/api/resumeVersion', () => ({ getResumeVersionListApi: vi.fn() }))
 vi.mock('@/utils/analysisSocket', () => ({ createAnalysisSocket: vi.fn() }))
 
@@ -142,6 +142,33 @@ afterEach(async () => {
 })
 
 describe('analysis match state and contract characterization', () => {
+  it('loads a linked resume outside the first page and submits its requested version only after confirmation', async () => {
+    vi.mocked(getResumeDetailApi).mockResolvedValueOnce({ ...resume, resumeId: 101 } as any)
+    const wrapper = await mountPage('/analysis/match?resumeId=101&resumeVersionId=4&jobId=7')
+
+    expect(getResumeDetailApi).toHaveBeenCalledWith(101, { silentError: true })
+    expect(mockedVersions).toHaveBeenCalledTimes(1)
+    expect(mockedCreateTask).not.toHaveBeenCalled()
+    await wrapper.get('[data-analysis-submit]').trigger('click')
+    expect(mockedCreateTask).toHaveBeenCalledWith(expect.objectContaining({ resumeId: 101, resumeVersionId: 4, jobId: 7 }))
+  })
+
+  it('requires an explicit selection when the linked version has been deleted', async () => {
+    const wrapper = await mountPage('/analysis/match?resumeId=3&resumeVersionId=99')
+    const form = (wrapper.vm as any).form
+    form.jobId = 7
+    await flushPromises()
+
+    expect(wrapper.get('[data-options-error]').text()).toContain('指定的简历版本已不可用')
+    expect(wrapper.get('[data-analysis-submit]').attributes()).toHaveProperty('disabled')
+    expect(mockedCreateTask).not.toHaveBeenCalled()
+
+    form.resumeVersionId = 5
+    await flushPromises()
+    await wrapper.get('[data-analysis-submit]').trigger('click')
+    expect(mockedCreateTask).toHaveBeenCalledWith(expect.objectContaining({ resumeVersionId: 5 }))
+  })
+
   it('installs the SockJS browser-global compatibility alias before creating the existing socket', async () => {
     const browserRuntime = globalThis as typeof globalThis & { global?: typeof globalThis }
     const previousGlobal = browserRuntime.global

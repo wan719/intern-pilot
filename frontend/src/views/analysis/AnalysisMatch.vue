@@ -355,7 +355,7 @@ import StatusTag from '@/components/common/StatusTag.vue'
 import router from '@/router'
 import { createAnalysisTaskApi, getAnalysisTaskDetailApi } from '@/api/analysisTask'
 import { getJobDetailApi, getJobListApi } from '@/api/job'
-import { getResumeListApi } from '@/api/resume'
+import { getResumeDetailApi, getResumeListApi } from '@/api/resume'
 import { getResumeVersionListApi } from '@/api/resumeVersion'
 import type { AnalysisProgressMessage } from '@/utils/analysisSocket'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
@@ -369,6 +369,7 @@ const jobs = ref<any[]>([])
 const selectedJobDetail = ref<any>(null)
 const optionsLoading = ref(false)
 const optionsError = ref('')
+const requestedVersionUnavailable = ref(false)
 const running = ref(false)
 const submissionPending = ref(false)
 const reconnectPending = ref(false)
@@ -418,7 +419,7 @@ const task = reactive({
 const selectedResume = computed(() => resumes.value.find((item) => item.resumeId === form.resumeId))
 const selectedVersion = computed(() => versions.value.find((item) => item.versionId === form.resumeVersionId))
 const selectedJob = computed(() => jobs.value.find((item) => item.jobId === form.jobId))
-const canSubmit = computed(() => Boolean(form.resumeId && form.jobId))
+const canSubmit = computed(() => Boolean(form.resumeId && form.jobId && (!requestedVersionUnavailable.value || form.resumeVersionId)))
 
 type SetupStep = 'resume' | 'job' | 'confirm'
 type SetupStepState = 'complete' | 'current' | 'pending'
@@ -542,30 +543,49 @@ async function applyQueryDefaults() {
   const resumeId = Number(route.query.resumeId)
   const resumeVersionId = Number(route.query.resumeVersionId)
   const jobId = Number(route.query.jobId)
-  if (Number.isFinite(resumeId) && resumeId > 0) {
-    form.resumeId = resumeId
-    await loadVersions()
+  if (Number.isSafeInteger(resumeId) && resumeId > 0) {
+    if (!resumes.value.some(item => item.resumeId === resumeId)) {
+      const detail: any = await getResumeDetailApi(resumeId, { silentError: true })
+      resumes.value = [...resumes.value, detail]
+    }
+    const preferredVersion = Number.isSafeInteger(resumeVersionId) && resumeVersionId > 0
+      ? resumeVersionId
+      : undefined
+    await selectResume(resumeId, preferredVersion)
   }
-  if (Number.isFinite(resumeVersionId) && resumeVersionId > 0) {
-    form.resumeVersionId = resumeVersionId
-  }
-  if (Number.isFinite(jobId) && jobId > 0) {
+  if (Number.isSafeInteger(jobId) && jobId > 0) {
     form.jobId = jobId
   }
 }
 
-async function loadVersions() {
+let selectingResume = false
+let versionRequest = 0
+async function selectResume(id: number, preferredVersion?: number) {
+  selectingResume = true
+  form.resumeId = id
+  selectingResume = false
+  await loadVersions(preferredVersion)
+}
+
+async function loadVersions(preferredVersion?: number) {
+  const request = ++versionRequest
   const resumeId = form.resumeId
-  if (!resumeId) {
-    versions.value = []
-    form.resumeVersionId = undefined
+  versions.value = []
+  form.resumeVersionId = undefined
+  requestedVersionUnavailable.value = preferredVersion !== undefined
+  if (!resumeId) return
+  const result: any = await getResumeVersionListApi(resumeId)
+  if (request !== versionRequest || form.resumeId !== resumeId) return
+  versions.value = result || []
+  if (preferredVersion !== undefined) {
+    if (!versions.value.some(item => item.versionId === preferredVersion)) {
+      throw new Error('指定的简历版本已不可用，请重新选择。')
+    }
+    form.resumeVersionId = preferredVersion
+    requestedVersionUnavailable.value = false
     return
   }
-  const res: any = await getResumeVersionListApi(resumeId)
-  if (form.resumeId !== resumeId) return
-  versions.value = res || []
-  const current = versions.value.find((item) => item.isCurrent === 1)
-  form.resumeVersionId = current?.versionId
+  form.resumeVersionId = versions.value.find(item => item.isCurrent === 1)?.versionId
 }
 
 async function loadSelectedJobDetail() {
@@ -584,6 +604,10 @@ async function startTask(source: 'setup' | 'progress' = 'setup') {
   if (restoringTask.value || submissionPending.value || running.value) return
   if (!form.resumeId || !form.jobId) {
     ElMessage.warning('请选择简历和岗位')
+    return
+  }
+  if (requestedVersionUnavailable.value && !form.resumeVersionId) {
+    ElMessage.warning('指定的简历版本已不可用，请重新选择。')
     return
   }
   cleanupTaskWatchers()
@@ -783,8 +807,7 @@ async function restoreLastTask() {
     if (session !== taskSession) return
 
     if (detail.resumeId && !form.resumeId) {
-      form.resumeId = detail.resumeId
-      await loadVersions()
+      await selectResume(detail.resumeId)
     }
     if (detail.jobId && !form.jobId) {
       form.jobId = detail.jobId
@@ -871,7 +894,12 @@ function displayVersionName(item: any) {
   return item?.versionName || (item?.versionType === 'ORIGINAL' ? '原始版本' : '未命名版本')
 }
 
-watch(() => form.resumeId, () => { void loadVersions() })
+watch(() => form.resumeId, () => {
+  if (selectingResume) return
+  void loadVersions().catch(() => {
+    ElMessage.error('无法加载简历版本，请重新选择简历后重试。')
+  })
+}, { flush: 'sync' })
 watch(() => form.jobId, () => { void loadSelectedJobDetail() })
 
 onMounted(async () => {

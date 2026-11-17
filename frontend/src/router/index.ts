@@ -15,6 +15,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', component: () => import('@/views/dashboard/Dashboard.vue'), meta: { title: '数据看板', journey: 'dashboard' } },
       { path: '/resumes', component: () => import('@/views/resume/ResumeList.vue'), meta: { title: '简历管理', journey: 'resumes' } },
+      { path: '/resumes/:resumeId', name: 'resume-detail', component: () => import('@/views/resume/ResumeDetail.vue'), meta: { title: '简历详情', permission: 'resume:read', journey: 'resumes' } },
+      { path: '/resumes/:resumeId/edit', name: 'resume-edit', component: () => import('@/views/resume/ResumeEditor.vue'), meta: { title: '编辑简历版本', permission: 'resume:write', journey: 'resumes' } },
       { path: '/resumes/:resumeId/versions', component: () => import('@/views/resume/ResumeVersionList.vue'), meta: { title: '简历版本管理', journey: 'resumes' } },
       { path: '/jobs', component: () => import('@/views/job/JobList.vue'), meta: { title: '岗位管理', journey: 'jobs' } },
       { path: '/analysis/match', component: () => import('@/views/analysis/AnalysisMatch.vue'), meta: { title: 'AI 匹配分析', journey: 'analysis' } },
@@ -78,6 +80,9 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     if (to.name === 'landing' && !to.hash) return { top: 0 }
     if ((from.name === 'landing' || from.name === 'sample-report') && from.name !== to.name) return { top: 0 }
+    if (to.path !== from.path && [to.name, from.name].some(name => name === 'resume-detail' || name === 'resume-edit')) {
+      return { top: 0 }
+    }
   }
 })
 

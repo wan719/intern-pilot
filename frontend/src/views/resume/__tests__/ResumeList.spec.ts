@@ -1,12 +1,10 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ResumeList from '@/views/resume/ResumeList.vue'
 import {
   deleteResumeApi,
-  getResumeDetailApi,
-  getResumeFileApi,
   getResumeListApi,
   setDefaultResumeApi,
   uploadResumeApi
@@ -17,16 +15,12 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('@/router', () => ({ default: { push } }))
 vi.mock('@/api/resume', () => ({
   deleteResumeApi: vi.fn(),
-  getResumeDetailApi: vi.fn(),
-  getResumeFileApi: vi.fn(),
   getResumeListApi: vi.fn(),
   setDefaultResumeApi: vi.fn(),
   uploadResumeApi: vi.fn()
 }))
 
 const mockedDelete = vi.mocked(deleteResumeApi)
-const mockedDetail = vi.mocked(getResumeDetailApi)
-const mockedFile = vi.mocked(getResumeFileApi)
 const mockedList = vi.mocked(getResumeListApi)
 const mockedSetDefault = vi.mocked(setDefaultResumeApi)
 const mockedUpload = vi.mocked(uploadResumeApi)
@@ -54,14 +48,6 @@ const resumes = [
   }
 ]
 
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise
-  })
-  return { promise, resolve }
-}
-
 function button(wrapper: VueWrapper, label: string, index = 0) {
   const matches = wrapper.findAll('button').filter((item) => item.text().trim() === label)
   expect(matches.length).toBeGreaterThan(index)
@@ -81,11 +67,6 @@ async function mountPage(records?: any[]) {
       plugins: [router],
       stubs: {
         teleport: true,
-        ElDrawer: {
-          name: 'ElDrawer',
-          props: ['modelValue', 'beforeClose'],
-          template: '<aside v-if="modelValue"><slot /></aside>'
-        },
         ElDialog: {
           props: ['modelValue'],
           template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
@@ -101,110 +82,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockedList.mockResolvedValue({ records: resumes } as any)
   mockedDelete.mockResolvedValue(undefined as any)
-  mockedDetail.mockResolvedValue({ ...resumes[1], parsedText: '项目经历' } as any)
   mockedSetDefault.mockResolvedValue(undefined as any)
   mockedUpload.mockResolvedValue(undefined as any)
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as any)
   vi.spyOn(ElMessage, 'success').mockImplementation(() => undefined as any)
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => undefined as any)
-})
-
-describe('resume original files', () => {
-  const pdf = new Blob(['%PDF synthetic'], { type: 'application/pdf' })
-  const docx = new Blob(['PK synthetic'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
-  const createUrl = vi.fn(() => 'blob:unit-test/original')
-  const revokeUrl = vi.fn()
-  let viewerProperty: PropertyDescriptor | undefined
-
-  beforeEach(() => {
-    viewerProperty = Object.getOwnPropertyDescriptor(navigator, 'pdfViewerEnabled')
-    Object.defineProperty(navigator, 'pdfViewerEnabled', { configurable: true, value: true })
-    vi.stubGlobal('URL', class extends URL {
-      static createObjectURL = createUrl
-      static revokeObjectURL = revokeUrl
-    })
-    mockedDetail.mockImplementation(async id => ({
-      ...resumes.find(item => item.resumeId === id), originalFileName: id === 11 ? '校园简历.pdf' : '项目简历.docx',
-      parsedText: '上传时保存的项目经历'
-    }) as any)
-    mockedFile.mockReset().mockImplementation(async id => id === 11 ? pdf : docx)
-  })
-
-  afterEach(() => {
-    if (viewerProperty) Object.defineProperty(navigator, 'pdfViewerEnabled', viewerProperty)
-    else Reflect.deleteProperty(navigator, 'pdfViewerEnabled')
-    vi.unstubAllGlobals()
-    vi.restoreAllMocks()
-  })
-
-  it('defaults to the PDF original, shares the exact Blob with download and releases it on close', async () => {
-    const downloads: string[] = []
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-      downloads.push(this.download)
-    })
-    const wrapper = await mountPage()
-    await button(wrapper, '详情').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('#tab-original').attributes('aria-selected')).toBe('true')
-    expect(wrapper.get('iframe[title="PDF 简历原件"]').attributes('src')).toBe('blob:unit-test/original')
-    expect(createUrl).toHaveBeenCalledWith(pdf)
-    await button(wrapper, '下载原件').trigger('click')
-    await flushPromises()
-    expect(downloads).toEqual(['校园简历.pdf'])
-    expect(mockedFile).toHaveBeenCalledTimes(1)
-
-    ;(wrapper.vm as any).closeDetail()
-    expect(revokeUrl).toHaveBeenCalledWith('blob:unit-test/original')
-    wrapper.unmount()
-  })
-
-  it('keeps parsed text available when the file is missing and retries the protected request', async () => {
-    mockedFile.mockRejectedValueOnce({ response: { status: 404 } })
-    const wrapper = await mountPage()
-    await button(wrapper, '详情').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('.resume-original [role="alert"]').text()).toContain('原件不存在')
-    expect(wrapper.find('iframe').exists()).toBe(false)
-
-    await wrapper.get('#tab-text').trigger('click')
-    expect(wrapper.get('#tab-text').attributes('aria-selected')).toBe('true')
-    expect(wrapper.get('#pane-text').text()).toContain('上传时保存的项目经历')
-    await wrapper.get('#tab-original').trigger('click')
-    await button(wrapper, '重试').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('iframe').attributes('src')).toBe('blob:unit-test/original')
-    expect(mockedFile).toHaveBeenCalledTimes(2)
-    wrapper.unmount()
-  })
-
-  it('aborts an old PDF while switching to a DOCX that downloads only on demand', async () => {
-    const old = deferred<Blob>()
-    mockedFile.mockReturnValueOnce(old.promise)
-    const downloads: string[] = []
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-      downloads.push(this.download)
-    })
-    const wrapper = await mountPage()
-    await button(wrapper, '详情').trigger('click')
-    await flushPromises()
-    const signal = mockedFile.mock.calls[0][1]
-    await button(wrapper, '详情', 1).trigger('click')
-    await flushPromises()
-    expect(signal.aborted).toBe(true)
-    old.resolve(pdf)
-    await flushPromises()
-    expect(createUrl).not.toHaveBeenCalled()
-    expect(wrapper.find('iframe').exists()).toBe(false)
-    expect(mockedFile).toHaveBeenCalledTimes(1)
-
-    await button(wrapper, '下载原件').trigger('click')
-    await flushPromises()
-    expect(createUrl).toHaveBeenCalledWith(docx)
-    expect(downloads).toEqual(['项目简历.docx'])
-    wrapper.unmount()
-    expect(revokeUrl).toHaveBeenCalledWith('blob:unit-test/original')
-  })
 })
 
 describe('resume list legacy behavior', () => {
@@ -215,7 +97,7 @@ describe('resume list legacy behavior', () => {
 
     await button(wrapper, '详情', 1).trigger('click')
     await flushPromises()
-    expect(mockedDetail).toHaveBeenCalledWith(22)
+    expect(push).toHaveBeenCalledWith('/resumes/22')
 
     await button(wrapper, '版本管理', 1).trigger('click')
     expect(push).toHaveBeenCalledWith('/resumes/22/versions')
@@ -343,58 +225,5 @@ describe('resume center redesign', () => {
     expect(failedPage.get('[role="alert"]').text()).toContain('简历列表暂时无法加载')
     expect(failedPage.get('[data-resume-retry]').text()).toContain('重新加载')
     expect(failedPage.find('.app-empty').exists()).toBe(false)
-  })
-
-  it('keeps the newest resume detail when responses resolve in reverse order', async () => {
-    const wrapper = await mountPage()
-    const staleRequest = deferred<any>()
-    const latestRequest = deferred<any>()
-    mockedDetail.mockReturnValueOnce(staleRequest.promise).mockReturnValueOnce(latestRequest.promise)
-
-    const staleOpen = (wrapper.vm as any).openDetail(101)
-    const latestOpen = (wrapper.vm as any).openDetail(202)
-    latestRequest.resolve({ ...resumes[1], resumeId: 202, resumeName: '最新简历' })
-    await latestOpen
-    staleRequest.resolve({ ...resumes[1], resumeId: 101, resumeName: '过期简历' })
-    await staleOpen
-    await flushPromises()
-
-    expect((wrapper.vm as any).detail.resumeId).toBe(202)
-    expect((wrapper.vm as any).detail.resumeName).toBe('最新简历')
-    expect((wrapper.vm as any).detail.resumeName).not.toBe('过期简历')
-  })
-
-  it('keeps a closed resume drawer empty when its pending detail resolves', async () => {
-    const wrapper = await mountPage()
-    await (wrapper.vm as any).openDetail(22)
-    const pendingRequest = deferred<any>()
-    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
-
-    const pendingOpen = (wrapper.vm as any).openDetail(303)
-    const drawer = wrapper.findComponent({ name: 'ElDrawer' })
-    drawer.props('beforeClose')()
-    await wrapper.vm.$nextTick()
-    pendingRequest.resolve({ ...resumes[1], resumeId: 303, resumeName: '关闭后简历' })
-    await pendingOpen
-    await flushPromises()
-
-    expect((wrapper.vm as any).detailVisible).toBe(false)
-    expect((wrapper.vm as any).detail).toBeNull()
-    expect(wrapper.text()).not.toContain('关闭后简历')
-  })
-
-  it('does not commit a resume detail after the page unmounts', async () => {
-    const wrapper = await mountPage()
-    const vm = wrapper.vm as any
-    const pendingRequest = deferred<any>()
-    mockedDetail.mockReturnValueOnce(pendingRequest.promise)
-
-    const pendingOpen = vm.openDetail(404)
-    wrapper.unmount()
-    pendingRequest.resolve({ ...resumes[1], resumeId: 404, resumeName: '卸载后简历' })
-    await pendingOpen
-
-    expect(vm.detail).toBeNull()
-    expect(vm.detailVisible).toBe(false)
   })
 })

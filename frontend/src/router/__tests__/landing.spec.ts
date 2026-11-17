@@ -115,7 +115,7 @@ describe('public landing and protected routes', () => {
     }
   })
 
-  it.each(['/resumes', '/analysis/match', '/analysis/reports', '/analysis/reports/42/print', '/admin/users'])('guards anonymous access to %s', async (path) => {
+  it.each(['/resumes', '/resumes/7', '/resumes/7/edit', '/analysis/match', '/analysis/reports', '/analysis/reports/42/print', '/admin/users'])('guards anonymous access to %s', async (path) => {
     await router.push(path)
     expect(router.currentRoute.value.fullPath).toBe('/login')
   })

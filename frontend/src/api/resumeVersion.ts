@@ -9,8 +9,9 @@ export function getResumeVersionListApi(resumeId: number, config?: { silentError
   return config ? request.get(path, config) : request.get(path)
 }
 
-export function getResumeVersionDetailApi(resumeId: number, versionId: number) {
-  return request.get(`/api/resumes/${resumeId}/versions/${versionId}`)
+export function getResumeVersionDetailApi(resumeId: number, versionId: number, config?: { silentError?: boolean }) {
+  const path = `/api/resumes/${resumeId}/versions/${versionId}`
+  return config ? request.get(path, config) : request.get(path)
 }
 
 export function updateResumeVersionApi(resumeId: number, versionId: number, data: any) {

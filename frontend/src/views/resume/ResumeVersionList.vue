@@ -127,28 +127,6 @@
       </aside>
     </div>
 
-    <el-dialog v-model="editVisible" :title="editingVersionId ? '编辑版本' : '创建版本'" :width="editDialogWidth">
-      <el-form :model="editForm" label-position="top">
-        <el-form-item label="版本名称">
-          <el-input v-model="editForm.versionName" placeholder="例如：Java 后端实习优化版" />
-        </el-form-item>
-        <el-form-item v-if="!editingVersionId" label="版本类型">
-          <el-select v-model="editForm.versionType">
-            <el-option label="手动编辑版本" value="MANUAL" />
-            <el-option label="岗位定制版本" value="JOB_TARGETED" />
-            <el-option label="导入版本" value="IMPORTED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="版本内容">
-          <el-input v-model="editForm.content" type="textarea" :rows="14" placeholder="粘贴或编辑简历文本" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveVersion">保存</el-button>
-      </template>
-    </el-dialog>
-
     <el-drawer v-if="!isWide" v-model="detailVisible" title="版本详情" :size="detailDrawerSize">
       <ResumeVersionPreview v-bind="preview" @retry="retryDetail" />
     </el-drawer>
@@ -230,7 +208,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Document, MagicStick, Plus } from '@element-plus/icons-vue'
 import PageContainer from '@/components/common/PageContainer.vue'
@@ -243,36 +221,32 @@ import { getJobListApi } from '@/api/job'
 import { getAnalysisReportsApi } from '@/api/analysis'
 import {
   compareResumeVersionsApi,
-  createResumeVersionApi,
   deleteResumeVersionApi,
   getResumeVersionDetailApi,
   getResumeVersionListApi,
   optimizeResumeVersionApi,
-  setCurrentResumeVersionApi,
-  updateResumeVersionApi
+  setCurrentResumeVersionApi
 } from '@/api/resumeVersion'
 import { formatDateTime } from '@/utils/format'
 import { useResponsiveSize } from '@/utils/useResponsiveSize'
 import { useAiTaskCenterStore } from '@/stores/aiTaskCenter'
 
 const route = useRoute()
+const navigation = useRouter()
 const resumeId = Number(route.params.resumeId)
 const aiTaskCenter = useAiTaskCenterStore()
 
 const loading = ref(false)
 const loadError = ref(false)
-const saving = ref(false)
 const optimizing = ref(false)
 const versions = ref<any[]>([])
 const jobs = ref<any[]>([])
 const analysisReports = ref<any[]>([])
-const editVisible = ref(false)
 const detailVisible = ref(false)
 const compareVisible = ref(false)
 const optimizeVisible = ref(false)
 const { isMobile, isTablet, responsiveDialogWidth, responsiveDrawerSize } = useResponsiveSize()
 const isWide = computed(() => !isMobile.value && !isTablet.value)
-const editDialogWidth = responsiveDialogWidth('min(720px, calc(100vw - 28px))')
 const compareDialogWidth = responsiveDialogWidth('min(880px, calc(100vw - 28px))')
 const optimizeDialogWidth = responsiveDialogWidth('620px')
 const detailDrawerSize = responsiveDrawerSize('52%')
@@ -292,9 +266,7 @@ interface VersionComparison {
 
 const compareResult = ref<VersionComparison | null>(null)
 let compareRequest = 0
-const editingVersionId = ref<number>()
 
-const editForm = reactive({ versionName: '', versionType: 'MANUAL', content: '' })
 const compareForm = reactive<{ oldVersionId?: number; newVersionId?: number }>({})
 const optimizeForm = reactive<any>({})
 
@@ -378,11 +350,7 @@ function loadDefaultDetail() {
 }
 
 function openCreate() {
-  editingVersionId.value = undefined
-  editForm.versionName = ''
-  editForm.versionType = 'MANUAL'
-  editForm.content = ''
-  editVisible.value = true
+  void navigation.push({ name: 'resume-edit', params: { resumeId } })
 }
 
 async function openDetail(row: { versionId: number }) {
@@ -406,39 +374,12 @@ function retryDetail() {
   if (selectedVersion.value) void openDetail(selectedVersion.value)
 }
 
-async function openEdit(row: any) {
-  const current: any = await getResumeVersionDetailApi(resumeId, row.versionId)
-  editingVersionId.value = row.versionId
-  editForm.versionName = displayVersionName(current)
-  editForm.versionType = current.versionType
-  editForm.content = current.content
-  editVisible.value = true
-}
-
-async function saveVersion() {
-  if (!editForm.versionName || !editForm.content) {
-    ElMessage.warning('请填写版本名称和内容')
-    return
-  }
-  saving.value = true
-  try {
-    if (editingVersionId.value) {
-      await updateResumeVersionApi(resumeId, editingVersionId.value, {
-        versionName: editForm.versionName,
-        content: editForm.content
-      })
-    } else {
-      await createResumeVersionApi(resumeId, { ...editForm })
-    }
-    ElMessage.success('保存成功')
-    editVisible.value = false
-    await loadData()
-    if (editingVersionId.value && selectedVersion.value?.versionId === editingVersionId.value && (isWide.value || detailVisible.value)) {
-      retryDetail()
-    }
-  } finally {
-    saving.value = false
-  }
+function openEdit(row: { versionId: number }) {
+  void navigation.push({
+    name: 'resume-edit',
+    params: { resumeId },
+    query: { sourceVersionId: row.versionId }
+  })
 }
 
 async function setCurrent(row: any) {

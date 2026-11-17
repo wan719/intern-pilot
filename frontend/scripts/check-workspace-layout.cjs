@@ -12,7 +12,7 @@ const viewports = [
 ]
 const publicPaths = ['/', '/sample-report', '/login', '/register', '/403']
 const workspacePaths = [
-  '/dashboard', '/resumes', '/resumes/1/versions?versionId=5', '/jobs',
+  '/dashboard', '/resumes', '/resumes/1', '/resumes/1/edit', '/resumes/1/versions?versionId=5', '/jobs',
   '/job-recommendations', '/job-recommendations/11', '/analysis/match', '/analysis/reports',
   '/interview-questions', '/interview-questions/41', '/applications', '/user/center'
 ]
@@ -27,7 +27,7 @@ const user = {
   userId: 17, username: 'sample', nickname: '合成示例账号', email: 'sample@example.invalid',
   roles: ['ADMIN'], permissions: [
     'admin:dashboard', 'user:read', 'user:update', 'role:read', 'permission:read',
-    'rag:read', 'operation-log:read', 'feedback:read', 'analysis:read'
+    'rag:read', 'operation-log:read', 'feedback:read', 'analysis:read', 'resume:read', 'resume:write'
   ],
   createdAt: date, enabled: 1
 }
@@ -252,6 +252,9 @@ async function verifyViewport(browser, viewport) {
     await context.route(origin + '/api/**', (route) => {
       const request = route.request()
       const key = new URL(request.url()).pathname
+      if (request.method() === 'GET' && key === '/api/resumes/1/file') {
+        return route.fulfill({ contentType: 'application/pdf', body: createResumePdf() })
+      }
       if (request.method() !== 'GET' || !fixtures.has(key)) {
         missing.add(request.method() + ' ' + key)
         return route.fulfill({ status: 404, json: { code: 404, message: 'No fixture' } })
@@ -629,7 +632,8 @@ async function verifyResumeOriginal(browser, viewport, forceDownload = false) {
     const page = await context.newPage()
     await page.goto(origin + '/resumes')
     await page.getByRole('button', { name: '详情', exact: true }).press('Enter')
-    const dialog = page.getByRole('dialog', { name: '简历详情' })
+    await page.waitForURL(origin + '/resumes/1')
+    const dialog = page.locator('.resume-detail-page')
     const originalTab = dialog.getByRole('tab', { name: '原件', exact: true })
     const textTab = dialog.getByRole('tab', { name: 'AI 读取文本' })
     const frame = dialog.locator('iframe[title="PDF 简历原件"]')
@@ -643,10 +647,6 @@ async function verifyResumeOriginal(browser, viewport, forceDownload = false) {
       await download.press('Enter')
     }
     await dialog.getByRole('alert').filter({ hasText: '原件不存在' }).waitFor()
-    await originalTab.press('ArrowRight')
-    await dialog.getByText('上传时保存的解析文本', { exact: true }).waitFor()
-    assert.equal(await textTab.getAttribute('aria-selected'), 'true')
-    await textTab.press('ArrowLeft')
     const retry = dialog.getByRole('button', { name: '重试', exact: true })
     if (preview) {
       await retry.press('Enter')
@@ -669,8 +669,82 @@ async function verifyResumeOriginal(browser, viewport, forceDownload = false) {
     if (!preview) {
       await page.screenshot({ path: path.join(output, `resume-original-download-${viewport.width}.png`), animations: 'disabled' })
     }
-    await originalTab.press('Escape')
-    await dialog.waitFor({ state: 'hidden' })
+    await originalTab.press('ArrowRight')
+    await dialog.getByText('上传时保存的解析文本', { exact: true }).waitFor()
+    assert.equal(await textTab.getAttribute('aria-selected'), 'true')
+    await dialog.getByRole('link', { name: '返回简历中心' }).press('Enter')
+    await page.waitForURL(origin + '/resumes')
+  } finally {
+    await context.close()
+  }
+}
+
+async function verifyResumeEditor(browser, viewport) {
+  const context = await browser.newContext({ viewport, locale: 'zh-CN', reducedMotion: 'reduce' })
+  const drafts = []
+  let created
+  let analysisRequests = 0
+  try {
+    await context.addInitScript(() => localStorage.setItem('internpilot_token', 'synthetic-workspace-session'))
+    await context.route(origin + '/api/**', (route) => {
+      const request = route.request()
+      const key = new URL(request.url()).pathname
+      const success = data => route.fulfill({ json: { code: 200, data } })
+      if (key === '/api/analysis/tasks' && request.method() === 'POST') analysisRequests++
+      if (key === '/api/resumes/1/versions' && request.method() === 'POST') {
+        const payload = request.postDataJSON()
+        drafts.push(payload)
+        created = { ...version, ...payload, versionId: 6, isCurrent: 0 }
+        return success(created)
+      }
+      if (key === '/api/resumes/1/versions') return success(created ? [version, created] : [version])
+      if (key === '/api/resumes/1/versions/6' && created) return success(created)
+      if (key === '/api/resumes/1') return success({ ...resume, parsedText: '上传时保存的解析文字' })
+      if (!fixtures.has(key)) return route.fulfill({ status: 404, json: { code: 404, message: 'No fixture' } })
+      return success(fixtures.get(key))
+    })
+
+    const page = await context.newPage()
+    await page.goto(origin + '/resumes/1?tab=version')
+    const paper = page.locator('.resume-paper__text')
+    await paper.filter({ hasText: '合成版本正文' }).waitFor()
+    await page.getByRole('link', { name: '编辑版本', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/resumes/1/edit?sourceVersionId=5')
+    const body = page.getByLabel('版本正文')
+    await body.waitFor()
+    assert.equal(await body.inputValue(), version.content)
+    await page.getByLabel('版本名称').fill('全栈开发申请版')
+    await body.fill('新版本项目经历\n加入了接口和数据库说明')
+
+    if (viewport.width === 375) await page.getByRole('button', { name: '预览', exact: true }).press('Enter')
+    await paper.filter({ hasText: '加入了接口和数据库说明' }).waitFor()
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await page.screenshot({ path: path.join(output, `resume-editor-${viewport.width}.png`), fullPage: true, animations: 'disabled' })
+
+    await page.getByRole('link', { name: '取消', exact: true }).click()
+    await page.getByRole('button', { name: '继续编辑', exact: true }).press('Enter')
+    assert.equal(page.url(), origin + '/resumes/1/edit?sourceVersionId=5')
+    assert.deepEqual(drafts, [])
+    await page.getByRole('button', { name: '保存新版本', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/resumes/1?tab=version&versionId=6')
+    assert.deepEqual(drafts, [{
+      versionName: '全栈开发申请版', content: '新版本项目经历\n加入了接口和数据库说明',
+      versionType: 'MANUAL', sourceVersionId: 5
+    }])
+    await page.reload()
+    await page.getByText('未设为当前', { exact: true }).waitFor()
+    await paper.filter({ hasText: '加入了接口和数据库说明' }).waitFor()
+    await page.getByRole('link', { name: '实习求职版', exact: true }).press('Enter')
+    await page.waitForURL(origin + '/resumes/1?tab=version&versionId=5')
+    await paper.filter({ hasText: '合成版本正文' }).waitFor()
+    await page.goBack()
+    await page.waitForURL(origin + '/resumes/1?tab=version&versionId=6')
+    await paper.filter({ hasText: '加入了接口和数据库说明' }).waitFor()
+    await page.getByRole('link', { name: '用此版本做匹配' }).press('Enter')
+    await page.waitForURL(origin + '/analysis/match?resumeId=1&resumeVersionId=6')
+    await page.getByText('全栈开发申请版', { exact: true }).first().waitFor()
+    assert.equal(drafts.length, 1)
+    assert.equal(analysisRequests, 0)
   } finally {
     await context.close()
   }
@@ -682,6 +756,7 @@ async function main() {
   try {
     for (const viewport of [viewports[0], viewports[2]]) await verifyResumeOriginal(browser, viewport)
     await verifyResumeOriginal(browser, viewports[0], true)
+    for (const viewport of [viewports[0], viewports[2]]) await verifyResumeEditor(browser, viewport)
     for (const viewport of [viewports[0], viewports[2]]) await verifyInterviewPreparation(browser, viewport)
     const reports = []
     for (const viewport of viewports) {
@@ -698,6 +773,7 @@ async function main() {
       ...results.filter((result) => result.error), ...pageErrors, ...missing
     ])
     assert.deepEqual(failures, [], 'Workspace layout checks')
+    console.log('Verified standalone resume editing, save-as-new lineage, and analysis prefill.')
     console.log('Verified protected resume preview, download, retry, and parsed text on desktop and mobile.')
     console.log('Verified scoped interview preparation, confirmation, and invalid-link recovery on desktop and mobile.')
     console.log('Verified sample report navigation and focus, zero public API requests, landing glass, reduced motion, intentional logout, and protected print.')

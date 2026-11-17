@@ -7,13 +7,11 @@ import { getAnalysisReportsApi } from '@/api/analysis'
 import { getJobListApi } from '@/api/job'
 import {
   compareResumeVersionsApi,
-  createResumeVersionApi,
   deleteResumeVersionApi,
   getResumeVersionDetailApi,
   getResumeVersionListApi,
   optimizeResumeVersionApi,
-  setCurrentResumeVersionApi,
-  updateResumeVersionApi
+  setCurrentResumeVersionApi
 } from '@/api/resumeVersion'
 
 const taskCenter = {
@@ -27,25 +25,21 @@ vi.mock('@/api/job', () => ({ getJobListApi: vi.fn() }))
 vi.mock('@/api/analysis', () => ({ getAnalysisReportsApi: vi.fn() }))
 vi.mock('@/api/resumeVersion', () => ({
   compareResumeVersionsApi: vi.fn(),
-  createResumeVersionApi: vi.fn(),
   deleteResumeVersionApi: vi.fn(),
   getResumeVersionDetailApi: vi.fn(),
   getResumeVersionListApi: vi.fn(),
   optimizeResumeVersionApi: vi.fn(),
   setCurrentResumeVersionApi: vi.fn(),
-  updateResumeVersionApi: vi.fn()
 }))
 
 const mockedReports = vi.mocked(getAnalysisReportsApi)
 const mockedJobs = vi.mocked(getJobListApi)
 const mockedCompare = vi.mocked(compareResumeVersionsApi)
-const mockedCreate = vi.mocked(createResumeVersionApi)
 const mockedDelete = vi.mocked(deleteResumeVersionApi)
 const mockedDetail = vi.mocked(getResumeVersionDetailApi)
 const mockedList = vi.mocked(getResumeVersionListApi)
 const mockedOptimize = vi.mocked(optimizeResumeVersionApi)
 const mockedSetCurrent = vi.mocked(setCurrentResumeVersionApi)
-const mockedUpdate = vi.mocked(updateResumeVersionApi)
 
 const versions = [
   {
@@ -79,6 +73,7 @@ async function mountPage(query = '') {
     history: createMemoryHistory(),
     routes: [
       { path: '/resumes', component: { template: '<div />' } },
+      { path: '/resumes/:resumeId/edit', name: 'resume-edit', component: { template: '<div />' } },
       {
         path: '/resumes/:resumeId/versions',
         component: { template: '<div />' },
@@ -117,8 +112,6 @@ beforeEach(() => {
     ...versions.find((item) => item.versionId === versionId),
     content: `version ${versionId}`
   }) as any)
-  mockedCreate.mockResolvedValue({ versionId: 303 } as any)
-  mockedUpdate.mockResolvedValue(undefined as any)
   mockedSetCurrent.mockResolvedValue(undefined as any)
   mockedDelete.mockResolvedValue(undefined as any)
   mockedCompare.mockResolvedValue({ addedCount: 1, removedCount: 0, addedLines: ['Vue'], removedLines: [] } as any)
@@ -200,27 +193,18 @@ describe('resume version legacy behavior', () => {
     expect(mockedList).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps create, update and compare payload shapes unchanged', async () => {
-    const { wrapper } = await mountPage()
+  it('opens the separate editor for a blank draft or a selected version and keeps compare', async () => {
+    const { wrapper, router } = await mountPage()
+    await button(wrapper, '创建版本').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/resumes/7/edit')
 
-    Object.assign((wrapper.vm as any).editForm, {
-      versionName: '手动版',
-      versionType: 'MANUAL',
-      content: '手动内容'
-    })
-    await (wrapper.vm as any).saveVersion()
-    expect(mockedCreate).toHaveBeenCalledWith(7, {
-      versionName: '手动版',
-      versionType: 'MANUAL',
-      content: '手动内容'
-    })
+    await router.push('/resumes/7/versions')
+    await button(wrapper, '编辑', 1).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/resumes/7/edit?sourceVersionId=202')
 
-    ;(wrapper.vm as any).editingVersionId = 202
-    Object.assign((wrapper.vm as any).editForm, { versionName: '更新版', content: '更新内容' })
-    await (wrapper.vm as any).saveVersion()
-    expect(mockedUpdate).toHaveBeenCalledWith(7, 202, { versionName: '更新版', content: '更新内容' })
-
-    Object.assign((wrapper.vm as any).compareForm, { oldVersionId: 101, newVersionId: 202 })
+    await (wrapper.vm as any).prepareCompare(versions[1])
     await (wrapper.vm as any).loadCompare()
     expect(mockedCompare).toHaveBeenCalledWith(7, 101, 202)
   })
